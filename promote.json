@@ -2,7 +2,7 @@
     "slug": "genmodelfit",
     "name": "genmodelfit",
     "tagline": "画像・動画・音楽・効果音・読み上げ・3D の生成モデルが、自分の PC で動くかを判定する Python のツール",
-    "description": "README.md",
+    "description": "README.ja.md",
     "url": "https://github.com/laxshmate/genmodelfit",
     "product_type": "Python のライブラリ（コマンドとしても使える）",
     "install": "pip install genmodelfit",
