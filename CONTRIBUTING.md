@@ -197,3 +197,4 @@ The code of genmodelfit and the bundled data (db.json, measurements, coefficient
 - By opening a pull request you agree to this.
 - There is no CLA (a document assigning copyright or granting extra permission).
 - Only submit work you wrote yourself or are allowed to release under MPL-2.0.
+
