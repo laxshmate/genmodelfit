@@ -33,6 +33,6 @@
   "peak_ram_gb": 3.28,
   "seconds": 2.5,
   "vram_metric": "torch_reserved",
-  "note": "GPU 全体(nvidia-smi)の増分 1.46 GB(開始前 2.05 GB 使用、最大 3.51 GB)。/system_stats の GPU 全体の増分 0.94 GB。開始前に /free でモデルを解放。ComfyUI の実行時間 2.46 秒。計測 13 回"
+  "note": "GPU 全体(nvidia-smi)の増分 1.46 GB(開始前 2.05 GB 使用、最大 3.51 GB)。/system_stats の GPU 全体の増分 0.94 GB。開始前に /free でモデルを解放。ComfyUI の実行時間 2.46 秒。計測 13 回 Models were in C:\\Users\\taro\\ComfyUI\\models."
  }
 }
