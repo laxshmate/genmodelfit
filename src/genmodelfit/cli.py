@@ -3336,35 +3336,225 @@ def _measure_gpu_stop(s) -> str | None:
     return None
 
 
-def _share_nothing_reason(args: argparse.Namespace, sugg: list, skipped: list, budget: float) -> str:
-    """何もしないときの理由(#124)。"""
+def _share_nothing(args: argparse.Namespace, **ctx: Any) -> dict[str, Any]:
+    """「送るものはありません」の理由と次にできること(#124・#146)。share が持っている材料だけで決める:
+    sugg(提案)・skipped(ノードが足りずに外したもの)・budget・dl_plan(落とす計画)・downloaded・asked
+    (落とすかを尋ねたか)・failed・interrupted・measured_here(この PC で測ったワークフローの数を返す関数)。
+    {reason(1 つの文), reasons([{code, text}]), next_step(1 行)}。"""
+    from .measure import saved_submissions
+
+    sugg = ctx.get("sugg") or []
+    skipped = ctx.get("skipped") or []
+    budget = float(ctx.get("budget") or 0)
+    dl_plan = ctx.get("dl_plan") or []
+    failed = ctx.get("failed") or []
+    reasons: list[tuple[str, str]] = []
+    first: list[str] = []  # 次にできること(先のものほど先に出す)
+    later: list[str] = []
+    sent_before = bool(saved_submissions(include_shared=True))
     if args.no_measure:
-        return tr("送っていない実測はありません。", "No unsent measurements.")
-    usable = [x for x in sugg if all(d["model_id"] != x.model_id for d in skipped)]
-    if usable and all(x.seconds > budget for x in usable):
-        return tr(
-            f"時間の上限({budget:g} 秒)に収まるものがありません(--budget で広げられます)。"
-            "送っていない実測もありません。",
-            f"Nothing fits the time limit ({budget:g} s; --budget widens it), and no unsent measurements.",
+        reasons.append(
+            (
+                "no_measure",
+                tr("測らない指定です(--no-measure)", "--no-measure was given (nothing is measured)"),
+            )
         )
-    if skipped and not usable:
-        return tr(
-            "測れるものがありません(この ComfyUI に無いノードが要ります。ComfyUI を更新すると測れます)。"
-            "送っていない実測もありません。",
-            "Nothing can be measured (it needs nodes this ComfyUI does not have; update ComfyUI), and no"
-            " unsent measurements.",
+        if not sent_before:
+            later.append(tr("測ってから送る: genmodelfit share", "Measure and send: genmodelfit share"))
+    else:
+        missing = {d["model_id"] for d in skipped}
+        usable = [x for x in sugg if x.model_id not in missing]
+        installed = [x for x in usable if x.installed is not None and x.installed.state == "yes"]
+        unknown = [x for x in usable if x.installed is not None and x.installed.state == "unknown"]
+        if not any(x.installed is not None and x.installed.state in ("yes", "unknown") for x in sugg):
+            count = ctx.get("measured_here")
+            n = count() if callable(count) else 0
+            reasons.append(
+                (
+                    "measured_here",
+                    tr(
+                        "この PC に入っていて GPU に載るモデルは、この PC でもう測ってあります"
+                        + (f"(この GPU で {n} 件)" if n else ""),
+                        "The installed models that fit this GPU are already measured on this PC"
+                        + (f" ({n} on this GPU)" if n else ""),
+                    ),
+                )
+            )
+        if unknown:
+            reasons.append(
+                (
+                    "installed_unknown",
+                    tr(
+                        f"{len(unknown)} 件は、ComfyUI の models の場所が分からず、"
+                        "入っているか確かめられません",
+                        f"{len(unknown)} cannot be checked for installed files (the ComfyUI models folder"
+                        " is unknown)",
+                    ),
+                )
+            )
+            later.append(
+                tr(
+                    "ComfyUI の場所を指定する: genmodelfit share --comfyui-dir <ComfyUI のフォルダ>",
+                    "Give the ComfyUI folder: genmodelfit share --comfyui-dir <ComfyUI folder>",
+                )
+            )
+        if skipped:
+            reasons.append(
+                (
+                    "missing_nodes",
+                    tr(
+                        f"{len(skipped)} 件は、この ComfyUI に無いノードが要ります",
+                        f"{len(skipped)} need nodes this ComfyUI does not have",
+                    ),
+                )
+            )
+            first.append(
+                tr(
+                    "ComfyUI を更新してから、もう一度 genmodelfit share(無いノードの要るものも測れます)",
+                    "Update ComfyUI, then run genmodelfit share again (the ones that need missing nodes can"
+                    " then be measured)",
+                )
+            )
+        candidates = installed + unknown
+        if candidates and not any(x.seconds <= budget for x in candidates) and not dl_plan:
+            shortest = min(x.seconds for x in candidates)
+            reasons.append(
+                (
+                    "budget",
+                    tr(
+                        f"時間の上限({budget:g} 秒)に収まるものがありません",
+                        f"Nothing fits the time limit ({budget:g} s)",
+                    ),
+                )
+            )
+            first.append(
+                tr(
+                    f"上限を広げる: genmodelfit share --budget {shortest}",
+                    f"Widen the limit: genmodelfit share --budget {shortest}",
+                )
+            )
+        if dl_plan and not ctx.get("downloaded"):
+            size = sum(x.installed.missing_bytes for x in dl_plan)
+            if ctx.get("asked"):
+                code = "download_declined"
+                text = tr(
+                    f"入っていない {len(dl_plan)} 件({size / GIB:.1f} GB)は、落とすのを断りました",
+                    f"You declined to download the {len(dl_plan)} that are not installed"
+                    f" ({size / GIB:.1f} GB)",
+                )
+            else:
+                code = "not_downloaded"
+                text = tr(
+                    f"入っていない {len(dl_plan)} 件({size / GIB:.1f} GB)は落としていません"
+                    "(--yes・端末でないときは落としません)",
+                    f"The {len(dl_plan)} that are not installed ({size / GIB:.1f} GB) were not downloaded"
+                    " (--yes or no terminal never downloads)",
+                )
+            reasons.append((code, text))
+            first.append(
+                tr(
+                    "落として測る: genmodelfit share --download",
+                    "Download and measure them: genmodelfit share --download",
+                )
+            )
+        real = [f for f in failed if not f.get("unsendable")]
+        unsendable = [f for f in failed if f.get("unsendable")]
+        if real:
+            reasons.append(
+                (
+                    "failed",
+                    tr(
+                        f"測れなかったもの {len(real)} 件(理由は上)",
+                        f"{len(real)} could not be measured (see above)",
+                    ),
+                )
+            )
+        if unsendable:
+            reasons.append(
+                (
+                    "unsendable",
+                    tr(
+                        f"{len(unsendable)} 件は測れたが送れません(この PC の実測としては保存しました)",
+                        f"{len(unsendable)} were measured but cannot be sent"
+                        " (kept as this PC's measurements)",
+                    ),
+                )
+            )
+        if ctx.get("interrupted"):
+            reasons.append(("interrupted", tr("途中で止めました(Ctrl+C)", "Stopped with Ctrl+C")))
+        if getattr(args, "_share_failures_known", False):
+            reasons.append(
+                (
+                    "failures_sent",
+                    tr(
+                        "測れなかったものの記録は、もう送ってあります(同じものは送り直しません)",
+                        "The failure records were already sent (the same ones are not sent again)",
+                    ),
+                )
+            )
+        if any(code == "measured_here" for code, _ in reasons):
+            later.append(
+                tr(
+                    "ほかのモデルを測る: genmodelfit measure <名前>",
+                    "Measure another model: genmodelfit measure <name>",
+                )
+            )
+    reasons.append(
+        (
+            "no_unsent",
+            tr("送っていない実測はありません", "No unsent measurements")
+            + (
+                tr(
+                    "(送ったものを送り直すなら genmodelfit share --no-measure --all)",
+                    " (to send the sent ones again: genmodelfit share --no-measure --all)",
+                )
+                if sent_before
+                else ""
+            ),
         )
-    if not sugg:
-        return tr(
-            "測ると役に立つモデルはありません(この GPU に載るものは、この PC でもう測ってあります)。"
-            "送っていない実測もありません。",
-            "Nothing worth measuring (the ones that fit this GPU are already measured on this PC), and no"
-            " unsent measurements.",
-        )
-    return tr(
-        "測ると役に立つモデルも、送っていない実測もありません。",
-        "Nothing worth measuring and no unsent measurements.",
     )
+    if sent_before:
+        later.append(
+            tr(
+                "送ったものを送り直す: genmodelfit share --no-measure --all",
+                "Send the sent ones again: genmodelfit share --no-measure --all",
+            )
+        )
+    steps = first + later or [
+        tr("測れるものを確かめる: genmodelfit measure", "See what can be measured: genmodelfit measure")
+    ]
+    summary = (
+        tr("送るものはありません。", "Nothing to send. ")
+        + tr("、", "; ").join(t for _, t in reasons)
+        + tr("。", ".")
+    )
+    return {
+        "reason": summary,
+        "reasons": [{"code": c, "text": t} for c, t in reasons],
+        "next_step": steps[0],
+    }
+
+
+def _nothing_ctx(args: argparse.Namespace, s, db, sugg: list, skipped: list, budget: float) -> dict[str, Any]:
+    """_share_nothing に渡す材料(この PC で測った数は、出すときだけ数える)。"""
+
+    def measured_here() -> int:
+        if s is None or db is None:
+            return 0
+        from .measure import measured_here_count
+
+        return measured_here_count(db, s, extra=_saved_measurements())
+
+    return {"sugg": sugg, "skipped": skipped, "budget": budget, "measured_here": measured_here}
+
+
+def _print_nothing(nothing: dict[str, Any]) -> None:
+    """「送るものはありません」と、理由と次にできること(#146)。"""
+    print(tr("送るものはありません", "Nothing to send"))
+    print(tr("理由:", "Why:"))
+    for r in nothing["reasons"]:
+        print(f"  - {r['text']}")
+    print(tr(f"次にできること: {nothing['next_step']}", f"Next: {nothing['next_step']}"))
 
 
 def _share_steps(args: argparse.Namespace, start, plan: list, dl_plan: list, want_dl) -> _Steps:
@@ -4129,6 +4319,7 @@ def _share_write_failures(
     seen = saved_failure_keys()
     fresh = [f for f in data["failures"] if _failure_key(f, data.get("comfyui_version")) not in seen]
     if not fresh:
+        args._share_failures_known = True  # 同じ記録はもう保存・送ってある(#146 の理由)
         return None
     data["failures"] = fresh
     if _submission_refusal(data, args):
@@ -4562,8 +4753,10 @@ def _cmd_share(args: argparse.Namespace) -> int:
     checker = None
     comfy_stop = False  # 測れない理由が ComfyUI のこと(起動のしかたを案内する)か
     start_why = None
+    db_ = None
     if not args.no_measure:
         s, db = _system(args), _db(args)
+        db_ = db
         url, found_by, running = _measure_comfyui(args)
         gpu_stop = _measure_gpu_stop(s)
         if gpu_stop:
@@ -4649,15 +4842,15 @@ def _cmd_share(args: argparse.Namespace) -> int:
         pending = saved_submissions(include_shared=args.all)
         report["pending"] = [p.to_dict() for p in pending]
     if not plan and not dl_plan and not pending:
-        why = _share_nothing_reason(args, sugg, skipped, budget)
+        nothing = _share_nothing(args, **_nothing_ctx(args, s, db_ or None, sugg, skipped, budget))
         if args.json:
             _out(
                 _envelope(
-                    "share", None, None, action="send", **report, files=[], prs=[], sent=False, reason=why
+                    "share", None, None, action="send", **report, files=[], prs=[], sent=False, **nothing
                 )
             )
         else:
-            print(why)
+            _print_nothing(nothing)
         return 0
     measuring = bool(plan or dl_plan)
     if args.dry_run:
@@ -4669,6 +4862,7 @@ def _cmd_share(args: argparse.Namespace) -> int:
     # 尋ねられない(--yes・--json・端末でない)なら落とさない。
     # 尋ねるのは、使える入っているものが無ければ最初に(ComfyUI を起動する前)、あれば測り終えてから(#124)
     want_dl: bool | None = True if args.download else (None if _share_asks_download(args) else False)
+    asked_dl = want_dl is None  # 落とすかを尋ねる(尋ねたか。#146 の理由)
     try:
         if plan and not args.yes:
             go = _ask_yes_no(
@@ -4832,10 +5026,23 @@ def _cmd_share(args: argparse.Namespace) -> int:
     base_code = 130 if interrupted else (1 if any(not f.get("unsendable") for f in failed) else 0)
     pending = saved_submissions(include_shared=args.all)
     if not pending:
+        nothing = _share_nothing(
+            args,
+            **_nothing_ctx(args, s, db_ or None, sugg, skipped, budget),
+            dl_plan=dl_plan,
+            downloaded=downloaded,
+            asked=asked_dl,
+            failed=failed,
+            interrupted=interrupted,
+        )
         if args.json:
-            _out(_envelope("share", None, None, action="send", **report, files=[], prs=[], sent=False))
+            _out(
+                _envelope(
+                    "share", None, None, action="send", **report, files=[], prs=[], sent=False, **nothing
+                )
+            )
         else:
-            print(tr("送るものはありません", "Nothing to send"))
+            _print_nothing(nothing)
         return base_code
     return _share_send(args, [p.path for p in pending], creds, session, report, base_code)
 

@@ -112,6 +112,12 @@ Step by step, in detail:
 `share --no-measure` sends only the measurements you have not sent; `share <file>` sends one submission file.
 Sent files are marked on this PC (`<cache>/submissions_shared.json`) and not sent again (`--all` includes them).
 
+When there is nothing to send, it says "Nothing to send" with the reasons and what to do next. For example: the
+installed models that fit are already measured on this PC (`genmodelfit measure <name>` measures another one), the
+rest need nodes this ComfyUI lacks (update ComfyUI), you declined to download the ones not installed
+(`share --download`), the failure records were already sent, or there are no unsent measurements (to send the sent
+ones again: `share --no-measure --all`).
+
 **Without signing in: `share --issue`.** Without `--yes` it lists the measurements you have not sent; choose one by number. It shows
 everything that will be sent and the privacy checklist, then opens the measurement form on GitHub in your browser
 with the content filled in. Sign in to GitHub and press **"Create"**. A bot checks it and replies on the page within

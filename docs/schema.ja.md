@@ -1106,6 +1106,7 @@ bench が Measurement を埋める方法(測り方):
 | `failed` | object[] | `{model_id, settings, error}`(ComfyUI を起動できなかったときは `model_id` が null) |
 | `interrupted` / `downloaded` | bool | Ctrl+C で止めた / `download_plan` を落とした |
 | `download_hint` | object | 尋ねられない(`--yes`・`--json`・端末でない)ので落とさなかったときの `{count, bytes}` |
+| `reason` / `reasons` / `next_step` | str / object[] / str | 送るものが無いときだけ(0.14.0、#146): 1 つの文、理由ごとの `{code, text}`、次にできることの 1 行。`code` は `no_measure`・`measured_here`(入っていて載るモデルは、この PC でもう測ってある)・`installed_unknown`(models の場所が分からない)・`missing_nodes`(ComfyUI を更新する)・`budget`・`download_declined` / `not_downloaded`(`share --download`)・`failed`・`unsendable`・`interrupted`・`failures_sent`(同じ失敗の記録はもう送ってある)・`no_unsent`(いつも最後。送ったファイルがあれば `share --no-measure --all` を書く) |
 | `files` | object[] | 点検したファイルごとの `{file, path_in_repo, ok, refused}` |
 | `prs` | object[] | GPU ごとの `{url, reused, branch, fork, uploaded, skipped, on_main}` |
 | `marked_shared` | int | 送った印を付けた数 |

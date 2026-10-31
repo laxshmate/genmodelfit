@@ -20,6 +20,15 @@ All notable changes to this project are documented here. The format is based on
   `download(..., record=DownloadRecord())` (nothing is printed).
   (測るために落としたものを、終わったあとで消すかを尋ねる。前から入っていたものは消さない)
 
+### Changed
+
+- `share` says why when there is nothing to send, and what to do next (#146): already measured on this PC (with the
+  count), nodes missing in this ComfyUI (update ComfyUI), not-installed models declined or not downloaded
+  (`share --download`), nothing fits `--budget`, the models folder unknown (`--comfyui-dir`), runs that failed or
+  cannot be sent, Ctrl+C, failure records already sent, and no unsent measurements (`share --no-measure --all` to send
+  the sent ones again). `--json` adds `reasons` (`{code, text}`) and `next_step` next to `reason`, also after measuring.
+  (「送るものはありません」に理由と次にできることを出す)
+
 ## [0.13.2] - 2026-10-29
 
 ### Changed

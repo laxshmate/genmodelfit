@@ -173,6 +173,23 @@ def has_measurement_here(
     )
 
 
+def measured_here_count(db: Database, system: SystemInfo, *, extra: Any = ()) -> int:
+    """この PC の実測(measured_by_this_pc と extra)で、この GPU にテンプレートの設定のまま最後まで測った
+    ワークフロー(テンプレートのあるもの)の数(#146。share の「送るものはありません」の理由に出す)。"""
+    gpu = system.best_gpu
+    if gpu is None:
+        return 0
+    here = measured_by_this_pc(list(db.measurements)) + list(extra)
+    ids: set[str] = set()
+    for m in here:
+        if m.model_id in ids:
+            continue
+        entry = db.get(m.model_id)
+        if entry is not None and entry.source == TEMPLATE_SOURCE and has_measurement_here(entry, [m], gpu):
+            ids.add(m.model_id)
+    return len(ids)
+
+
 def template_settings(entry: ModelEntry, measurements: list[Measurement]) -> Settings | None:
     """テンプレートの設定のまま測った実測(どの GPU でもよい)に記録された設定(bench が読んだ、その
     テンプレートの幅・高さ・コマ数・長さ)。日付の新しいものを使う。無ければ None(分からない)。"""
