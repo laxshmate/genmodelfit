@@ -2695,6 +2695,11 @@ def fit_band(used: float, available: float) -> str:
     return "too_tight"
 
 
+def _pct(ratio: float) -> int:
+    """使用率を整数の % に(表の Mem% は小数 1 桁に丸めた値なので、それをさらに丸める。#122)。"""
+    return round(round(100 * ratio, 1))
+
+
 def _cap(level: str, top: str) -> str:
     return _LEVELS[max(_LEVELS.index(level), _LEVELS.index(top))]
 
@@ -2825,10 +2830,24 @@ def _judge_gpu(n: Need, system: SystemInfo, c: Coefficients) -> tuple[str, str, 
         mode = "offload"
         seq = min(n.sequential, n.full)
         g = system.best_gpu
-        tail = (
-            f"遅い。逃がすと {n.offload:.1f} GB({pct['offload']}%)。段階は good まで",
-            f"slow; {n.offload:.1f} GB with offload ({pct['offload']}%); level capped at good",
-        )
+        # 逃がす載せ方の段階は VRAM とメインメモリのきついほうで決めるので、出す % もそれ
+        # (表の Mem% = recommend.usage_ratio と同じ値。#122)
+        vram_r = round(n.offload, 2) / vram
+        ram_r = round(n.ram, 2) / ram_total if ram_total else 0.0
+        if ram_r > vram_r:
+            used_pct = _pct(ram_r)
+            tail = (
+                f"遅い。逃がすと VRAM {n.offload:.1f} GB、メインメモリ {n.ram:.1f} / {ram_total:.1f} GB"
+                f"({used_pct}%)。段階は good まで",
+                f"slow; {n.offload:.1f} GB with offload, RAM {n.ram:.1f} / {ram_total:.1f} GB"
+                f" ({used_pct}%); level capped at good",
+            )
+        else:
+            used_pct = _pct(vram_r)
+            tail = (
+                f"遅い。逃がすと {n.offload:.1f} GB({used_pct}%)。段階は good まで",
+                f"slow; {n.offload:.1f} GB with offload ({used_pct}%); level capped at good",
+            )
         if fit_band(seq, vram) == "too_tight":
             first = tr(
                 f"VRAM {n.full:.1f} GB 必要 > {vram:.1f} GB: 重みの一部をメインメモリに逃がせば動く"

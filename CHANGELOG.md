@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.14.0] - Unreleased
+
+### Fixed
+
+- `info` and the `fit` table show the same percentage for GPU+RAM (offload) rows (#122). The offload level is set by
+  the tighter of VRAM and main memory, and the table's Mem% already used that; the `info` note showed only the VRAM
+  share. When main memory is tighter, the note now reads e.g. "12.7 GB with offload, RAM 36.1 / 64.0 GB (56%)".
+  Levels do not change.
+  (逃がす行の `info` の % を表の Mem% にそろえた。段階は変わらない)
+
 ## [0.13.2] - 2026-10-29
 
 ### Changed
