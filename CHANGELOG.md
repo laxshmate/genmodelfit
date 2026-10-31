@@ -5,6 +5,127 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.14.0] - 2026-10-31
+
+### Fixed
+
+- `info` and the `fit` table show the same percentage for GPU+RAM (offload) rows (#122). The offload level is set by
+  the tighter of VRAM and main memory, and the table's Mem% already used that; the `info` note showed only the VRAM
+  share. When main memory is tighter, the note now reads e.g. "12.7 GB with offload, RAM 36.1 / 64.0 GB (56%)".
+  Levels do not change.
+  (逃がす行の `info` の % を表の Mem% にそろえた。段階は変わらない)
+- bench / measure: the peak VRAM (`torch_reserved`) no longer varies with the polling (#131). The working-memory
+  peak is short (SDXL 1024 px about 0.19 s at the end of the VAE decode, ACE-Step 10 s 0.02 to 0.05 s on an RTX 3070)
+  and ComfyUI frees it when the run ends, so reading `/system_stats` every 0.2 s missed it in some runs (SDXL 1024 px
+  2.28 GB or 1.28 GB; ACE-Step 10 s 0.59 to 1.06 GB). bench now reads it 0.015 s apart (`bench.POLL_INTERVAL`, about
+  every 0.03 s with the answer; the resident memory still every 0.2 s), and a peak too short to be read 3 times (the
+  third-largest value more than 0.1 GiB and 10% below the maximum) is marked non-standard in finished runs (the
+  value is shown, but measure / share neither save nor send it; out-of-memory and failure records are unchanged), so
+  it is used neither for the cross-check nor for levels. measure / share remember such runs as "tried" in
+  `brief_peaks.json` in the cache (not sent) and do not suggest them again. The 4 submissions that probably missed the
+  peak (RTX 3070 SDXL 512 px; RTX 5080 SDXL 512 px, ACE-Step 10 s and 30 s) are listed in the bundled
+  `contrib_nonstandard.json`, which `contrib aggregate` leaves out; the RTX 3070 SDXL 512 px row (0.31 GB) is gone
+  from the bundled community data (calibration unchanged). With the change, 15 SDXL 1024 px runs all gave 2.28 GB; ACE-Step 10 s is
+  flagged. Details in docs/accuracy "Measurement variance (#131)".
+  (最大 VRAM の山を読み落とさないよう速く読み、読み切れない一瞬の山は標準の実測にしない)
+- **Speech models missing the parts their code loads** (#142), added with `components` in `manual.json` and licensed
+  by the component source table: MOSS-TTS v1.5 gets the MOSS-Audio-Tokenizer (7.1 GB), Chatterbox `s3gen.pt`, `ve.pt`
+  and `conds.pt` (the listed `t3_mtl23ls_v3` needs `t3_model="v3"`), both Qwen3-TTS-12Hz CustomVoice models
+  `speech_tokenizer/model.safetensors` (0.68 GB), VoxCPM2 `audiovae.pth` (0.38 GB), Fun-CosyVoice3 `llm.pt`,
+  `flow.pt`, `hift.pt`, `speech_tokenizer_v3.onnx` and `campplus.onnx` (4.4 GB), OmniVoice
+  `audio_tokenizer/model.safetensors` (0.81 GB; Boson Higgs Audio 2 community license, the set stays cc-by-nc) and the
+  Qwen3-TTS GGUF tokenizer `qwen-tokenizer-12hz-Q8_0.gguf` (0.29 GB). The later three are pinned to a revision.
+  Component source rows whose pattern has a `/` now match the whole path. The VRAM estimates grow accordingly; on a
+  CPU-only PC Chatterbox, Qwen3-TTS 0.6B and Fun-CosyVoice3 are now over the 2 GB small-model limit and judged as
+  needing a GPU. The 8 changed models are marked reviewed (`claude-maker-142`, with the code as evidence).
+  (読み上げの部品を足した。見積もりが大きくなる)
+- **AuK GGUF is non-commercial** (#143): `hf:audio-cpp/AuK-Base-and-Flash-GGUF` was listed as MIT, but audio.cpp needs
+  its Qwen2.5-Omni-3B component, which is under the Qwen RESEARCH LICENSE (non-commercial only). The Q8_0 Qwen GGUF of
+  the same repository (4.25 GB) is now in `files` with `other` / `qwen-research` (component source table row
+  `auk-qwen2.5-omni-3b`), so the model's license is the strictest one and the size and VRAM estimates include it. Marked reviewed (`claude-maker-143`).
+  (AuK を非商用にした。Qwen の部品を足した)
+- **Wan Fun origins** (#144): the main files of `video_wan2_2_14B_fun_control`, `video_wan2_2_5B_fun_control`,
+  `video_wan2_2_14B_fun_inpaint`, `video_wan2_2_5B_fun_inpaint`, `wan2.1_fun_control` and
+  `video_wan2.1_fun_camera_v1.1_1.3B` followed another Fun variant (Control-Camera, VACE-Fun, the 14B camera model):
+  the origin candidates in the Comfy-Org repackaged README tie on name overlap and the last one by name won. Override
+  rows in the component source table now name each file's own repository (all apache-2.0, so no license changes);
+  `license_from`, the files' `license_url` and the templates' `base_model` follow. `apply_license_sources` also
+  re-derives a template's `base_model` when a row changes its main file's origin, like a rebuild does. The same tie
+  sent Qwen-Image to Qwen-Image-2512, Qwen-Image-Edit and Edit-2509 to Edit-2511, ERNIE-Image to ERNIE-Image-Turbo,
+  LongCat-Image to LongCat-Image-Edit-Turbo and the Kijai ATI weights to Wan2.1-VACE-14B; override rows fix those too
+  (from the repackagers' cardData `base_model` and Kijai's README). docs/schema now says what `base_model` means here:
+  the origin repository of the redistributed file, not the HF card's `base_model`.
+  (Wan Fun の本体の元を直した)
+- **A model's `license_url` points at its main file** (#144): with several files under the same license, the URL came
+  from the first file by name, often a component (`video_wan2_2_14B_fun_control` showed the VAE's
+  Wan2.1-T2V-14B page). `set_entry_license` now takes the URL of the largest main file with the same license; 80
+  entries in the list changed (licenses themselves do not change). This replaces the hand-added models' own rule.
+  (一式の license_url を本体のものにした)
+
+### Changed
+
+- ACE-Step 1.5 (and Stable Audio Open, same Oobleck VAE): the decode working memory now grows with the song length
+  (#148). It counts ComfyUI's untiled decode estimate, 1000 × latent frames × 2048 × 2 bytes (sd.py:735@426f5ee; about
+  0.095 GiB per second), instead of the constant tile value (about 1 GB). Measurements on an RTX 3070 and an RTX 5080
+  are 0.81 to 0.98 times this value from 30 s up. When the untiled decode does not fit, the tiled estimate is judged
+  too and capped at marginal (ComfyUI retries in tiles after an OOM; NVIDIA on Windows spills into shared memory), with
+  a note; the table VRAM is then the tiled estimate, so it can go down as the length goes up. Long songs on small GPUs
+  go from good to marginal (e.g. 120 s on 8 / 12 GB). At the default 30 s a few VRAM sizes change too (e.g. split:
+  good → marginal at 4–5 GB, perfect → good at 20–22.5 GB; full list in docs/accuracy "Tiles"). No other model
+  changes. Other VAEs are unchanged (the Wan VAE is left for a separate issue).
+  (ACE-Step 1.5 の仕上げの作業用メモリが曲の長さで増えるようにした。既定の 30 秒でも一部の VRAM で段階が変わる)
+- `share` says why when there is nothing to send, and what to do next (#146): already measured on this PC (with the
+  count; only when this PC has such runs, else that no installed model can be measured), nodes missing in this ComfyUI (update ComfyUI), not-installed models declined or not downloaded
+  (`share --download`), nothing fits `--budget`, the models folder unknown (`--comfyui-dir`), runs that failed or
+  cannot be sent, Ctrl+C, failure records already sent, and no unsent measurements (`share --no-measure --all` to send
+  the sent ones again). `--json` adds `reasons` (`{code, text}`) and `next_step` next to `reason`, also after measuring.
+  (「送るものはありません」に理由と次にできることを出す)
+
+### Added
+
+- `share` and `measure` offer to delete what they downloaded to measure (#145): at the end (also after a failure or
+  Ctrl+C) they list the files this run downloaded from the start (finished files and leftover `.part`), with the
+  total size, and ask `[y/N]` (Enter keeps them). Files that were already there are never listed or deleted, nor is
+  a `.part` from an earlier run or the file finished from it; a file several of the run's models use is listed
+  once; only files inside the destination folder that are still the same file (device, inode, size, modification
+  time checked again right before deleting) are deleted, so another run's files are not; folders this run made are
+  removed when they end up empty. `--yes` or no terminal keeps them; the new flag `--delete-downloaded` deletes them
+  without asking. An error is printed before the question. The library records what a download put in place with
+  `download(..., record=DownloadRecord())` (nothing is printed).
+  (測るために落としたものを、終わったあとで消すかを尋ねる。前から入っていたものは消さない)
+- `measure` and `share` suggest measuring again what this PC already measured when the ComfyUI version changed
+  (#147): a model or setting whose runs on this GPU were all made with another ComfyUI version comes back after the
+  ones never measured, with "ComfyUI 0.19 → 0.20 で測り直し" ("remeasure: ComfyUI 0.19 → 0.20") on its line and
+  `remeasure: {from, to}` in JSON. With the same version nothing changes (one account counts once). The current
+  version comes from the running ComfyUI's `/system_stats`, or, before starting one, from the text of its
+  `comfyui_version.py` / `pyproject.toml` (not imported); JSON `comfyui.version`. genmodelfit has no separate version of
+  its measuring method, so only the ComfyUI version is compared.
+  (ComfyUI の版が変わったら、前に測ったものも測り直しを提案する)
+- **Supertonic 3** (`manual:supertonic-3`, #127): a hand-added text-to-speech model that runs on ONNX Runtime
+  (runtime `supertonic`, a new value; SDK `supertonic`, MIT). 16 files pinned to revision `3cadd1ee…` (401,276,744
+  bytes; sizes and sha256 match the Hub API `lfs`, the small JSON files were downloaded and hashed), license
+  `openrail` / `openrail-m` (the card says `openrail`; the name comes from `LICENSE`, BigScience Open RAIL-M with use
+  restrictions), 31 speech languages from the card,
+  precision fp32 (the ONNX weights read with Range). Marked reviewed with `review approve` (by `claude-maker-127`,
+  with the LICENSE and file-tree URLs as evidence; the owner checks it in the PR). The developer's GitHub repository is
+  archived ("Development and support have ended"; the weights are also at supertone-oss-archive/supertonic-3 with
+  the same LFS oids), noted in the files' `license_evidence`. (読み上げの Supertonic 3 を手のモデルに足した)
+- Hand-added models: when the card's `license` is the same and the card has no `license_name`, a written
+  `license_name` is a refinement from the LICENSE text; `update` no longer warns or rewrites it
+  (`appinfo.verify_manual_licenses`; docs/sources "Manually added models"). (#127)
+- `tests/test_review_42.py`: approvals in the bundled list must come from an allowed name (`baseline-2026-10-21`,
+  `claude-weekly`, `claude-maker-<issue>`, the owner's login), with https evidence and a date from 2026-10-21 to
+  today; docs/release says the maintainer checks `claude-maker-*` approvals in the PR.
+- CPU-only PCs: Supertonic joins the speech models whose authors say they run in real time on a CPU
+  (`estimate.CPU_REALTIME_TTS`; the README of github.com/supertone-inc/supertonic shows it running in real time on a
+  Raspberry Pi), so on the CPU it is capped at Good instead of Marginal. Piper (`manual:tsukuyomi-chan-piper-plus`)
+  was already capped at Good since 0.11.0 (#108). The rule itself is unchanged. (CPU で実時間に動く読み上げの表に
+  Supertonic を足した)
+- **Runtime for Hugging Face speech models** (#142): the 20 `hf:` text-to-speech models now have `runtime`
+  (`transformers`, `qwen-tts`, `chatterbox`, `voxcpm`, `audio-cpp`, `kokoro` and so on), written in the hand table
+  (`overrides.json`) from each card's usage and the official READMEs; it was null. A runtime other than ComfyUI also
+  means gate uses `app_runtime` instead of the three ComfyUI checks (both hold). (HF の読み上げの動かし方を埋めた)
+
 ## [0.13.2] - 2026-10-29
 
 ### Changed
@@ -1460,6 +1581,7 @@ First public release. / 最初の公開版。
 - License: MPL-2.0 for the code and the bundled data (was MIT before the first release).
   Attribution for the upstream data is in `THIRD_PARTY_NOTICES`.
 
+[0.14.0]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.14.0
 [0.13.2]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.13.2
 [0.13.1]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.13.1
 [0.13.0]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.13.0

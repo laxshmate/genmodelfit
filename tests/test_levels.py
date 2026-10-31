@@ -196,9 +196,9 @@ def test_limits_count_only_rows_that_run_on_the_gpu(db):
     [
         ("hf:hexgrad/Kokoro-82M", "marginal"),  # 作者が CPU について書いていない
         ("manual:tsukuyomi-chan-piper-plus", "good"),  # 読み上げ(Piper)
+        ("manual:supertonic-3", "good"),  # 読み上げ(Supertonic。ONNX Runtime の CPU。#127)
         ("hf:myshell-ai/MeloTTS-English", "good"),  # 「Fast enough for CPU real-time inference」
-        ("hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512", "marginal"),  # 言語モデル + フローマッチングの読み上げ
-        ("hf:ResembleAI/chatterbox", "marginal"),
+        ("hf:Serveurperso/Qwen3-TTS-GGUF", "marginal"),  # 言語モデルの読み上げ(GGUF)
         ("hf:microsoft/VibeVoice-Realtime-0.5B", "marginal"),  # 拡散の頭の読み上げ
         ("utility_birefnet_remove_background", "good"),  # 背景除去(matting)
         ("audio_melbandroformer_audio_separation", "good"),  # 音の分離
@@ -222,10 +222,13 @@ def test_cpu_top_table():
     melo = model(1.0, "tts", ("tts",))
     melo.id = "hf:myshell-ai/MeloTTS-English"
     assert E.cpu_top(melo) == "good" and E.cpu_realtime_tts(melo).name == "MeloTTS"
-    assert {row.name for row in E.CPU_REALTIME_TTS} == {"MeloTTS", "Piper", "VieNeu-TTS"}
+    assert {row.name for row in E.CPU_REALTIME_TTS} == {"MeloTTS", "Piper", "VieNeu-TTS", "Supertonic"}
     piper = model(1.0, "tts", ("tts",))
     piper.runtime = "piper"
     assert E.cpu_top(piper) == "good"
+    supertonic = model(1.0, "tts", ("tts",))
+    supertonic.runtime = "supertonic"  # #127
+    assert E.cpu_top(supertonic) == "good" and E.cpu_realtime_tts(supertonic).name == "Supertonic"
     assert all(row.evidence for row in E.CPU_REALTIME_TTS)  # どの行にも作者の資料の文
     for task in ("estimate", "matting", "segment", "separate", "interp"):
         assert E.cpu_top(model(1.0, "image", (task,))) == "good", task

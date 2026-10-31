@@ -94,7 +94,7 @@ main の db.json だけ(data.yml)。試験は同梱の一覧の件数・日付�
 - データの形は `src/genmodelfit/models.py` が正本。変えたら `docs/schema.md` と `SCHEMA_VERSION` も直す
 - 一覧のモデル ID: 公式テンプレート由来はテンプレート名そのまま(例 `image_z_image_turbo_int8`)、
   Hugging Face 由来は `hf:<owner>/<repo>`
-- 同梱のデータ: `src/genmodelfit/data/db.json`(一覧)、`measurements.json`(実測)、`measurements_community.json`(ほかの利用者の実測のまとめ)、
+- 同梱のデータ: `src/genmodelfit/data/db.json`(一覧)、`measurements.json`(実測)、`measurements_community.json`(ほかの利用者の実測のまとめ)、`contrib_nonstandard.json`(山を飛ばしたなど、まとめに使わない提出の sha256 と理由。#131)、
   `calibration.json`(係数)、`review_rejected.txt`(外した項目)、`overrides.json`・`manual.json`(手の表・手で足すモデル)
 - アプリ向けの項目(`languages` / `runtime` / `description`。#36、docs/sources.md「言語・動かし方・説明」)は任意で、
   `schema_version` は上げない(古い版は知らないキーを捨てるので読める。tests/test_appinfo.py が確かめる)。

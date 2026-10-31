@@ -80,8 +80,10 @@ class LicenseSource:
     override: bool = False
 
     def matches(self, repo_id: str | None, filename: str) -> bool:
-        base = filename.rsplit("/", 1)[-1]
-        return repo_id in self.repos and self.pattern.fullmatch(base) is not None
+        """pattern に / があればリポジトリの中のパス全体に、無ければファイル名(パスの最後)に当てる
+        (同じリポジトリの model.safetensors と audio_tokenizer/model.safetensors を分けるため。#142)。"""
+        target = filename if "/" in self.pattern.pattern else filename.rsplit("/", 1)[-1]
+        return repo_id in self.repos and self.pattern.fullmatch(target) is not None
 
     def resolved(self, repo_id: str) -> Resolved:
         ev = [f"{EVIDENCE_KEY}:{self.key}", f"{self.evidence}({self.checked} に確認)"]
@@ -110,6 +112,7 @@ def _s(
     via: Iterable[str] = (),
     gated: bool = False,
     override: bool = False,
+    checked: str = CHECKED,
 ) -> LicenseSource:
     rs = (repos,) if isinstance(repos, str) else tuple(repos)
     return LicenseSource(
@@ -123,6 +126,7 @@ def _s(
         evidence,
         tuple(via),
         gated,
+        checked,
         override=override,
     )
 
@@ -467,6 +471,106 @@ SOURCES: tuple[LicenseSource, ...] = (
         url="https://ai.google.dev/gemma/terms",
         gated=True,
     ),
+    # --- 読み上げの部品(HF の収集では入らない。data/manual.json の components。#142) ---
+    _s(
+        "moss-audio-tokenizer",
+        "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+        r"model-0000[12]-of-00002\.safetensors",
+        "apache-2.0",
+        None,
+        "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+        f"{HF}/OpenMOSS-Team/MOSS-Audio-Tokenizer のカードは license: apache-2.0"
+        "(MOSS-TTS v1.5 の processor が既定で読む音声トークナイザ)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "chatterbox-parts",
+        "ResembleAI/chatterbox",
+        r"(ve|s3gen|conds)\.pt",
+        "mit",
+        None,
+        "ResembleAI/chatterbox",
+        f"{HF}/ResembleAI/chatterbox のカードは license: mit(同じリポジトリの ve.pt・s3gen.pt・conds.pt。"
+        "公式の src/chatterbox/mtl_tts.py が読む)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "qwen3-tts-speech-tokenizer",
+        ("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice", "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"),
+        r"speech_tokenizer/model\.safetensors",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+        f"speech_tokenizer/model.safetensors(sha256 836b7b35…)は {HF}/Qwen/Qwen3-TTS-Tokenizer-12Hz の "
+        "model.safetensors と同じ。Qwen/Qwen3-TTS-Tokenizer-12Hz のカードは license: apache-2.0"
+        "(置き場所の Qwen3-TTS-12Hz-*-CustomVoice も license: apache-2.0)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "cosyvoice3-parts",
+        "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+        r"(llm|flow|hift)\.pt|campplus\.onnx|speech_tokenizer_v3\.onnx",
+        "apache-2.0",
+        None,
+        "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+        f"{HF}/FunAudioLLM/Fun-CosyVoice3-0.5B-2512 のカードは license: apache-2.0"
+        "(同じリポジトリの llm.pt・flow.pt・hift.pt・campplus.onnx・speech_tokenizer_v3.onnx。"
+        "公式の cosyvoice/cli/cosyvoice.py が読む)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "omnivoice-audio-tokenizer",
+        "k2-fsa/OmniVoice",
+        r"audio_tokenizer/model\.safetensors",
+        "other",
+        "boson-higgs-audio-2-community-license",
+        "bosonai/higgs-audio-v2-tokenizer",
+        f"audio_tokenizer/model.safetensors(sha256 fe7c5e87…)は {HF}/bosonai/higgs-audio-v2-tokenizer の "
+        "model.safetensors と同じ。同じフォルダの LICENSE は"
+        "「BOSON HIGGS AUDIO 2 COMMUNITY LICENSE AGREEMENT」"
+        "(Meta Llama 3 Community License が元。年間の利用者が 100,000 を超えると別の許諾が要る)",
+        url=f"{HF}/bosonai/higgs-audio-v2-tokenizer/blob/main/LICENSE",
+        checked="2026-10-31",
+    ),
+    _s(
+        "qwentts-cpp-tokenizer",
+        "Serveurperso/Qwen3-TTS-GGUF",
+        r"qwen-tokenizer-12hz-(bf16|f32|q4_k_m|q8_0)\.gguf",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+        f"{HF}/Serveurperso/Qwen3-TTS-GGUF のカード「The tokenizer is shared across every talker」"
+        "「Audio codec : Qwen3-TTS-Tokenizer-12Hz (Qwen team), Apache 2.0」。"
+        "Qwen/Qwen3-TTS-Tokenizer-12Hz のカードは license: apache-2.0",
+        checked="2026-10-31",
+    ),
+    _s(
+        "voxcpm2-audiovae",
+        "openbmb/VoxCPM2",
+        r"audiovae\.pth",
+        "apache-2.0",
+        None,
+        "openbmb/VoxCPM2",
+        f"{HF}/openbmb/VoxCPM2 のカードは license: apache-2.0(同じリポジトリの audiovae.pth。公式の "
+        "src/voxcpm/model/voxcpm2.py が読む)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "auk-qwen2.5-omni-3b",
+        "audio-cpp/AuK-Base-and-Flash-GGUF",
+        r"qwen2\.5-omni-3b-(bf16|q8_0)\.gguf",
+        "other",
+        "qwen-research",
+        "Qwen/Qwen2.5-Omni-3B",
+        f"{HF}/audio-cpp/AuK-Base-and-Flash-GGUF のカード「The Qwen component is Qwen2.5-Omni-3B」。"
+        f"{HF}/Qwen/Qwen2.5-Omni-3B は license: other / license_name: qwen-research、LICENSE の 2.a"
+        '「FOR NON-COMMERCIAL PURPOSES ONLY」・1.i「"Non-Commercial" shall mean for research or evaluation'
+        " purposes only」(置き場所のカードの license: mit は AuK の部分だけ。tencent の LICENSE は MIT が"
+        "「training code, inference code, parameters, and weights made publicly available by Tencent」"
+        "に限ると書く)",
+        url=f"{HF}/Qwen/Qwen2.5-Omni-3B/blob/main/LICENSE",
+        checked="2026-10-31",
+    ),
     _s(
         "cogvideox-vae",
         "Comfy-Org/void-model",
@@ -519,6 +623,188 @@ SOURCES: tuple[LicenseSource, ...] = (
         "non-commercial (research or evaluation) purposes」(NSCLv1 の原文へのリンクは、カードが "
         f"{HF}/nvidia/PixelDiT-1300M-1024px/blob/main/LICENSE を指す)",
         url=f"{HF}/nvidia/PiD#licenseterms-of-use",
+    ),
+    # --- Wan Fun(再配布の README の元が同点になり、別の Fun の版をたどっていた。#144) ---
+    _s(
+        "wan2.2-fun-a14b-control",
+        "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        r"wan2\.2_fun_control_(high|low)_noise_14B_(bf16|fp8_scaled)\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.2-Fun-A14B-Control",
+        f"{HF}/Comfy-Org/Wan_2.2_ComfyUI_Repackaged の README が元に"
+        " alibaba-pai/Wan2.2-Fun-A14B-Control を挙げる。"
+        "alibaba-pai/Wan2.2-Fun-A14B-Control のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Control-Camera をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.2-fun-5b-control",
+        "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        r"wan2\.2_fun_control_5B_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.2-Fun-5B-Control",
+        f"{HF}/Comfy-Org/Wan_2.2_ComfyUI_Repackaged の README が元に"
+        " alibaba-pai/Wan2.2-Fun-5B-Control を挙げる。"
+        "alibaba-pai/Wan2.2-Fun-5B-Control のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で A14B の Control-Camera をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.2-fun-a14b-inp",
+        "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        r"wan2\.2_fun_inpaint_(high|low)_noise_14B_(bf16|fp8_scaled)\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.2-Fun-A14B-InP",
+        f"{HF}/Comfy-Org/Wan_2.2_ComfyUI_Repackaged の README が元に"
+        " alibaba-pai/Wan2.2-Fun-A14B-InP を挙げる。"
+        "alibaba-pai/Wan2.2-Fun-A14B-InP のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で VACE-Fun をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.2-fun-5b-inp",
+        "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        r"wan2\.2_fun_inpaint_5B_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.2-Fun-5B-InP",
+        f"{HF}/Comfy-Org/Wan_2.2_ComfyUI_Repackaged の README が元に"
+        " alibaba-pai/Wan2.2-Fun-5B-InP を挙げる。"
+        "alibaba-pai/Wan2.2-Fun-5B-InP のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で VACE-Fun をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.1-fun-control-1.3b",
+        "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+        r"wan2\.1_fun_control_1\.3B_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control",
+        f"{HF}/Comfy-Org/Wan_2.1_ComfyUI_repackaged の README が元に"
+        " alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control を挙げる。"
+        "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で 14B の Control-Camera をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.1-fun-camera-1.3b",
+        "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+        r"wan2\.1_fun_camera_v1\.1_1\.3B_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera",
+        f"{HF}/Comfy-Org/Wan_2.1_ComfyUI_repackaged の README が元に"
+        " alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera を挙げる。"
+        "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で 14B の Control-Camera をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    # --- 同じ同点の誤り(#144 の続き。Comfy-Org・Kijai の README の元の候補で確かめた) ---
+    _s(
+        "qwen-image-2508",
+        "Comfy-Org/Qwen-Image_ComfyUI",
+        r"qwen_image_(bf16|fp8_e4m3fn)\.safetensors",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen-Image",
+        f"{HF}/Comfy-Org/Qwen-Image_ComfyUI の cardData の base_model が元に"
+        " Qwen/Qwen-Image を挙げる。"
+        "Qwen/Qwen-Image のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Qwen-Image-2512 をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "qwen-image-edit-2508",
+        "Comfy-Org/Qwen-Image-Edit_ComfyUI",
+        r"qwen_image_edit_(bf16|fp8_e4m3fn)\.safetensors",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen-Image-Edit",
+        f"{HF}/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に"
+        " Qwen/Qwen-Image-Edit を挙げる。"
+        "Qwen/Qwen-Image-Edit のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "qwen-image-edit-2509",
+        "Comfy-Org/Qwen-Image-Edit_ComfyUI",
+        r"qwen_image_edit_2509_(bf16|fp8_e4m3fn)\.safetensors",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen-Image-Edit-2509",
+        f"{HF}/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に"
+        " Qwen/Qwen-Image-Edit-2509 を挙げる。"
+        "Qwen/Qwen-Image-Edit-2509 のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "ernie-image-base",
+        "Comfy-Org/ERNIE-Image",
+        r"ernie-image\.safetensors",
+        "apache-2.0",
+        None,
+        "baidu/ERNIE-Image",
+        f"{HF}/Comfy-Org/ERNIE-Image の cardData の base_model が元に"
+        " baidu/ERNIE-Image を挙げる。"
+        "baidu/ERNIE-Image のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で ERNIE-Image-Turbo をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "longcat-image-t2i",
+        "Comfy-Org/LongCat-Image",
+        r"longcat_image_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "meituan-longcat/LongCat-Image",
+        f"{HF}/Comfy-Org/LongCat-Image の cardData の base_model が元に"
+        " meituan-longcat/LongCat-Image を挙げる。"
+        "meituan-longcat/LongCat-Image のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で LongCat-Image-Edit-Turbo をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.1-ati-kijai",
+        "Kijai/WanVideo_comfy",
+        r"Wan2_1-I2V-ATI-14B_fp8_e4m3fn\.safetensors",
+        "apache-2.0",
+        None,
+        "bytedance-research/ATI",
+        f"{HF}/Kijai/WanVideo_comfy の README「ATI: https://huggingface.co/bytedance-research/ATI」が元に"
+        " bytedance-research/ATI を挙げる。"
+        "bytedance-research/ATI のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Wan2.1-VACE-14B をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
     ),
     _s(
         "infinitetalk-comfy",
@@ -635,7 +921,7 @@ def source_for(repo_id: str | None, filename: str) -> LicenseSource | None:
     base = filename.rsplit("/", 1)[-1]
     if unverified_component_for(base) or lineage_for([base]):
         return None
-    return next((s for s in SOURCES if s.matches(repo_id, base)), None)
+    return next((s for s in SOURCES if s.matches(repo_id, filename)), None)
 
 
 def _file_repo(f: ModelFile) -> tuple[str, str] | None:
@@ -703,6 +989,11 @@ def apply_license_sources(db: Database | Iterable[ModelEntry]) -> list[tuple[str
     changed: list[tuple[str, str, str]] = []
     for e in entries:
         hit = False
+        # テンプレートの base_model は本体の元(license_from)から決めたもの(set_entry_license)。表で元が
+        # 変わったら決め直す(作り直しと同じ答えにする。#144)
+        derived = e.source == "comfyui-template" and any(
+            f.role == "main" and f.license_from == e.base_model for f in e.files
+        )
         for f in e.files:
             row = apply_to_file(f)
             if row is not None:
@@ -713,6 +1004,8 @@ def apply_license_sources(db: Database | Iterable[ModelEntry]) -> list[tuple[str
                 changed.append((e.id, f.name, f"lineage:{lin}"))
                 hit = True
         if hit:
+            if derived:
+                e.base_model = None
             set_entry_license(e)
     return changed
 

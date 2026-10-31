@@ -145,7 +145,7 @@ The columns of `recommend`, `fit` and `search`:
 | `Model` | one row per model (same weights); long names are cut in the middle with `…` |
 | `Use` | `gen`, `edit`, `i2v`, … (`genmodelfit types`); the row's own use (the one matching `--task`) first, then the other uses of the model's workflows, without repeats (`gen,edit`; `gen,…` when they do not fit). The workflows: `info`; one row each: `--all-workflows` |
 | `Prec` | the best precision that fits (fp16, bf16, fp8, int8, …) |
-| `VRAM` | GiB needed in that mode; `m` = measured (by the maintainer, on this PC, or the median of other users' measurements of the same GPU; number of sources: `info`, JSON `sample_count`) |
+| `VRAM` | GiB needed in that mode; `m` = measured (by the maintainer, on this PC, or the median of other users' measurements of the same GPU; number of sources: `info`, JSON `sample_count`). When the decode is split into tiles (ACE-Step 1.5 and others), the tiled estimate (it can go down as the length goes up; [accuracy.md "Tiles"](accuracy.md#tiles)) |
 | `Mem%` | share of the tightest memory used: VRAM on the GPU, RAM on CPU, the larger of the two for `GPU+RAM`; `RAM` = system RAM is short |
 | `Mode` | `GPU` all on GPU, `GPU~` parts swapped in turn, `GPU+RAM` offload (slow), `CPU` (slow), `-` does not run (`GPU req`: needs a GPU, none usable here; `RAM`: not enough system RAM) |
 | `Disk` | download size (GiB) |
@@ -367,7 +367,7 @@ The environment variables are read in `src/genmodelfit/i18n.py` (`GENMODELFIT_LA
 | `Model` | 同じ重みを 1 行にまとめたモデル。長い名前は真ん中を `…` で詰める |
 | `Use` | `gen`・`edit`・`i2v` など(`genmodelfit types`)。行自身の用途(`--task` で合ったもの)を先頭に、そのモデルのほかのワークフローの用途を重複なく並べる(`gen,edit`。収まらなければ `gen,…`)。ワークフローの一覧は `info`、別々の行は `--all-workflows` |
 | `Prec` | 載る中で一番良い精度(fp16・bf16・fp8・int8 など) |
-| `VRAM` | その動かし方で要る GiB。`m` = 実測(メンテナ・この PC の実測、または同じ GPU のほかの利用者の実測の中央値。出どころの数は `info`・JSON の `sample_count`) |
+| `VRAM` | その動かし方で要る GiB。`m` = 実測(メンテナ・この PC の実測、または同じ GPU のほかの利用者の実測の中央値。出どころの数は `info`・JSON の `sample_count`)。ACE-Step 1.5 などで仕上げをタイルに分けるときは、タイルの見積もりの値(長さを延ばすと減ることがある。[accuracy.ja.md「タイル」](accuracy.ja.md#タイル)) |
 | `Mem%` | 一番きついメモリの使用率。GPU なら VRAM、CPU ならメモリ、`GPU+RAM` は大きいほう。`RAM` = PC のメモリが足りない |
 | `Mode` | `GPU` 全部 GPU、`GPU~` 部品を順に載せ替え、`GPU+RAM` メモリへ逃がす(遅い)、`CPU`(遅い)、`-` 動かない(`GPU req` は使える GPU が無いので動かない、`RAM` はメモリ不足) |
 | `Disk` | ダウンロードの大きさ(GiB) |

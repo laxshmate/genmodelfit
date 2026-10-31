@@ -115,6 +115,19 @@ Caps per run mode (`estimate.gpu_choice`, `cpu_top`):
 | GPU+RAM (part offloaded to system RAM) | Good | Slow, so never Perfect, but Good when there is room (as in llmfit). In the diffusers comparison (PR #11682) offloading slowed Wan by 1.14–1.5× (model-level and group offloading) and FLUX by 3.3–10.4× |
 | CPU: CPU-realtime speech (listed) and one-pass tools | Good | "Running on the CPU" below |
 | CPU: image, video, music, sound effect and 3D generation | Marginal | "Running on the CPU" below |
+| GPU, GPU~, GPU+RAM with the decode (VAE) split into tiles (only the Oobleck VAE, which counts the untiled V; #148) | Marginal | ComfyUI retries in tiles after an OOM, and NVIDIA on Windows spills into shared memory. Both are slow ([accuracy.md "Tiles"](accuracy.md#tiles)) |
+
+### When the decode is split into tiles (#148)
+
+**In one sentence**: the Marginal cap for an untiled decode that does not fit applies only to the Oobleck VAE (ACE-Step 1.5, Stable Audio Open).
+
+- For the Oobleck VAE the measurements are 0.8 to 1.0 times the untiled V (30 s and longer), so V goes into the
+  amounts used. Only when V does not fit is the tiled estimate judged, capped at Marginal (GPU+RAM rows too).
+- Other VAEs keep the old behaviour: the amounts use the tile value min(V, V_tile), and when V does not fit only a
+  note is shown (the level is not changed). For the image KL VAE the measurements are 0.3 to 0.65 times V, so V
+  would worsen the prediction. The Wan VAE is left for a separate issue.
+- The table VRAM is then the tiled estimate, so it can go down as the length goes up. The level does not go up
+  ([accuracy.md "Tiles"](accuracy.md#tiles)).
 
 ### When offloading is chosen
 
@@ -135,7 +148,7 @@ The level is the band of system RAM use, capped as follows (`estimate.cpu_top`):
 
 | Type / use | Cap | Examples |
 |---|---|---|
-| Speech built to run in real time on a CPU (`estimate.CPU_REALTIME_TTS`; table below) | Good | MeloTTS, Piper, VieNeu-TTS |
+| Speech built to run in real time on a CPU (`estimate.CPU_REALTIME_TTS`; table below) | Good | MeloTTS, Piper, VieNeu-TTS, Supertonic |
 | All uses are one-pass tools (`tool`, `estimate`, `matting`, `interp`, `segment`, `separate`) | Good | background removal (BiRefNet), depth, pose, segmentation, audio separation |
 | Everything else (image, video, music, sound effect and 3D generation; speech whose authors do not say it runs in real time on a CPU; upscaling `upscale`) | Marginal | SDXL, Stable Audio, Fun-CosyVoice3, Chatterbox, VibeVoice, Qwen3-TTS, Kokoro, HiFi-GAN |
 
@@ -146,6 +159,7 @@ Speech built to run in real time on a CPU (the authors' own statements; also sho
 | MeloTTS | `hf:myshell-ai/MeloTTS-*` | model card: "Fast enough for CPU real-time inference" |
 | Piper | run with `piper` | README (tag 2023.11.14-2, github.com/rhasspy/piper/blob/2023.11.14-2/README.md): "A fast, local neural text to speech system that sounds great and is optimized for the Raspberry Pi 4." |
 | VieNeu-TTS | `hf:pnnbao-ump/VieNeu-TTS*` | model card: "on CPU everything runs on ONNX Runtime", "RTF < 1, one stream" |
+| Supertonic | run with `supertonic` | model card (revision 3cadd1ee): "Supertonic 3 runs fast on CPU, even compared with larger baselines measured on A100 GPU, and uses substantially less memory. It does not require a GPU"; README (commit 1e9799e9, github.com/supertone-inc/supertonic/blob/1e9799e964ea4c0dad7cde993b65c3c813a7b373/README.md): "Watch Supertonic running on a Raspberry Pi, demonstrating on-device, real-time text-to-speech synthesis" |
 
 Speech whose authors do not say it runs in real time on or suits a CPU (Kokoro, HiFi-GAN and others) is not listed and is capped at Marginal like generation.
 
@@ -386,6 +400,7 @@ For #108 (offloaded rows up to Good) the representative changes were counted (bu
 | Offloading up to Good, only when it raises the level; GPU Perfect / Good rows never switch; system RAM counts; limits use GPU rows only (#108) | `tests/test_levels.py` (`test_offload_is_capped_at_good_and_chosen_only_when_it_raises_the_level` and others) |
 | CPU caps (speech and tools Good, generation Marginal); the RAM band | `tests/test_levels.py::test_cpu_only_caps`, `test_cpu_top_table`, `test_cpu_level_uses_the_ram_band` |
 | Parts switched off by default: counted when reached from an output node in the type table (inside a subgraph, on a lazy branch); a Soft Switch whose selected side is unconnected uses the other side; the contents of a nested bypassed instance are used; parts on nodes that reach no output are not downloaded either; a bypassed node's own files are not counted; the #81 values (4.96 / 5.14 GB, Good on 8 GB); FLUX.2 Klein; #112 (Wan 2.2 5B Good on 8 GB); the upper-bound sentence; no level goes down | `tests/test_optional.py` |
+| #148: the Oobleck VAE's working memory grows with song length; the tile fallback is capped at Marginal; no fallback on the CPU; other VAEs unchanged; adding VRAM never lowers the level | `tests/test_issue_148.py` |
 | Verified kinds (true for NVIDIA dedicated VRAM, false for AMD, Apple, GB10; one model with many measurements is not verified, two models are, whatever the origin); ✓ only when verified; the gate ignores the kind; AMD and NVIDIA distributions are close; more VRAM or RAM never lowers the level | `tests/test_levels.py` |
 
 `SCHEMA_VERSION` (the shape version of the bundled and released db.json) is unchanged. The meaning of the output changed, so the package is 0.11.0 ([CHANGELOG.md](../CHANGELOG.md)).

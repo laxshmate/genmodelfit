@@ -1322,3 +1322,96 @@ def test_other_pcs_measurements_do_not_remove_suggestions():
     mine = meas("image_sdxl_simple", settings=_set(width=1024, height=1024))
     rows = [x for x in measure.suggestions(db, s, extra=[mine]) if x.model_id == "image_sdxl_simple"]
     assert all(x.settings is not None for x in rows)
+
+
+# --- 一瞬の山の「試した」印(#131) ------------------------------------------------------------------
+
+
+SDXL = "image_sdxl_simple"
+
+
+def test_brief_peak_marker_round_trip_and_stops_suggesting():
+    s = pc()
+    db = defaults_measured()
+    widths = {x.settings.width for x in _rows(measure.suggestions(db, s, variants_per_model=None), SDXL)}
+    assert 512 in widths
+    brief = db.get("image_sdxl_simple")
+    from genmodelfit.estimate import files_fingerprint
+
+    m = meas(
+        "image_sdxl_simple",
+        settings=_set(width=512, height=512),
+        settings_override=True,
+        standard=False,
+        files_fp=files_fingerprint(brief),
+        comfyui_version="0.19.3",
+    )
+    path = measure.save_brief_peak(m)
+    measure.save_brief_peak(m)  # 同じ行は 1 つ
+    assert path == cache_dir() / measure.BRIEF_PEAKS_FILE
+    assert len(json.loads(path.read_text(encoding="utf-8"))["measurements"]) == 1
+    (tried,) = measure.brief_peak_tried()
+    assert tried.standard is True and tried.comfyui_version == "0.19.3"
+    # 見積もり・照合に使う実測(キャッシュの measurements)には入らない
+    assert not (cache_dir() / "measurements").exists()
+    widths = {x.settings.width for x in _rows(measure.suggestions(db, s, variants_per_model=None), SDXL)}
+    assert 512 not in widths and 768 in widths
+    # 壊れた印は無視する
+    path.write_text("{", encoding="utf-8")
+    assert measure.brief_peak_tried() == []
+
+
+def test_measure_marks_brief_peak_as_tried(capsys, monkeypatch, this_pc, fake_gpu):
+    from test_bench import FakeComfy
+
+    def brief(opts, *a, **k):
+        res = real(opts, *a, **k)
+        res.measurement.standard = False
+        res.nonstandard = ["the peak VRAM was a brief spike"]
+        res.brief_peak = True
+        return res
+
+    real = bench.run
+    monkeypatch.setattr(bench, "run", brief)
+    with FakeComfy() as fake:
+        assert cli.main(["measure", "image_sdxl_simple", "--json", "--yes", "--url", fake.url]) == 0
+    d = json.loads(capsys.readouterr().out)
+    assert d["measurement"]["standard"] is False and not d.get("submission")
+    assert not list((cache_dir() / "submissions").rglob("*.json"))  # 送る用は作らない
+    (tried,) = measure.brief_peak_tried()
+    assert tried.model_id == "image_sdxl_simple"
+
+
+def test_measure_does_not_mark_other_nonstandard(capsys, monkeypatch, this_pc, fake_gpu):
+    from test_bench import FakeComfy
+
+    def other(opts, *a, **k):
+        res = real(opts, *a, **k)
+        res.measurement.standard = False
+        res.nonstandard = ["the peak VRAM was a brief spike", "other work ran during the measurement"]
+        res.brief_peak = True
+        return res
+
+    real = bench.run
+    monkeypatch.setattr(bench, "run", other)
+    with FakeComfy() as fake:
+        assert cli.main(["measure", "image_sdxl_simple", "--json", "--yes", "--url", fake.url]) == 0
+    capsys.readouterr()
+    assert measure.brief_peak_tried() == []  # ほかの理由もあるなら、測り直す意味がある
+
+
+def test_aggregate_leaves_out_listed_nonstandard_submissions(monkeypatch):
+    listed = contrib.nonstandard_submissions()
+    assert len(listed) == 4 and all(len(k) == 64 and "#131" in v for k, v in listed.items())
+    community = ROOT / "src" / "genmodelfit" / "data" / "measurements_community.json"
+    doc = json.loads(community.read_text("utf-8"))
+    rows = [(r["gpu_name"], r["model_id"], r["settings"].get("width")) for r in doc["measurements"]]
+    assert ("NVIDIA GeForce RTX 3070", "image_sdxl_simple", 512) not in rows
+    assert ("NVIDIA GeForce RTX 3070", "image_sdxl_simple", 1024) in rows
+    # 同じ提出でも、表から外せば値に使う
+    db = load_db(use_cache=False)
+    subs, _ = contrib.load_dir(ROOT / "data" / "contrib", db)
+    with_512 = [s for s in subs if s.sha256 in listed]
+    assert with_512 and contrib.aggregate(with_512) == []
+    monkeypatch.setattr(contrib, "nonstandard_submissions", lambda: {})
+    assert len(contrib.aggregate(with_512)) == 4

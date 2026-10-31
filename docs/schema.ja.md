@@ -436,7 +436,7 @@ Python の `Fit.to_dict()` は、まさにこの dict を返す(`gmf.recommend()
 | `name`、`modality`、`tasks` | | modality は `image` `video` `music` `sfx` `tts` `3d` のどれか。`tasks` はリスト(`t2i`、`i2v` など) |
 | `content` | str | `sfw` または `uncensored`([README](../README.ja.md) を参照) |
 | `source` | str | `comfyui-template` / `huggingface` / `manual` |
-| `runtime` | str \| null | モデルの動かし方: `comfyui` / `piper` / `irodori-tts` など(`ModelEntry.runtime`、0.5.0)。null は不明 |
+| `runtime` | str \| null | モデルの動かし方: `comfyui` / `piper` / `irodori-tts` / `supertonic` など(`ModelEntry.runtime`、0.5.0)。null は不明 |
 | `languages` | object | `{"prompt": [...], "speech": [...]}`。ISO 639-1(`ModelEntry.languages`、0.5.0)。キーが無ければ不明、`[]` は無し(画像から 3D のモデルはプロンプトを取らない。歌声の無い音楽のモデルに speech は無い) |
 | `description` | object | `{"ja": "...", "en": "..."}`。手書きで、一部のモデルだけ(`ModelEntry.description`、0.5.0)。`{}` は無し |
 | `fit_level` | str | `perfect` / `good` / `marginal` / `too_tight`(= `estimate.fit`)。大きさが不明で何も判定していないときは `unknown`(0.1.1。0.1.0 まではこれらは `too_tight` だった) |
@@ -889,7 +889,7 @@ Python の `gmf.info(model_id)` は、id の完全一致だけで探し、無け
 
 ### ModelEntry
 
-`id`、`name`、`modality`、`tasks`、`source`、`files`(ModelFile[])、`template`(Template \| null)、`params_b`、`precision`、`license`、`license_url`、`base_model`、`content`、`content_evidence`(str[]: 無検閲とした理由)、`discovered_from`(str[]: 見つけた場所)、`updated`、`homepage`、`downloads` / `likes`(int \| null: Hugging Face の数。`source: huggingface` に入る。`downloads` は直近 30 日)、`downloads_all_time`(int \| null: 通算のダウンロード数。入れる下限に使う)、`total_size_bytes`、`license_name`(`other` のライセンスの名前。最も厳しいファイルから)、`license_evidence`(str[]: ライセンスが不明な理由。項目は `license_unverified:` で始まる)、`files_complete`、`size_floor_bytes`(下)、`workflow_precision`(str \| null: テンプレートの主なローダのノードから推した精度。上の「Models」を参照。任意、0.2.0)、`precision_source`(str \| null: `header` / `filename` / `hf_api` / `config` / `workflow`。`precision` の出どころ。null は不明または古いデータ。任意、0.2.0)。
+`id`、`name`、`modality`、`tasks`、`source`、`files`(ModelFile[])、`template`(Template \| null)、`params_b`、`precision`、`license`、`license_url`、`base_model`(genmodelfit では「再配布されたファイルの元のリポジトリ」: 公式テンプレートは本体のファイルの `license_from`、HF 由来はそのリポジトリのカードの `base_model` の最初のもの、手のモデルは書いた値。テンプレートでは HF のカードの `base_model`(元の元)ではない。0.14.0、#144)、`content`、`content_evidence`(str[]: 無検閲とした理由)、`discovered_from`(str[]: 見つけた場所)、`updated`、`homepage`、`downloads` / `likes`(int \| null: Hugging Face の数。`source: huggingface` に入る。`downloads` は直近 30 日)、`downloads_all_time`(int \| null: 通算のダウンロード数。入れる下限に使う)、`total_size_bytes`、`license_name`(`other` のライセンスの名前。最も厳しいファイルから。手のモデルでは、カードと同じ `license` を本文で細かくした名前のこともある: `openrail` / `openrail-m`。0.14.0)、`license_evidence`(str[]: ライセンスが不明な理由。項目は `license_unverified:` で始まる)、`files_complete`、`size_floor_bytes`(下)、`workflow_precision`(str \| null: テンプレートの主なローダのノードから推した精度。上の「Models」を参照。任意、0.2.0)、`precision_source`(str \| null: `header` / `filename` / `hf_api` / `config` / `workflow`。`precision` の出どころ。null は不明または古いデータ。任意、0.2.0)。
 
 **一覧だけで画面を作るアプリのために**(0.5.0、#36。すべて任意で、`schema_version` は 1 のまま。古い読み手は知らないキーを捨てる。「Database file」を参照):
 
@@ -901,7 +901,7 @@ Python の `gmf.info(model_id)` は、id の完全一致だけで探し、無け
   - カードが無ければ、既知のテキストエンコーダから `["en"]` になる(多言語のエンコーダだけで `ja` を足すことはない)。
   - 何も決まらなければ、キーを出さない(推測しない)。必要な言語が入っているかを調べること。
 - `card_languages`(str[] \| null): `update` / `update --fields-only` が保存した、Hugging Face のカードの `language`(`languages` の材料。だからオフラインでの適用し直しでも同じ結果になる)。`[]` はカードを読んだが言語が無い、null は読んでいない。
-- `runtime`(str \| null): 公式テンプレート、およびファイルが ComfyUI の系統に合う Hugging Face の image / video / music / sfx / 3D のエントリでは `comfyui`。手で足した読み上げのモデルでは `piper`、`irodori-tts`。null は未決定。`comfyui` 以外(と null 以外)の runtime では、推定器が `.onnx` などの ComfyUI 以外の重みのファイルも数える。
+- `runtime`(str \| null): 公式テンプレート、およびファイルが ComfyUI の系統に合う Hugging Face の image / video / music / sfx / 3D のエントリでは `comfyui`。手で足した読み上げのモデルでは `piper`、`irodori-tts`、`supertonic`。Hugging Face の読み上げは手の表(`overrides.json`)に書いた値(`transformers`・`qwen-tts`・`chatterbox` など。0.14.0、#142)。null は未決定。`comfyui` 以外(と null 以外)の runtime では、推定器が `.onnx` などの ComfyUI 以外の重みのファイルも数える。
 - `description`(`{"ja": str, "en": str}`): 手書きの短い説明。あるモデルだけ。
 - `source: "manual"`(id は `manual:<slug>`): `src/genmodelfit/data/manual.json` に手で足したモデル(`template` は null)。ファイルごとのライセンスは、足した人が上流のカードから読んだもの(`license_evidence` が `manual:` で始まる)。`update` はそれを `license_from` のカードと比べ、食い違えば厳しいほうを取る(警告つき)。
 - 手で足した部品(0.6.0、#40): `src/genmodelfit/data/manual.json` の `components` が、Hugging Face のコレクションが拾わないファイルを、別の出どころのエントリに足す(最初の例: `hf:stabilityai/stable-audio-3-small-sfx` の T5Gemma テキストエンコーダ。Gemma 利用規約)。ライセンスは手で書かない。ファイルごとの出どころの表(`license_sources.py`。行が無ければ不明)から来る。`license_evidence` は `manual_component: <このモデルがそのファイルを使う理由>` で終わる。`update` は(どのモードでも)毎回これを適用する。
@@ -984,7 +984,8 @@ OOM の行もデータとして歓迎するが、`outcome: "oom"` を保たな�
 
 bench が Measurement を埋める方法(測り方):
 
-- `peak_vram_gb`: `/system_stats` の `devices[0].torch_vram_total` を 0.2 秒ごとに読んだ最大値(ComfyUI のプロセス。CUDA コンテキストは除く)。
+- `peak_vram_gb`: `/system_stats` の `devices[0].torch_vram_total` を 0.015 秒おき(`bench.POLL_INTERVAL`。答えを待つ時間を含めると約 0.03 秒ごと。0.13.2 までは 0.2 秒おき)に読んだ最大値(ComfyUI のプロセス。CUDA コンテキストは除く)。
+  - 一瞬の山(0.14.0、#131): 3 回目に大きい値が最大値より 0.1 GiB 超かつ 10% 超小さければ、最大値は読む間隔より短い山で、測るたびに揺れる。最後まで動いた回(`outcome: ok`)だけ見る。最大値は結果に出し、`standard` を false にして `note` の「標準でない条件」に「最大 VRAM が一瞬だけの山(… GB。3 回以上読めた最大は … GB)」と書く(照合にも段階にも使わない)。読めた回が 10 回より少ないときは決めない。measure・share はこの回を保存も送信もせず、キャッシュの `brief_peaks.json` に「試した」と覚えて同じものをもう提案しない(送らない)。bench は `--save-nonstandard` か `--output` のときだけ保存する。0.2 秒おきで山を飛ばしたとみられる提出は、同梱の `contrib_nonstandard.json`(内容の sha256 → 理由)に書き、`contrib aggregate` が値に使わない。理由は [accuracy.ja.md「測り方の揺れ(#131)」](accuracy.ja.md#測り方の揺れ131)。
   - 実行前の基準からの GPU 全体の差は `note` に入れる。NVIDIA は `nvidia-smi`。
   - ほかの GPU(0.9.0、`gpustat.py`)は、`amd-smi` → `rocm-smi`(AMD、Linux)、`xpu-smi`(Intel、Linux)、`typeperf` 経由の Windows のパフォーマンスカウンタ(AMD / Intel、Windows)、`ioreg`(Apple)。
   - 同じ道具で、実行前の使用中の確認もする(平均使用率が 30% 以上なら、`--force` が無いと断る)。
@@ -1002,9 +1003,10 @@ bench が Measurement を埋める方法(測り方):
 
 - MODEL を省くと `action: "suggest"`: `comfyui` `{url, found_by, start?}`(`found_by` は `--url` なら `option`、127.0.0.1 の
   8188・8000 で見つけた ComfyUI なら `running`、見つからなければ null。`start`(0.13.0)は、起動中のものが無く、入って
-  いるものを起動するときの `{kind, comfyui_dir}`。`kind` は `portable`・`venv`・`desktop`)と `suggestions`
+  いるものを起動するときの `{kind, comfyui_dir}`。`kind` は `portable`・`venv`・`desktop`。`version`(0.14.0、#147)は
+  分かったときの今の ComfyUI の版。下の「測り直し」)と `suggestions`
   [{model_id, model_name, name, modality, precision, fit_level, installed, download_bytes, total_bytes, seconds,
-  seconds_basis, settings, args}]。ここの `installed` は状態の文字列だけ(`yes` / `no` / `unknown`。下の「入っているか」)。
+  seconds_basis, settings, args, remeasure}]。ここの `installed` は状態の文字列だけ(`yes` / `no` / `unknown`。下の「入っているか」)。
   MODEL を付けたときはオブジェクト。`settings`(0.12.0、#116)はテンプレートのままなら null、設定を変えた測定なら
   変えた設定(`{width, height}`・`{frames}`・`{seconds}`)。`args` は同じものを `measure`・`bench` の引数にしたもの
   (`["--resolution", "1536x1536"]`。テンプレートのままなら空)。測らない。
@@ -1025,6 +1027,16 @@ bench が Measurement を埋める方法(測り方):
   `estimate.same_gpu` で同じ GPU、`files_match` で同じファイル、標準の条件、結果が `ok` か `oom`、`settings_override`
   が無い(0.12.0。キーの無い行は数える)。作業用メモリだけの実測も数える。同じ GPU で測り直しても材料が増えないため)。同じモデル(`groups` の鍵)は 1 件: 入っているワークフロー、無ければ `recommend` が
   選ぶもの。並びは 入っているもの → `seconds` → `download_bytes` → 名前。既定 10 件(`--limit`)。
+- **測り直し**(0.14.0、#147。`measure.stale_version`): この PC でこの GPU にもう測ったワークフロー(設定を変えた測定も)でも、
+  その実測がどれも版の記録があって今の ComfyUI の版と違えば、もう一度出す(ComfyUI の更新で、
+  使うメモリや時間が変わることがあるため)。そのときの `remeasure` は `{from, to}`(いちばん新しい実測の版と今の版。ほかの
+  行は null)、行には「ComfyUI 0.19 → 0.20 で測り直し」と出し、まだ測っていない行のすべての後に並べる(その中の並びは同じ。
+  同じモデルの中でも)。同じ版・今の版が分からない・版の記録の無い実測が 1 件でもある(同じ版だったかもしれない)ときは出さない(同じアカウントは、同じものを
+  何回送っても 1 回分にしか数えないため)。今の版は、起動中の ComfyUI の `/system_stats`(`system.comfyui_version`。
+  `--dry-run` ではこの PC のものだけ)から、起動する前は、その `main.py` の横の `comfyui_version.py`
+  (`__version__ = "x.y.z"`)、無ければ `pyproject.toml` の `[project]` の `version` を文字として読む
+  (`comfystart.installed_version`。import しない。起動する前に計画を決めるため)。genmodelfit には測り方の版が別に無い
+  (この PC の結果の `vram_metric` はどれも `torch_reserved`)ので、比べるのは ComfyUI の版だけ。
 - **設定を変えた測定**(0.12.0、#116。`measure.variants`): 予測式の段ごとの作業用メモリを確かめるため、同じ一覧・
   同じ並びに混ぜる。文章から画像(`t2i`。`estimate.NO_SIZE_INPUT` に無いもの)は 512・768・1024・1536 px の正方形
   (`VARIANT_PIXELS`)、文章・画像から動画(`t2v`・`i2v`)は 17・33・49・81 コマ(`VARIANT_FRAMES`。大きさはテンプレート
@@ -1096,7 +1108,7 @@ bench が Measurement を埋める方法(測り方):
 |---|---|---|
 | `action` | str | `send`(`--logout` は `logout` で、`removed` を付ける) |
 | `no_measure` | bool | `--no-measure` か FILE |
-| `comfyui` | object | `measure` と同じ(`url`・`found_by`・`start?`・`started?`) |
+| `comfyui` | object | `measure` と同じ(`url`・`found_by`・`start?`・`started?`・`version?`) |
 | `budget_seconds` | float | `--budget`(既定 300。`measure.SHARE_BUDGET_SECONDS`) |
 | `plan` | Suggestion[] | 測る、入っている提案(`measure` の `suggestions` の項目) |
 | `download_plan` | Suggestion[] | 入っていない提案のうち、残りの時間に収まるもの |
@@ -1106,6 +1118,7 @@ bench が Measurement を埋める方法(測り方):
 | `failed` | object[] | `{model_id, settings, error}`(ComfyUI を起動できなかったときは `model_id` が null) |
 | `interrupted` / `downloaded` | bool | Ctrl+C で止めた / `download_plan` を落とした |
 | `download_hint` | object | 尋ねられない(`--yes`・`--json`・端末でない)ので落とさなかったときの `{count, bytes}` |
+| `reason` / `reasons` / `next_step` | str / object[] / str | 送るものが無いときだけ(0.14.0、#146): 1 つの文、理由ごとの `{code, text}`、次にできることの 1 行。`code` は `no_measure`・`measured_here`(入っていて載るモデルは、この PC でもう測ってある。この PC にそういう実測があるときだけ)・`no_installed`(入っていて載るモデルが無い。それ以外のとき)・`installed_unknown`(models の場所が分からない)・`missing_nodes`(ComfyUI を更新する)・`budget`(入っているものがどれも時間の上限に収まらない。入っているものが無ければ全部で見る)・`download_declined` / `not_downloaded`(`share --download`)・`failed`・`unsendable`・`interrupted`・`failures_sent`(同じ失敗の記録はもう送ってある)・`no_unsent`(いつも最後。送ったファイルがあれば `share --no-measure --all` を書く) |
 | `files` | object[] | 点検したファイルごとの `{file, path_in_repo, ok, refused}` |
 | `prs` | object[] | GPU ごとの `{url, reused, branch, fork, uploaded, skipped, on_main}` |
 | `marked_shared` | int | 送った印を付けた数 |
@@ -1121,7 +1134,9 @@ bench が Measurement を埋める方法(測り方):
 - **ComfyUI** は `measure`(上)と同じく見つけ・起動し・確かめる。無ければ(送っていない実測も無ければ)計画と ComfyUI の
   起動のしかたを出し、尋ねず・ログインせずに 1 で終える。送っていない実測があれば、それを送るかに進む。
 - **計画**: `measure.suggestions` のうち `installed.state == "yes"` のものを、その順に、`seconds` の合計が上限に収まる
-  あいだ取る(`measure.share_plan`。収まらない行は飛ばして次を見る)。ComfyUI に届けば、その ComfyUI に無いノードを
+  あいだ取る(`measure.share_plan`。収まらない行は飛ばして次を見る)。測り直しの行(0.14.0、#147。measure を見る)は
+  まだ測っていない行の後なので、入っているものの中では時間が残ったときだけ取る(落とすものは、入っているものの残りの
+  時間で決めるので、入っている測り直しの行が先)。ComfyUI に届けば、その ComfyUI に無いノードを
   使う提案を外し(`skipped`)、次の提案で埋める(`download_plan` も)。起動する ComfyUI なら起動したあとで行い、新しい
   計画を見せる。
 - **順**: 合計の時間を付けた計画 → 1 回の `[Y/n]`(測ることと ComfyUI の起動を兼ねる。`--yes` で省く)→ もうある

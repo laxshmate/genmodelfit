@@ -47,7 +47,8 @@ repository's Contributors. With issues, the bot makes the commits, so you are no
 issue and in the commit's `Submitted-by`).
 
 If you have more time, run `genmodelfit share` again later: each time it measures the next models or settings that
-are not yet measured on this PC.
+are not yet measured on this PC. After you update ComfyUI, the ones measured before come back as "remeasure" (after
+the ones never measured; an update can change the memory and time used; with the same version they do not).
 
 While it runs, `share` prints numbered steps ("== Step 2/6: Start ComfyUI =="), and in a terminal a line that is
 redrawn in place: the ComfyUI start (seconds against the guide and the limit, and the last line of its log), each
@@ -74,7 +75,12 @@ Step by step, in detail:
 3. If no installed model can be measured, or time is left after measuring, it asks once whether to download the
    others (`[y/N]`, with the models, the total size and the time; `--download` skips the question). Downloading uses
    the same questions and consent rules as `genmodelfit download`. With `--yes` or without a terminal it never
-   downloads and says that `--download` would.
+   downloads and says that `--download` would. At the very end (also after a failure or Ctrl+C) it lists the files
+   this run downloaded, with the total size, and asks whether to delete them (`[y/N]`; Enter keeps them). Only files
+   this run newly downloaded (and its leftover `.part` files) are listed; files that were already there (also a
+   `.part` from an earlier run and the file finished from it) are never listed or deleted, a file that changed since
+   (another run replaced it) is not deleted, and a file that several of the models use is listed once. With `--yes` or without a terminal
+   it keeps them; `--delete-downloaded` deletes them without asking.
 4. Before measuring it only checks a token it already has (`GITHUB_TOKEN` or `GH_TOKEN`, which needs the
    `public_repo` scope, else the saved sign-in) and stops at once if it does not work. With `--yes` and no terminal it
    needs one for a pull request (or use `share --issue --yes`).
@@ -107,6 +113,12 @@ Step by step, in detail:
 `share --no-measure` sends only the measurements you have not sent; `share <file>` sends one submission file.
 Sent files are marked on this PC (`<cache>/submissions_shared.json`) and not sent again (`--all` includes them).
 
+When there is nothing to send, it says "Nothing to send" with the reasons and what to do next. For example: the
+installed models that fit are already measured on this PC (`genmodelfit measure <name>` measures another one), the
+rest need nodes this ComfyUI lacks (update ComfyUI), you declined to download the ones not installed
+(`share --download`), the failure records were already sent, or there are no unsent measurements (to send the sent
+ones again: `share --no-measure --all`).
+
 **Without signing in: `share --issue`.** Without `--yes` it lists the measurements you have not sent; choose one by number. It shows
 everything that will be sent and the privacy checklist, then opens the measurement form on GitHub in your browser
 with the content filled in. Sign in to GitHub and press **"Create"**. A bot checks it and replies on the page within
@@ -120,11 +132,12 @@ it is checked again.
 
 1. `genmodelfit measure` lists models worth measuring: they fit this PC's GPU (good or better on the GPU) and have not been measured on this PC yet (they are listed even if someone else measured the same GPU: two agreeing people let the measurement decide the level). Models already in your ComfyUI come first, then the shorter time, then the smaller download. Choose one by number (`q` quits).
    - Once a model is measured on this PC at the template's settings, the list also has runs at other settings, which help check the estimate's formula: image resolution (512 / 768 / 1024 / 1536 px, text-to-image), video frames (17 / 33 / 49 / 81 at the template's size) and music / sound length (10 / 30 / 60 / 120 s). They are shown with `--resolution`, `--frames` or `--length`, only when they fit this GPU at that setting and this PC has not measured them at that setting, at most 2 per model. Runs over about 300 s are not listed. If the template cannot take a setting, measure stops before generating.
+   - A model or setting already measured on this PC comes back after the others when the ComfyUI version differs from the one it was measured with (the line says "remeasure: ComfyUI 0.19 → 0.20"). For a ComfyUI that is not running yet, the version is read from the text of its `comfyui_version.py` (or `pyproject.toml`). With the same version it is not listed: one account counts once however often it sends the same thing.
    - To pick the model yourself: `genmodelfit measure "Z-Image-Turbo"` (a name, a workflow id or a part of either, chosen like `download`). Add `--resolution 1536x1536`, `--frames 81` or `--length 120` to change the settings, like `bench`.
    - It finds and, if needed, starts ComfyUI like `share` (above); for another one, add `--url http://<host>:<port>`.
 2. Before measuring, one screen shows the model and precision, the settings (as in the official template), which ComfyUI and how it was found, whether the model files are installed, a rough time and that nothing is sent. Answer `Y` (Enter) to measure.
    - The time is a rough guide: the median of measurements of the same model, else a rough value per type, scaled by the ratio of pixels, frames or length when the settings are changed. Downloading is not included.
-   - A model that is not installed is downloaded first, with the same questions and consent rules as `genmodelfit download`.
+   - A model that is not installed is downloaded first, with the same questions and consent rules as `genmodelfit download`. At the end (also after a failure or Ctrl+C) it asks whether to delete what it downloaded, like `share` (`[y/N]`; `--delete-downloaded` deletes without asking).
    - When other programs use the GPU (more than 1.5 GiB or 20% of its memory), it does not measure. On AMD / Intel / Apple GPUs, where nvidia-smi is missing, this is read from ComfyUI where possible, and the result's note says what could not be checked.
    - A ComfyUI that `measure` started is freed before the run (models unloaded, cached results dropped) and stopped afterwards; your own running ComfyUI is freed only with `--free`. Models that need nodes your ComfyUI lacks are left out of the list, and a named one stops before downloading. Only one `measure` or `share` measures at a time.
 3. It shows the result and where it saved it (`<cache>/submissions/<GPU>/<date>-<sha8>.json`), and one line pointing to `genmodelfit share`. It never asks whether to send. A run that could not be measured is saved as a failure record, which the next `share` sends.
@@ -198,7 +211,7 @@ Timeout and files:
 
 | Field | How it is measured |
 |---|---|
-| `peak_vram_gb` | Reads `/system_stats` every 0.2 seconds during generation and takes the maximum of the amount torch allocated (`torch_vram_total`). This is the ComfyUI process's share and does not include the CUDA context (about 0.3 to 0.5 GB). If `torch_vram_total` is unavailable, the increase over the whole GPU is used instead and a warning is left. |
+| `peak_vram_gb` | Reads `/system_stats` about every 0.03 seconds during generation and takes the maximum of the amount torch allocated (`torch_vram_total`). If the maximum is a brief spike shorter than the polling interval, it varies from run to run, so the run is not a standard measurement (#131). This is the ComfyUI process's share and does not include the CUDA context (about 0.3 to 0.5 GB). If `torch_vram_total` is unavailable, the increase over the whole GPU is used instead and a warning is left. |
 | "GPU-wide increase" in `note` | The maximum total GPU usage (`nvidia-smi`; the tool above for non-NVIDIA, about every 1 second) minus the value before the start. Changes by other apps are included. Not written if there is no tool. |
 | `peak_ram_gb` | Maximum resident memory of the ComfyUI process (and its child processes) listening on the port. Only processes whose command line contains `main.py` or `comfy` are counted. Empty if ComfyUI is on another PC or the process cannot be identified. |
 | `seconds` | From sending the workflow to its end (including model loading). The run time ComfyUI counted goes into `note`. |

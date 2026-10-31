@@ -138,7 +138,8 @@ def prompt_from_tables(e: ModelEntry) -> list[str]:
 
 def runtime_of(e: ModelEntry) -> str | None:
     """動かす仕組み。公式テンプレート由来は comfyui。HF 由来は、ComfyUI の系統に当たる画像・動画・音楽・
-    効果音・3D だけ comfyui(読み上げは仕組みがモデルごとに違うので決めない)。"""
+    効果音・3D だけ comfyui(読み上げは仕組みがモデルごとに違うので規則では決めない。手の表 overrides.json の
+    runtime に書く。#142。docs/sources.md「動かし方」)。"""
     if e.source == "comfyui-template":
         return "comfyui"
     if e.source == "huggingface" and e.modality != "tts" and e.comfy_family:
@@ -297,20 +298,11 @@ def manual_entries(data: dict[str, Any] | None = None) -> list[ModelEntry]:
                 parts = f.url.split("/")
                 f.repo_id = "/".join(parts[3:5])
         set_entry_license(e)
-        _prefer_main_license_url(e)
         set_completeness(e)
         set_precision(e)
         assign(e)
         out.append(e)
     return out
-
-
-def _prefer_main_license_url(e: ModelEntry) -> None:
-    """一式のライセンスが本体のファイルと同じなら、原文の場所も本体のもの(同じ段階のファイルが複数あるとき、
-    set_entry_license はファイル名の順で選ぶので、部品の URL になってしまう)。"""
-    main = next((f for f in e.files if f.role == "main"), None)
-    if main and main.license_url and (main.license, main.license_name) == (e.license, e.license_name):
-        e.license_url = main.license_url
 
 
 _MEASURED_FILE_FIELDS = (
@@ -453,7 +445,9 @@ def add_components(entries: list[ModelEntry], table: dict[str, dict[str, Any]] |
 
 def verify_manual_licenses(entries: list[ModelEntry], client: Any) -> list[str]:
     """手のモデルのファイルのライセンスを、上流のカード(license_from)と照らす。読めて食い違えば、厳しいほうを
-    使って警告を返す(書いた値がカードより厳しい段階なら、本文の制限を読んだものとしてそのまま)。カードを読めなければ(非公開・401・通信の失敗)書いた値のまま、確かめられなかった旨の警告。"""
+    使って警告を返す(書いた値がカードより厳しい段階なら、本文の制限を読んだものとしてそのまま。license が
+    同じでカードに license_name が無ければ、書いた license_name は本文で細かくしたものとしてそのまま。#127)。
+    カードを読めなければ(非公開・401・通信の失敗)書いた値のまま、確かめられなかった旨の警告。"""
     from .hf import license_tier, normalize_license, strictest
     from .update import set_entry_license
 
@@ -474,6 +468,11 @@ def verify_manual_licenses(entries: list[ModelEntry], client: Any) -> list[str]:
             mine = (f.license, f.license_name)
             if card[0] is None or card == mine:
                 continue
+            if card[0] == mine[0] and card[1] is None and mine[1]:
+                # 書いた名前は、カードの同じ license を本文で細かくしたもの(Supertonic 3 の openrail →
+                # LICENSE の本文が Open RAIL-M なので openrail-m。#127)。食い違いではない
+                # (警告も書き換えもしない)
+                continue
             if license_tier(*card) < license_tier(*mine):
                 # 書いた人がカードの本文の制限(Irodori の Ethical Restrictions など)を読んで、cardData より
                 # 厳しくしたもの。そのまま(警告しない)
@@ -487,5 +486,4 @@ def verify_manual_licenses(entries: list[ModelEntry], client: Any) -> list[str]:
                 f"手のモデル {e.id}: {f.name} のライセンスがカードと違います(書いた値 {mine}、カード {card})"
             )
         set_entry_license(e)
-        _prefer_main_license_url(e)
     return warnings

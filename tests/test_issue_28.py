@@ -656,12 +656,36 @@ def test_other_fit_label_is_humanized(tmp_path):
     assert "other levels (--fit)" in text and "other_fit" not in text
 
 
-def test_info_and_table_use_the_same_percentage(db, capsys):
-    assert cli.main(["info", "video_wan2_2_14B_i2v", "--vram", "24", "--ram", "96", "--no-cache"]) == 0
+@pytest.mark.parametrize("ram", ["96", "64"])
+def test_info_and_table_use_the_same_percentage(db, capsys, ram):
+    # 96 GB: VRAM のほうがきつい。64 GB: 逃がす載せ方でメインメモリのほうがきつい(#122)
+    hw = ["--vram", "24", "--ram", ram, "--no-cache"]
+    assert cli.main(["info", "video_wan2_2_14B_i2v", *hw]) == 0
     info = capsys.readouterr().out
-    d = _fit_json(capsys, "--all-workflows", "-m", "video")
+    assert cli.main(["fit", *hw, "--json", "--all-workflows", "-m", "video"]) == 0
+    d = json.loads(capsys.readouterr().out)
     row = next(m for m in d["models"] if m["id"] == "video_wan2_2_14B_i2v")
-    assert f"({round(row['utilization_pct'])}%)" in info
+    assert row["run_mode"] == "offload"
+    assert f"({round(row['utilization_pct'])}%)" in " ".join(info.split())
+    if ram == "64":
+        assert re.search(r"36\.1 / 64\.0 GB\s?[((]56%\)", " ".join(info.split()))
+
+
+@pytest.mark.parametrize(("vram", "ram"), [(8, 32), (12, 32), (16, 32), (24, 64)])
+def test_offload_note_percentage_is_the_table_percentage(db, vram, ram):
+    """逃がす行の注意の % は、表の Mem%(段階を決めた、VRAM とメインメモリのきついほう)と同じ(#122)。"""
+    from genmodelfit.recommend import usage_ratio
+
+    system = pc(vram, ram)
+    seen = 0
+    for m in db.models:
+        e = estimate(m, system)
+        if e.run_mode != "offload":
+            continue
+        seen += 1
+        pct = round(round(100 * usage_ratio(e, system), 1))
+        assert any(f"{pct}%)" in r and "good" in r for r in e.reasons), (m.id, pct, e.reasons)
+    assert seen
 
 
 @pytest.mark.parametrize(

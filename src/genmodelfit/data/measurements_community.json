@@ -3,19 +3,63 @@
  "source": "community",
  "contrib_schema": 3,
  "date": "2026-10-29",
- "method": "data/contrib の提出を、同じモデル・GPU・測り方・設定(ステップ数は除く)・測ったときの一覧のファイル(files_fp)ごとにまとめる。error の提出は数えるだけ(n_error)。最後まで動いた(ok)ものの最大 VRAM を出どころ(送った人。git の履歴から読む。無ければ提出ごと)ごとの中央値にし、|x - 中央値| / (1.4826 × MAD) > 3.5 を外れ値として除き(出どころが 3 つ以上のとき。MAD は中央値の 2% を下限)、残りの中央値を値にする。ok の行は 1 件から見積もりに使う(件数は n_used、出どころは n_sources、同じ構成の OOM は n_oom。OOM の出どころが ok の出どころ以上なら runs_evidence が false)。出どころが 2 以上で、幅が中央値の 15% 以内で、OOM が無ければ consistent(係数の合わせ直しに入れる)。GPU 名が汎用の名前・名前の代わりの値の行は gpu_known が false で、判定に使わない。GPU の総量を超えた(共有メモリへ逃げた。spilled)提出と失敗の記録は使わない",
+ "method": "data/contrib の提出を、同じモデル・GPU・測り方・設定(ステップ数は除く)・測ったときの一覧のファイル(files_fp)ごとにまとめる。error の提出は数えるだけ(n_error)。最後まで動いた(ok)ものの最大 VRAM を出どころ(送った人。git の履歴から読む。無ければ提出ごと)ごとの中央値にし、|x - 中央値| / (1.4826 × MAD) > 3.5 を外れ値として除き(出どころが 3 つ以上のとき。MAD は中央値の 2% を下限)、残りの中央値を値にする。ok の行は 1 件から見積もりに使う(件数は n_used、出どころは n_sources、同じ構成の OOM は n_oom。OOM の出どころが ok の出どころ以上なら runs_evidence が false)。出どころが 2 以上で、幅が中央値の 15% 以内で、OOM が無ければ consistent(係数の合わせ直しに入れる)。GPU 名が汎用の名前・名前の代わりの値の行は gpu_known が false で、判定に使わない。GPU の総量を超えた(共有メモリへ逃げた。spilled)提出と失敗の記録、contrib_nonstandard.json の提出(標準でないとみなすもの)は使わない",
  "submissions": [
+  {
+   "sha256": "214ab051f8ae0a3939cf16c5c60073a74ae3c2f463b8da198a1e6814ac85a28f",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
+  },
+  {
+   "sha256": "2339670b21bf36ada5d3780a0399d909b9f263bd86347dac185d5850cc5c6aab",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
+  },
   {
    "sha256": "3776482bbd7e88d9c5f75d050e6b121cd6c03c1e681f102973745e0af621c9e5",
    "source": "4bd446bfbe06929167a792e9bb35fd6703f58e01d13c4c0ef44187456b3afab8"
+  },
+  {
+   "sha256": "3dd65a75ebe2c08d41fe7abdc1cbdc99d7240d636eb3296648e3687d778eca25",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
+  },
+  {
+   "sha256": "5732b6b8e5f73e38e6d1f353eeebf7b28775d442ec354fadb9579c31590c2aad",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
+  },
+  {
+   "sha256": "768c13a0f0aa24105855d562315258bd1d63d08e9ffc6c0a37a1e0019999256f",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
   },
   {
    "sha256": "896ed018f73d85167fd6a723aae362de174bff275fcca20108e40f7ad1107f42",
    "source": "4bd446bfbe06929167a792e9bb35fd6703f58e01d13c4c0ef44187456b3afab8"
   },
   {
+   "sha256": "c2a44eda5558b6822faa2a1dac323c51f2624ae9934680c438b576f4edadd3be",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
+  },
+  {
    "sha256": "c87c38ec4b052f8d2951742612d5d3c7ec86e99f35c64721a0d00153532b7d41",
    "source": "4bd446bfbe06929167a792e9bb35fd6703f58e01d13c4c0ef44187456b3afab8"
+  },
+  {
+   "sha256": "ccadd373befa6dbfc29b8a8935f82e7f021b9b0062cd40f26ea7bd7ed9337db4",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
+  },
+  {
+   "sha256": "ced98ae4160295b842fa6a30f6b7ca2501fbdba98f7ff3964037253623167dba",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
+  },
+  {
+   "sha256": "cf2021fffa15c520dc6ad2aa27516819cb95f8cc6a3fb50612da9397d2d45c7b",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
+  },
+  {
+   "sha256": "e1045728d7cbe91b3cc22e4a513a2c496a347256b027aaa8d66a6f91205ae908",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
+  },
+  {
+   "sha256": "e82c2b92410a7f278c50c31ed1ac2195194d7048fa6ebe9198d4b2fd234d059a",
+   "source": "fa63aa04fc318c35edefca65f5bde0cf308cc89d702452ffa9bf1ee95d7e618f"
   },
   {
    "sha256": "ead34d42b9838c6022a584473b8a3438fff05abe2a716d2c641388a0a543ea95",
@@ -23,6 +67,145 @@
   }
  ],
  "measurements": [
+  {
+   "model_id": "3d_hunyuan3d-v2.1",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "gpu_backend": "cuda",
+   "gpu_pci_id": null,
+   "gpu_known": true,
+   "files_fp": "31df388de5a8c6567399977b2e1beae329e73af4e57f69fd2c3d9eb124406951",
+   "peak_vram_gb": 1.59,
+   "settings": {
+    "precision": "fp16",
+    "batch": 1,
+    "steps": 30
+   },
+   "peak_ram_gb": 12.8,
+   "seconds": 39.7,
+   "driver": "610.88",
+   "comfyui_version": "0.34.3",
+   "offload": "dynamic",
+   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
+   "date": "2026-10-29",
+   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
+   "outcome": "ok",
+   "standard": true,
+   "vram_metric": "torch_reserved",
+   "origin": "community",
+   "n_submissions": 1,
+   "consistent": false,
+   "n_used": 1,
+   "n_sources": 1,
+   "source_ids": [
+    "fa63aa04fc31"
+   ],
+   "n_outliers": 0,
+   "n_oom": 0,
+   "n_error": 0,
+   "runs_evidence": true,
+   "spread_mad_gb": 0.0,
+   "spread_rel_pct": 0.0,
+   "peak_vram_min_gb": 1.59,
+   "peak_vram_max_gb": 1.59,
+   "outlier_submissions": [],
+   "submissions": [
+    "cf2021ff"
+   ]
+  },
+  {
+   "model_id": "3d_hunyuan3d_image_to_model",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "gpu_backend": "cuda",
+   "gpu_pci_id": null,
+   "gpu_known": true,
+   "files_fp": "d3c40ed1bdde00026ec48e6f2b1eea30077a590973b6fafb4e208bf52c6eccc5",
+   "peak_vram_gb": 0.5,
+   "settings": {
+    "precision": "fp16",
+    "batch": 1,
+    "steps": 20
+   },
+   "peak_ram_gb": 12.92,
+   "seconds": 41.0,
+   "driver": "610.88",
+   "comfyui_version": "0.34.3",
+   "offload": "dynamic",
+   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
+   "date": "2026-10-29",
+   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
+   "outcome": "ok",
+   "standard": true,
+   "vram_metric": "torch_reserved",
+   "origin": "community",
+   "n_submissions": 1,
+   "consistent": false,
+   "n_used": 1,
+   "n_sources": 1,
+   "source_ids": [
+    "fa63aa04fc31"
+   ],
+   "n_outliers": 0,
+   "n_oom": 0,
+   "n_error": 0,
+   "runs_evidence": true,
+   "spread_mad_gb": 0.0,
+   "spread_rel_pct": 0.0,
+   "peak_vram_min_gb": 0.5,
+   "peak_vram_max_gb": 0.5,
+   "outlier_submissions": [],
+   "submissions": [
+    "e82c2b92"
+   ]
+  },
+  {
+   "model_id": "audio_ace_step_1_5_checkpoint",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "gpu_backend": "cuda",
+   "gpu_pci_id": null,
+   "gpu_known": true,
+   "files_fp": "73d7361e2640d05ffb401b33d21abbbc5d24dae056791a096afd7961f590508d",
+   "peak_vram_gb": 9.5,
+   "settings": {
+    "seconds": 120.0,
+    "precision": "bf16",
+    "batch": 1,
+    "steps": 8
+   },
+   "peak_ram_gb": 11.1,
+   "seconds": 15.0,
+   "driver": "610.88",
+   "comfyui_version": "0.34.3",
+   "offload": "dynamic",
+   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
+   "date": "2026-10-29",
+   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
+   "outcome": "ok",
+   "standard": true,
+   "vram_metric": "torch_reserved",
+   "origin": "community",
+   "n_submissions": 1,
+   "consistent": false,
+   "n_used": 1,
+   "n_sources": 1,
+   "source_ids": [
+    "fa63aa04fc31"
+   ],
+   "n_outliers": 0,
+   "n_oom": 0,
+   "n_error": 0,
+   "runs_evidence": true,
+   "spread_mad_gb": 0.0,
+   "spread_rel_pct": 0.0,
+   "peak_vram_min_gb": 9.5,
+   "peak_vram_max_gb": 9.5,
+   "outlier_submissions": [],
+   "submissions": [
+    "768c13a0"
+   ]
+  },
   {
    "model_id": "image_sdxl_simple",
    "gpu_name": "NVIDIA GeForce RTX 3070",
@@ -129,55 +312,6 @@
    "gpu_known": true,
    "files_fp": "af6acceb87f297232758ab46ccc09c1e816c3ce614f544f4e02aaa92a640d3c1",
    "settings_override": true,
-   "peak_vram_gb": 0.31,
-   "settings": {
-    "width": 512,
-    "height": 512,
-    "precision": "fp16",
-    "batch": 1,
-    "steps": 25
-   },
-   "peak_ram_gb": 8.74,
-   "seconds": 10.2,
-   "driver": "610.88",
-   "comfyui_version": "0.19.3",
-   "offload": "dynamic",
-   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
-   "date": "2026-10-29",
-   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
-   "outcome": "ok",
-   "standard": true,
-   "vram_metric": "torch_reserved",
-   "origin": "community",
-   "n_submissions": 1,
-   "consistent": false,
-   "n_used": 1,
-   "n_sources": 1,
-   "source_ids": [
-    "4bd446bfbe06"
-   ],
-   "n_outliers": 0,
-   "n_oom": 0,
-   "n_error": 0,
-   "runs_evidence": true,
-   "spread_mad_gb": 0.0,
-   "spread_rel_pct": 0.0,
-   "peak_vram_min_gb": 0.31,
-   "peak_vram_max_gb": 0.31,
-   "outlier_submissions": [],
-   "submissions": [
-    "ead34d42"
-   ]
-  },
-  {
-   "model_id": "image_sdxl_simple",
-   "gpu_name": "NVIDIA GeForce RTX 3070",
-   "gpu_vram_gb": 8.0,
-   "gpu_backend": "cuda",
-   "gpu_pci_id": null,
-   "gpu_known": true,
-   "files_fp": "af6acceb87f297232758ab46ccc09c1e816c3ce614f544f4e02aaa92a640d3c1",
-   "settings_override": true,
    "peak_vram_gb": 1.34,
    "settings": {
     "width": 768,
@@ -216,6 +350,241 @@
    "outlier_submissions": [],
    "submissions": [
     "c87c38ec"
+   ]
+  },
+  {
+   "model_id": "image_sdxl_simple",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "gpu_backend": "cuda",
+   "gpu_pci_id": null,
+   "gpu_known": true,
+   "files_fp": "af6acceb87f297232758ab46ccc09c1e816c3ce614f544f4e02aaa92a640d3c1",
+   "peak_vram_gb": 2.34,
+   "settings": {
+    "width": 1024,
+    "height": 1024,
+    "precision": "fp16",
+    "batch": 1,
+    "steps": 25
+   },
+   "peak_ram_gb": 8.98,
+   "seconds": 10.5,
+   "driver": "610.88",
+   "comfyui_version": "0.34.3",
+   "offload": "dynamic",
+   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
+   "date": "2026-10-29",
+   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
+   "outcome": "ok",
+   "standard": true,
+   "vram_metric": "torch_reserved",
+   "origin": "community",
+   "n_submissions": 1,
+   "consistent": false,
+   "n_used": 1,
+   "n_sources": 1,
+   "source_ids": [
+    "fa63aa04fc31"
+   ],
+   "n_outliers": 0,
+   "n_oom": 0,
+   "n_error": 0,
+   "runs_evidence": true,
+   "spread_mad_gb": 0.0,
+   "spread_rel_pct": 0.0,
+   "peak_vram_min_gb": 2.34,
+   "peak_vram_max_gb": 2.34,
+   "outlier_submissions": [],
+   "submissions": [
+    "5732b6b8"
+   ]
+  },
+  {
+   "model_id": "image_sdxl_simple",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "gpu_backend": "cuda",
+   "gpu_pci_id": null,
+   "gpu_known": true,
+   "files_fp": "af6acceb87f297232758ab46ccc09c1e816c3ce614f544f4e02aaa92a640d3c1",
+   "settings_override": true,
+   "peak_vram_gb": 1.59,
+   "settings": {
+    "width": 768,
+    "height": 768,
+    "precision": "fp16",
+    "batch": 1,
+    "steps": 25
+   },
+   "peak_ram_gb": 9.65,
+   "seconds": 8.4,
+   "driver": "610.88",
+   "comfyui_version": "0.34.3",
+   "offload": "dynamic",
+   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
+   "date": "2026-10-29",
+   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
+   "outcome": "ok",
+   "standard": true,
+   "vram_metric": "torch_reserved",
+   "origin": "community",
+   "n_submissions": 1,
+   "consistent": false,
+   "n_used": 1,
+   "n_sources": 1,
+   "source_ids": [
+    "fa63aa04fc31"
+   ],
+   "n_outliers": 0,
+   "n_oom": 0,
+   "n_error": 0,
+   "runs_evidence": true,
+   "spread_mad_gb": 0.0,
+   "spread_rel_pct": 0.0,
+   "peak_vram_min_gb": 1.59,
+   "peak_vram_max_gb": 1.59,
+   "outlier_submissions": [],
+   "submissions": [
+    "c2a44eda"
+   ]
+  },
+  {
+   "model_id": "image_z_image_turbo_int8",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "gpu_backend": "cuda",
+   "gpu_pci_id": null,
+   "gpu_known": true,
+   "files_fp": "e224462927e00b99ae90d44c0ca6dd735980a20e6a19bdc994d097791cf44972",
+   "peak_vram_gb": 0.75,
+   "settings": {
+    "width": 1024,
+    "height": 1024,
+    "precision": "int8",
+    "batch": 1,
+    "steps": 8
+   },
+   "peak_ram_gb": 13.93,
+   "seconds": 11.4,
+   "driver": "610.88",
+   "comfyui_version": "0.34.3",
+   "offload": "dynamic",
+   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
+   "date": "2026-10-29",
+   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
+   "outcome": "ok",
+   "standard": true,
+   "vram_metric": "torch_reserved",
+   "origin": "community",
+   "n_submissions": 1,
+   "consistent": false,
+   "n_used": 1,
+   "n_sources": 1,
+   "source_ids": [
+    "fa63aa04fc31"
+   ],
+   "n_outliers": 0,
+   "n_oom": 0,
+   "n_error": 0,
+   "runs_evidence": true,
+   "spread_mad_gb": 0.0,
+   "spread_rel_pct": 0.0,
+   "peak_vram_min_gb": 0.75,
+   "peak_vram_max_gb": 0.75,
+   "outlier_submissions": [],
+   "submissions": [
+    "e1045728"
+   ]
+  },
+  {
+   "model_id": "utility_depth_anything3_image_depth_estimation",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "gpu_backend": "cuda",
+   "gpu_pci_id": null,
+   "gpu_known": true,
+   "files_fp": "995272657a14aca0245b816bddfeccd99d09046e7aef9a5903d0675c11bdc3da",
+   "peak_vram_gb": 0.5,
+   "settings": {
+    "precision": "fp32",
+    "batch": 1
+   },
+   "peak_ram_gb": 4.75,
+   "seconds": 1.6,
+   "driver": "610.88",
+   "comfyui_version": "0.34.3",
+   "offload": "dynamic",
+   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
+   "date": "2026-10-29",
+   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
+   "outcome": "ok",
+   "standard": true,
+   "vram_metric": "torch_reserved",
+   "origin": "community",
+   "n_submissions": 1,
+   "consistent": false,
+   "n_used": 1,
+   "n_sources": 1,
+   "source_ids": [
+    "fa63aa04fc31"
+   ],
+   "n_outliers": 0,
+   "n_oom": 0,
+   "n_error": 0,
+   "runs_evidence": true,
+   "spread_mad_gb": 0.0,
+   "spread_rel_pct": 0.0,
+   "peak_vram_min_gb": 0.5,
+   "peak_vram_max_gb": 0.5,
+   "outlier_submissions": [],
+   "submissions": [
+    "3dd65a75"
+   ]
+  },
+  {
+   "model_id": "utility_moge_depth_estimation",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "gpu_backend": "cuda",
+   "gpu_pci_id": null,
+   "gpu_known": true,
+   "files_fp": "92e716b86042d323796df67cb998eb1dd2717209275015e92f9608a6f7090fdc",
+   "peak_vram_gb": 0.75,
+   "settings": {
+    "precision": "fp16",
+    "batch": 1
+   },
+   "peak_ram_gb": 4.75,
+   "seconds": 1.6,
+   "driver": "610.88",
+   "comfyui_version": "0.34.3",
+   "offload": "dynamic",
+   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
+   "date": "2026-10-29",
+   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
+   "outcome": "ok",
+   "standard": true,
+   "vram_metric": "torch_reserved",
+   "origin": "community",
+   "n_submissions": 1,
+   "consistent": false,
+   "n_used": 1,
+   "n_sources": 1,
+   "source_ids": [
+    "fa63aa04fc31"
+   ],
+   "n_outliers": 0,
+   "n_oom": 0,
+   "n_error": 0,
+   "runs_evidence": true,
+   "spread_mad_gb": 0.0,
+   "spread_rel_pct": 0.0,
+   "peak_vram_min_gb": 0.75,
+   "peak_vram_max_gb": 0.75,
+   "outlier_submissions": [],
+   "submissions": [
+    "2339670b"
    ]
   }
  ]

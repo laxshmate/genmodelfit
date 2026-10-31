@@ -549,3 +549,24 @@ def test_uncensored_words_heretic_and_unfiltered():
     assert words("someone/flux-unfiltered-v2 FLUX Unfiltered") == {"unfiltered"}
     assert words("someone/heretical-model filteredunfilteredx") == set()  # 語の途中は当てない
     assert {"heretic", "unfiltered"} <= set(update.UNCENSORED_SEARCH_WORDS)
+
+
+def test_entry_license_url_prefers_the_main_file_with_the_same_license():
+    """同じライセンスのファイルが複数あるとき、一式の license_url は本体(大きいもの)の場所。名前の順で
+    VAE などの部品の場所にしない(#144)。本体より厳しい部品があれば、その部品の場所。"""
+    from genmodelfit.models import ModelEntry, ModelFile
+    from genmodelfit.update import set_entry_license
+
+    def f(name, role, lic, url, size=1):
+        return ModelFile(name=name, role=role, license=lic, license_url=url, size_bytes=size)
+
+    vae = f("wan_2.1_vae.safetensors", "vae", "apache-2.0", "https://example.org/wan21")
+    hi = f("wan2.2_fun_control_high_noise_14B.safetensors", "main", "apache-2.0", "https://example.org/hi", 9)
+    lo = f("wan2.2_fun_control_low_noise_14B.safetensors", "main", "apache-2.0", "https://example.org/lo", 5)
+    e = ModelEntry(id="x", name="x", modality="video", files=[lo, hi, vae])
+    set_entry_license(e)
+    assert (e.license, e.license_url) == ("apache-2.0", "https://example.org/hi")
+    nc = f("lora.safetensors", "lora", "cc-by-nc-4.0", "https://example.org/nc")
+    e = ModelEntry(id="y", name="y", modality="video", files=[lo, hi, vae, nc])
+    set_entry_license(e)
+    assert (e.license, e.license_url) == ("cc-by-nc-4.0", "https://example.org/nc")

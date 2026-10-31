@@ -415,7 +415,7 @@ Python `Fit.to_dict()` returns exactly this dict (`gmf.recommend()` / `gmf.fit_l
 | `name`, `modality`, `tasks` | | modality ∈ `image` `video` `music` `sfx` `tts` `3d`; `tasks` is a list (`t2i`, `i2v`, …) |
 | `content` | str | `sfw` or `uncensored` (see [README](../README.md)) |
 | `source` | str | `comfyui-template` / `huggingface` / `manual` |
-| `runtime` | str \| null | how the model runs: `comfyui` / `piper` / `irodori-tts` / … (`ModelEntry.runtime`, 0.5.0); null = unknown |
+| `runtime` | str \| null | how the model runs: `comfyui` / `piper` / `irodori-tts` / `supertonic` / … (`ModelEntry.runtime`, 0.5.0); null = unknown |
 | `languages` | object | `{"prompt": [...], "speech": [...]}` ISO 639-1 (`ModelEntry.languages`, 0.5.0); a missing key = unknown, `[]` = none (an image-to-3D model takes no prompt; a music model without vocals has no speech) |
 | `description` | object | `{"ja": "...", "en": "..."}` hand-written, only for some models (`ModelEntry.description`, 0.5.0); `{}` = none |
 | `fit_level` | str | `perfect` / `good` / `marginal` / `too_tight` (= `estimate.fit`), or `unknown` when the size is unknown and nothing was judged (0.1.1; until 0.1.0 these were `too_tight`) |
@@ -871,11 +871,11 @@ Python `gmf.info(model_id)` matches the exact id only and returns `None` otherwi
 ### ModelEntry
 
 `id`, `name`, `modality`, `tasks`, `source`, `files` (ModelFile[]), `template` (Template \| null), `params_b`,
-`precision`, `license`, `license_url`, `base_model`, `content`, `content_evidence` (str[]: why it is marked
+`precision`, `license`, `license_url`, `base_model` (in genmodelfit, "the origin repository of the redistributed file": for official templates the main file's `license_from`, for HF entries the first `base_model` on that repository's card, for hand-added models the written value; for templates it is not the HF card's `base_model`, the origin of the origin; 0.14.0, #144), `content`, `content_evidence` (str[]: why it is marked
 uncensored), `discovered_from` (str[]: where it was found), `updated`, `homepage`, `downloads` / `likes`
 (int \| null: Hugging Face counters, set for `source: huggingface`; `downloads` is the last 30 days),
 `downloads_all_time` (int \| null: all-time downloads, used for the inclusion floor), `total_size_bytes`,
-`license_name` (the name of an `other` license, from the strictest file), `license_evidence` (str[]: why the license is
+`license_name` (the name of an `other` license, from the strictest file; for a hand-added model it can also be a refinement of the same `license` from the body, such as `openrail` / `openrail-m`; 0.14.0), `license_evidence` (str[]: why the license is
 unknown — entries start with `license_unverified:`), `files_complete`, `size_floor_bytes` (below),
 `workflow_precision` (str \| null: precision inferred from the template's main loader node, see "Models" above;
 optional, 0.2.0), `precision_source` (str \| null: `header` / `filename` / `hf_api` / `config` / `workflow`, where
@@ -899,7 +899,7 @@ readers drop unknown keys, see "Database file"):
   (the material for `languages`, so an offline re-apply gives the same result). `[]` = the card was read and has no
   language, null = not read.
 - `runtime` (str \| null): `comfyui` for official templates and for Hugging Face image / video / music / sfx / 3D entries
-  whose files match a ComfyUI family; `piper`, `irodori-tts` for the hand-added speech models; null = not decided. A
+  whose files match a ComfyUI family; `piper`, `irodori-tts`, `supertonic` for the hand-added speech models; for Hugging Face speech models, the value in the hand table (`overrides.json`: `transformers`, `qwen-tts`, `chatterbox` and so on; 0.14.0, #142); null = not decided. A
   runtime other than `comfyui` (and null) makes the estimator count `.onnx` and other non-ComfyUI weight files.
 - `description` (`{"ja": str, "en": str}`): a short hand-written description, only for the models that have one.
 - `source: "manual"` (id `manual:<slug>`): models added by hand in `src/genmodelfit/data/manual.json` (`template` is null). Their license
@@ -1024,7 +1024,8 @@ as `ok` / `true` (`schema_version` stays 1). Estimates use only measurements wit
 
 How bench fills Measurement:
 
-- `peak_vram_gb`: max of `/system_stats` `devices[0].torch_vram_total` polled every 0.2 s (the ComfyUI process,
+- `peak_vram_gb`: max of `/system_stats` `devices[0].torch_vram_total` polled 0.015 s apart
+  (`bench.POLL_INTERVAL`; about every 0.03 s with the wait for the answer; 0.2 s apart up to 0.13.2) (the ComfyUI process,
   without the CUDA context). The GPU-wide delta from the pre-run baseline goes to `note`: `nvidia-smi` for NVIDIA;
   for other GPUs (0.9.0, `gpustat.py`) `amd-smi` → `rocm-smi` (AMD, Linux), `xpu-smi` (Intel, Linux), the Windows
   performance counters via `typeperf` (AMD / Intel, Windows) and `ioreg` (Apple). The same tools give the
@@ -1032,6 +1033,14 @@ How bench fills Measurement:
   not stop: it checks that the ComfyUI queue is empty and that apps other than ComfyUI hold at most 50% of the
   device memory (not on Apple's unified memory), then measures, with a warning and a `note` sentence;
   `standard` is not changed ([accuracy.md](accuracy.md)). A remote ComfyUI still needs `--force`.
+  - Brief spike (0.14.0, #131): when the third-largest value is more than 0.1 GiB and more than 10% below the
+    maximum, the maximum was a spike shorter than the polling interval and varies from run to run. Only runs that
+    finished (`outcome: ok`) are checked. The peak is shown in the result, `standard` becomes false and the non-standard conditions in `note` say that the peak was a brief spike,
+    with the highest value read at least 3 times (used neither for the cross-check nor for levels). With fewer than 10 reads
+    this is not decided. measure and share neither save nor send such a run; they remember it as "tried" in
+    `brief_peaks.json` in the cache and do not suggest the same one again (not sent). bench saves it only with
+    `--save-nonstandard` or `--output`. Submissions that probably missed the peak with 0.2 s polling are listed in the
+    bundled `contrib_nonstandard.json` (content sha256 → reason), and `contrib aggregate` does not use their values. Why: [accuracy.md "Measurement variance (#131)"](accuracy.md#measurement-variance-131).
 - `peak_ram_gb`: max resident memory of the process listening on the port (and its children), only when its
   command line contains `main.py` or `comfy`; null when remote or not identified.
 - `seconds`: wall time from submit to completion, including model loading. `/free` is sent first only with `--free`;
@@ -1046,9 +1055,10 @@ How bench fills Measurement:
 
 - Without MODEL, `action: "suggest"`: `comfyui` `{url, found_by, start?}` (`found_by` is `option` for `--url`, `running` for
   a ComfyUI found on 127.0.0.1 ports 8188 / 8000, null when none was found; `start` (0.13.0) `{kind, comfyui_dir}` when
-  none runs and an install would be started: `kind` is `portable`, `venv` or `desktop`) and `suggestions`
+  none runs and an install would be started: `kind` is `portable`, `venv` or `desktop`; `version` (0.14.0, #147) the
+  current ComfyUI version when known, see "Remeasure" below) and `suggestions`
   [{model_id, model_name, name, modality, precision, fit_level, installed, download_bytes, total_bytes, seconds,
-  seconds_basis, settings, args}]. Here `installed` is only the state string (`yes` / `no` / `unknown`, see
+  seconds_basis, settings, args, remeasure}]. Here `installed` is only the state string (`yes` / `no` / `unknown`, see
   "Installed" below); with MODEL it is an object. `settings` (0.12.0, #116) is null for a run as in the template, else the changed
   settings (`{width, height}`, `{frames}` or `{seconds}`); `args` is the same as `measure` / `bench` arguments
   (`["--resolution", "1536x1536"]`, empty for the template's settings). Nothing is measured.
@@ -1070,6 +1080,18 @@ Rules:
   since measuring it again on the same GPU adds nothing). One per model (`groups` key): the
   installed workflow, else the one `recommend` would pick. Order: installed first, then `seconds`, then
   `download_bytes`, then the name. Default 10 (`--limit`).
+- **Remeasure** (0.14.0, #147; `measure.stale_version`): a workflow (or a run at other settings) that this PC has
+  already measured on this GPU is offered again when every one of those runs recorded a ComfyUI version and none
+  of them is the current one (an update can change the memory and time used). `remeasure` is then
+  `{from, to}` (the version of the newest run, the current one; null for the others), the line says "ComfyUI 0.19 →
+  0.20 で測り直し" ("remeasure: ComfyUI 0.19 → 0.20"), and these rows come after every row never measured (the same
+  order inside), also within one model. With the same version, an unknown current version, or any run without a recorded
+  version (it may have been the same version), nothing is offered again (one account counts once however often it sends the same thing). The current
+  version comes from the running ComfyUI's `/system_stats` (`system.comfyui_version`; with `--dry-run` only from one
+  on this PC), or, before an install is started, from the text of `comfyui_version.py` (`__version__ = "x.y.z"`), else
+  the `[project]` `version` of `pyproject.toml`, next to its `main.py` (`comfystart.installed_version`; read as text,
+  never imported, so the plan is decided before starting). genmodelfit has no separate version of its measuring
+  method: `vram_metric` stays `torch_reserved` for every result of this PC, so only the ComfyUI version is compared.
 - **Runs at other settings** (0.12.0, #116; `measure.variants`), mixed into the same list and order, to check the
   formula's per-stage working memory: text-to-image workflows (`t2i`, not in `estimate.NO_SIZE_INPUT`) at 512 / 768 /
   1024 / 1536 px square (`VARIANT_PIXELS`), text / image-to-video (`t2v`, `i2v`) at 17 / 33 / 49 / 81 frames
@@ -1145,7 +1167,7 @@ the issue form (#113). `contrib share` is `share --issue` with `command: "contri
 |---|---|---|
 | `action` | str | `send` (`logout` for `--logout`, with `removed`) |
 | `no_measure` | bool | `--no-measure` or FILE |
-| `comfyui` | object | as in `measure` (`url`, `found_by`, `start?`, `started?`) |
+| `comfyui` | object | as in `measure` (`url`, `found_by`, `start?`, `started?`, `version?`) |
 | `budget_seconds` | float | `--budget` (default 300, `measure.SHARE_BUDGET_SECONDS`) |
 | `plan` | Suggestion[] | the installed suggestions to measure (the items of `measure`'s `suggestions`) |
 | `download_plan` | Suggestion[] | the suggestions that are not installed and fit the time left |
@@ -1155,6 +1177,7 @@ the issue form (#113). `contrib share` is `share --issue` with `command: "contri
 | `failed` | object[] | `{model_id, settings, error}` (`model_id` null when ComfyUI could not be started) |
 | `interrupted` / `downloaded` | bool | stopped with Ctrl+C / downloaded the `download_plan` |
 | `download_hint` | object | `{count, bytes}` when models were not downloaded because nothing could ask (`--yes`, `--json`, no terminal) |
+| `reason` / `reasons` / `next_step` | str / object[] / str | only when there is nothing to send (0.14.0, #146): one sentence; `{code, text}` per reason, `code` one of `no_measure`, `measured_here` (the installed models that fit are already measured on this PC; only when this PC has such runs), `no_installed` (no installed model that fits; otherwise), `installed_unknown` (the models folder is unknown), `missing_nodes` (update ComfyUI), `budget` (nothing installed fits the time limit, or nothing at all when none is installed), `download_declined` / `not_downloaded` (`share --download`), `failed`, `unsendable`, `interrupted`, `failures_sent` (the same failure records were already sent), `no_unsent` (always last; mentions `share --no-measure --all` when sent files exist); and one line saying what to do next |
 | `files` | object[] | `{file, path_in_repo, ok, refused}` for every file checked |
 | `prs` | object[] | `{url, reused, branch, fork, uploaded, skipped, on_main}` per GPU |
 | `marked_shared` | int | files marked as sent |
@@ -1171,7 +1194,9 @@ Rules:
   the plan and how to start ComfyUI and exits 1 without asking or signing in; with unsent measurements it goes on to
   send those.
 - **Plan**: `measure.suggestions` with `installed.state == "yes"`, in order, while the sum of `seconds` fits the budget
-  (`measure.share_plan`; a row that does not fit is skipped and the next is tried). When a ComfyUI is reachable,
+  (`measure.share_plan`; a row that does not fit is skipped and the next is tried). Remeasure rows (0.14.0, #147,
+  see measure) come after the rows never measured, so among the installed ones they are taken only with time left
+  (installed remeasure rows still come before downloads, which use the time left after the installed ones). When a ComfyUI is reachable,
   suggestions whose template uses nodes it lacks are left out (`skipped`) and the next ones fill the budget
   (`download_plan` too). With a ComfyUI to start, this happens after it starts, and the new plan is shown.
 - **Order**: plan with the total time → one `[Y/n]` (covers measuring and starting ComfyUI; `--yes` skips it) → check
