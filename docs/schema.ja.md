@@ -984,7 +984,8 @@ OOM の行もデータとして歓迎するが、`outcome: "oom"` を保たな�
 
 bench が Measurement を埋める方法(測り方):
 
-- `peak_vram_gb`: `/system_stats` の `devices[0].torch_vram_total` を 0.2 秒ごとに読んだ最大値(ComfyUI のプロセス。CUDA コンテキストは除く)。
+- `peak_vram_gb`: `/system_stats` の `devices[0].torch_vram_total` を 0.015 秒おき(`bench.POLL_INTERVAL`。答えを待つ時間を含めると約 0.03 秒ごと。0.13.2 までは 0.2 秒おき)に読んだ最大値(ComfyUI のプロセス。CUDA コンテキストは除く)。
+  - 一瞬の山(0.14.0、#131): 3 回目に大きい値が最大値より 0.1 GiB 超かつ 10% 超小さければ、最大値は読む間隔より短い山で、測るたびに揺れる。値は残し、`standard` を false にして `note` の「標準でない条件」に「最大 VRAM が一瞬だけの山(… GB。3 回以上読めた最大は … GB)」と書く(照合にも段階にも使わない)。読めた回が 10 回より少ないときは決めない。理由は [accuracy.ja.md「測り方の揺れ(#131)」](accuracy.ja.md#測り方の揺れ131)。
   - 実行前の基準からの GPU 全体の差は `note` に入れる。NVIDIA は `nvidia-smi`。
   - ほかの GPU(0.9.0、`gpustat.py`)は、`amd-smi` → `rocm-smi`(AMD、Linux)、`xpu-smi`(Intel、Linux)、`typeperf` 経由の Windows のパフォーマンスカウンタ(AMD / Intel、Windows)、`ioreg`(Apple)。
   - 同じ道具で、実行前の使用中の確認もする(平均使用率が 30% 以上なら、`--force` が無いと断る)。

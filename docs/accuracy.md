@@ -807,6 +807,55 @@ already used 1.8 to 1.9 GB (ComfyUI idling and the Windows desktop). They did no
   genmodelfit cannot fix it. If bench stalls, restart ComfyUI with `--disable-dynamic-vram` and measure again
   ([CONTRIBUTING.md "1. Measure"](../CONTRIBUTING.md#1-measure)).
 
+### Measurement variance (#131)
+
+On the same PC with the same settings, bench's peak VRAM (`torch_reserved`, dynamic VRAM) differed from run to run.
+SDXL at 1024 px was usually 2.28 GB and sometimes 1.28 GB. In the RTX 5080 submissions ACE-Step 30 s (0.47 GB) was below 10 s (1.22 GB).
+Measured again on 2026-10-31 on an RTX 3070 8GB with ComfyUI 0.19.3 (only while the GPU was idle; `/free` before every run).
+
+**Cause: the working-memory peak is short, and reading every 0.2 s misses it in some runs.**
+
+- The peak comes at the end of the final VAE decode and disappears when ComfyUI returns torch's free memory after the run (soft_empty_cache).
+- Read about 60 times a second, the peak lasted about 0.19 s for SDXL 1024 px, about 0.08 s for 768 px, 0.02 to 0.05 s for ACE-Step 10 s,
+  0.2 to 0.3 s for ACE-Step 30 s and about 0.45 s for SDXL 1536 px.
+- 1.28 GB is the value that lasts about 0.03 s just before the peak (2.28 GB). A run that misses the peak records it (or 1.19 GB) as the maximum.
+- Loaded models, first or later run and `/free` do not explain it (the peak had the same shape in 8 runs with ComfyUI started
+  afresh each time and in 10 runs on one ComfyUI).
+
+From the peak shapes (recorded about 60 times a second), the value read every 0.2 s was replayed 2,000 times each with different start times:
+
+| Run | 0.2 s apart (up to 0.13.2) | 0.015 s apart (0.14.0) |
+|---|---|---|
+| SDXL 1024 px (4 recordings) | 2.28 GB in 94 to 100%, 1.28 / 1.19 GB in 0 to 6% | 2.28 GB in 100% |
+| ACE-Step 10 s (3 recordings) | spread over 0.41 to 1.31 GB (the true peak in 15 to 28%) | the true peak in 99 to 100% |
+| ACE-Step 30 s (3 recordings) | one value per recording | the same |
+
+**What changed (0.14.0)**
+
+- bench reads `/system_stats` 0.015 s apart (`bench.POLL_INTERVAL`). With the time spent waiting for the answer, that is about every 0.03 s in practice (30 to 36 reads a second). The resident memory is still read every 0.2 s.
+  Reading this often did not change the step or decode times (SDXL 0.4 s/step, ACE-Step 0.125 s/step).
+- A peak too short to be read 3 times (the third-largest value is more than 0.1 GiB and more than 10% below the maximum)
+  is not a standard measurement (`standard: false`; the value is kept; used neither for the cross-check nor for levels). A peak read 3 times
+  lasted at least twice the polling interval, so every run reads it at least once.
+
+Measurements after the change (RTX 3070, ComfyUI 0.19.3):
+
+| Run | Runs | Peak VRAM | Reads at the peak | Standard |
+|---|---:|---|---|---|
+| SDXL 1024 px | 15 (including 2 with `measure`) | all 2.28 GB | 5 to 7 | yes |
+| SDXL 768 px | 6 | all 1.34 GB | 3 to 4 | yes |
+| SDXL 1536 px | 3 | all 4.97 GB | 9 to 13 | yes |
+| ACE-Step 30 s | 4 | 2.34 / 2.34 / 2.34 / 2.72 GB | 4 to 9 | yes |
+| ACE-Step 10 s | 8 (including 1 with `measure`) | 1.09 to 1.31 GB | 1 to 2 | no (brief spike) |
+
+- Before the change (every 0.2 s), runs on the same PC: SDXL 1024 px gave 2.28 GB in all 23 runs (1.28 GB is rare, as the replay says).
+  ACE-Step 10 s varied: 0.59 / 1.06 / 0.66 GB.
+- ACE-Step 30 s at 2.72 GB is a real value: the peak lasted 0.28 s and was read 9 times. It is a run-to-run difference on ComfyUI's side (about 0.4 GB), which no way of reading removes.
+- The ACE-Step 10 s peak is very short and this way of reading cannot catch it every time. The values in the sweep above (10 s 1.00 GB) and in #102 (10 s 0.44 GB)
+  are probably low values that missed the peak.
+- The RTX 5080 submission of ACE-Step 30 s (0.47 GB) is probably the same: on a faster GPU the peak is even shorter (the decode took 1.04 s),
+  and reading every 0.2 s probably did not read it once. Measuring again with 0.14.0 will tell.
+
 ### Public figures (not used for fitting)
 
 | Model | Public figure | genmodelfit (per-stage formula, all on GPU) | Difference |

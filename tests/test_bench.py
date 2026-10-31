@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import json
 import threading
 import time
@@ -1301,3 +1302,110 @@ def test_cli_bench_json_has_timing(capsys):
         "cold_load",
     }
     assert t["sampling_s"] == 1.0 and t["sec_per_step"] == 0.04
+
+
+# --- 一瞬の山(#131) --------------------------------------------------------------------------------
+# RTX 3070 の SDXL 1024px: VAE の復号の山 2.28 GB は約 0.19 秒だけ続き、実行の終わりに消える。
+# 0.2 秒ごとに読むと、山の直前の 1.28 GB しか読めない回があった
+
+_REAL_SLEEP = time.sleep
+
+
+def test_steady_peak_and_brief_peak():
+    plateau = [int(x * GIB) for x in [0.5] * 20 + [1.19, 1.28] + [2.28] * 6 + [0.03]]
+    assert bench.steady_peak(plateau) == int(2.28 * GIB)
+    assert bench.brief_peak(plateau) is None  # 山が読む間隔より長ければ標準のまま
+    spike = [int(x * GIB) for x in [0.5] * 20 + [1.19, 1.28, 2.28, 0.03]]
+    assert bench.brief_peak(spike) == (int(2.28 * GIB), int(1.19 * GIB))
+    # 差が小さい(0.1 GiB 以下・最大値の 10% 以下)なら揺れても照合に効かないので決めない
+    small = [int(x * GIB) for x in [0.5] * 20 + [0.55, 0.58, 0.6]]
+    assert bench.brief_peak(small) is None
+    # 読めた回が少なければ決めない(実行が読む間隔の数回分より短い)
+    assert bench.brief_peak([0, 5 * GIB]) is None
+    assert bench.steady_peak([]) == 0 and bench.steady_peak([3, 1]) == 1
+
+
+def test_default_poll_interval_is_short():
+    # 0.2 秒おきでは約 0.2 秒の山を飛ばす(#131)
+    assert BenchOptions(model_id="x", url="u").interval == bench.POLL_INTERVAL <= 0.05
+    assert bench.Monitor(_StatsClient(), None, None).interval == bench.POLL_INTERVAL
+
+
+def test_monitor_reads_ram_less_often_than_vram(monkeypatch):
+    class Proc:
+        calls = 0
+
+        def memory_info(self):
+            Proc.calls += 1
+            return type("M", (), {"rss": GIB})()
+
+        def children(self, recursive=False):
+            return []
+
+    clock = itertools.count()  # 1 回読むごとに 0.05 秒進む
+    mon = bench.Monitor(_StatsClient(), Proc(), None, use_smi=False, ram_interval=0.2)
+    mon._stop.wait = lambda t: mon._stop.is_set()  # 待たない
+    n = {"i": 0}
+    real = mon.sample_once
+
+    def counted(**kw):
+        real(**kw)
+        n["i"] += 1
+        if n["i"] >= 20:
+            mon._stop.set()
+
+    mon.sample_once = counted
+    with monkeypatch.context() as mp:
+        mp.setattr(bench.time, "monotonic", lambda: next(clock) * 0.05)
+        mon._poll()
+    assert len(mon.torch_values) == 20 and mon.peaks.samples == 20
+    assert 4 <= Proc.calls <= 6  # 0.2 秒ごと(20 回 × 0.05 秒 = 1 秒)
+    assert mon.peaks.ram == GIB
+
+
+class _SlowFake(FakeComfy):
+    """実行に時間がかかる偽の ComfyUI(読む回数を一瞬の山の判定に足りるだけ増やす)。"""
+
+    def _history(self) -> dict[str, Any]:
+        if self.history_calls < 30:
+            self.history_calls += 1
+            return {}
+        return super()._history()
+
+
+def _peak_run(monkeypatch, spike_reads: set[int]):
+    """実行中の /system_stats の spike_reads 回目(1 から)だけ torch を 7 GB にして測る。"""
+    monkeypatch.setattr(bench.time, "sleep", lambda s: _REAL_SLEEP(0.01))
+    real = bench.ComfyClient.system_stats
+    with _SlowFake() as fake:
+        n = {"run": 0}
+
+        def stats(self):
+            d = real(self)
+            if fake.submitted:
+                n["run"] += 1
+                if n["run"] in spike_reads:
+                    d["devices"][0]["torch_vram_total"] = 7 * GIB
+            return d
+
+        monkeypatch.setattr(bench.ComfyClient, "system_stats", stats)
+        res = bench.run(_opts(fake.url, free_before=True), log=_quiet)
+    assert n["run"] >= bench.BRIEF_PEAK_MIN_SAMPLES
+    return res
+
+
+def test_brief_peak_is_kept_but_not_standard(monkeypatch):
+    res = _peak_run(monkeypatch, {5})  # 1 回だけ読めた山
+    m = res.measurement
+    assert m.peak_vram_gb == pytest.approx(7.0)  # 値は残す
+    assert m.standard is False
+    assert "一瞬だけの山(7.00 GB。3 回以上読めた最大は 5.00 GB)" in m.note
+    assert any("brief spike" in s or "一瞬" in s for s in res.nonstandard)
+    assert any("7.00 GB" in w for w in res.warnings)
+
+
+def test_peak_read_several_times_stays_standard(monkeypatch):
+    res = _peak_run(monkeypatch, {5, 6, 7})  # 3 回読めた山 = 読む間隔の 2 倍以上続いた
+    m = res.measurement
+    assert m.peak_vram_gb == pytest.approx(7.0) and m.standard is True
+    assert "一瞬" not in m.note and res.nonstandard == []

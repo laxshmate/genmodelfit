@@ -5,6 +5,20 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.14.0] - Unreleased
+
+### Fixed
+
+- bench / measure: the peak VRAM (`torch_reserved`) no longer varies with the polling (#131). The working-memory
+  peak is short (SDXL 1024 px about 0.19 s at the end of the VAE decode, ACE-Step 10 s 0.02 to 0.05 s on an RTX 3070)
+  and ComfyUI frees it when the run ends, so reading `/system_stats` every 0.2 s missed it in some runs (SDXL 1024 px
+  2.28 GB or 1.28 GB; ACE-Step 10 s 0.59 to 1.06 GB). bench now reads it 0.015 s apart (`bench.POLL_INTERVAL`, about
+  every 0.03 s with the answer; the resident memory still every 0.2 s), and a peak too short to be read 3 times (the
+  third-largest value more than 0.1 GiB and 10% below the maximum) is kept but marked non-standard, so it is used
+  neither for the cross-check nor for levels. With the change, 15 SDXL 1024 px runs all gave 2.28 GB; ACE-Step 10 s is
+  flagged. Details in docs/accuracy "Measurement variance (#131)".
+  (最大 VRAM の山を読み落とさないよう速く読み、読み切れない一瞬の山は標準の実測にしない)
+
 ## [0.13.2] - 2026-10-29
 
 ### Changed
