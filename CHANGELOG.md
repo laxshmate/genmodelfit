@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
-## [0.14.0] - Unreleased
+## [0.14.0] - 2026-10-31
 
 ### Fixed
 
@@ -1581,6 +1581,7 @@ First public release. / 最初の公開版。
 - License: MPL-2.0 for the code and the bundled data (was MIT before the first release).
   Attribution for the upstream data is in `THIRD_PARTY_NOTICES`.
 
+[0.14.0]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.14.0
 [0.13.2]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.13.2
 [0.13.1]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.13.1
 [0.13.0]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.13.0
