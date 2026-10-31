@@ -893,8 +893,8 @@ SOURCES: tuple[LicenseSource, ...] = (
         "cc-by-nc",
         "k2-fsa/OmniVoice",
         "HF のカード(README の本文。cardData の license は空)「The pre-trained model is licensed under the "
-        "CC-BY-NC due to constraints from its training data (e.g., Emilia)」(版の記載なし。GitHub の README の "
-        "License 節は無くなったので、HF のカードの版に固定した URL にした)",
+        "CC-BY-NC due to constraints from its training data (e.g., Emilia)」(版の記載なし。GitHub の "
+        "README の License 節は無くなったので、HF のカードの版に固定した URL にした)",
         url="https://huggingface.co/k2-fsa/OmniVoice/blob/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/README.md",
         checked="2026-11-01",
     ),
