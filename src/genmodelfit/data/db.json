@@ -55283,7 +55283,7 @@
      "gated": false,
      "role": "main",
      "license_from": "k2-fsa/OmniVoice",
-     "license_url": "https://github.com/k2-fsa/OmniVoice#license",
+     "license_url": "https://huggingface.co/k2-fsa/OmniVoice/blob/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/README.md",
      "repo_license": null,
      "license_path": [
       "k2-fsa/OmniVoice",
@@ -55291,7 +55291,7 @@
      ],
      "license_evidence": [
       "license_source:omnivoice",
-      "公式の https://github.com/k2-fsa/OmniVoice の README「Our code is released under the Apache 2.0 License. The pre-trained model is licensed under the CC-BY-NC due to constraints from its training data (e.g., Emilia)」(版の記載なし。HF のカードにはライセンスの記載が無い)(2026-10-20 に確認)"
+      "HF のカード(README の本文。cardData の license は空)「The pre-trained model is licensed under the CC-BY-NC due to constraints from its training data (e.g., Emilia)」(版の記載なし。GitHub の README の License 節は無くなったので、HF のカードの版に固定した URL にした)(2026-11-01 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -55339,7 +55339,7 @@
    "params_b": null,
    "precision": "fp32",
    "license": "other",
-   "license_url": "https://github.com/k2-fsa/OmniVoice#license",
+   "license_url": "https://huggingface.co/k2-fsa/OmniVoice/blob/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/README.md",
    "base_model": "Qwen/Qwen3-0.6B",
    "content": "sfw",
    "content_evidence": [],
