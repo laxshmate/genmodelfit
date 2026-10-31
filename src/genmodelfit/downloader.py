@@ -1124,43 +1124,86 @@ class DownloadResult:
         }
 
 
+def _identity(path: Path) -> tuple[int, int, int, int] | None:
+    """ファイルの同一性(st_dev, st_ino, 大きさ, 更新時刻 ns)。ふつうのファイルでなければ None。"""
+    try:
+        st = path.lstat()
+    except OSError:
+        return None
+    import stat as _stat
+
+    if not _stat.S_ISREG(st.st_mode):
+        return None
+    return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns)
+
+
 @dataclass
 class DownloadRecord:
     """この実行で新しく置いたもの(#145。share・measure が測るために落としたものを、あとで消せるように)。
 
-    download(record=...) に渡すと、落とし終えたファイルと、この実行で作った .part・.lock を足していく
-    (中断・失敗で例外が上がっても、それまでの分は残る)。もとからあったファイル(既にあって飛ばしたもの・
-    前の実行の .part)は入れない。同じパスは 1 回だけ。消すのは置き場所(root)の中の、今もあるファイルだけ。
+    download(record=...) に渡すと、この実行で初めから落としたファイル(落とし終えたもの、または途中で止まって
+    残った .part)を、置いた時点の同一性(st_dev, st_ino, 大きさ, 更新時刻)といっしょに足していく(中断・失敗で
+    例外が上がっても、それまでの分は残る)。もとからあったファイル・前の実行の .part(それを続きから落とし終えた
+    ファイルも)・.lock は入れない。この実行で作ったフォルダも覚え、消したあと空なら消す。
+    消すのは、置き場所(root)の中の、記録した時と同じファイル(別の実行が置き直したものは消さない)だけ。
     何も表示しない。"""
 
-    entries: list[tuple[str, str]] = field(default_factory=list)  # (絶対パス, 置き場所)
+    entries: list[tuple[str, str, tuple[int, int, int, int]]] = field(default_factory=list)
+    folders: list[tuple[str, str]] = field(default_factory=list)  # (この実行で作ったフォルダ, 置き場所)
 
-    def add(self, path: str | os.PathLike[str], root: str | os.PathLike[str]) -> None:
-        item = (str(path), str(root))
-        if all(os.path.normcase(p) != os.path.normcase(item[0]) for p, _ in self.entries):
-            self.entries.append(item)
+    def add(self, path: str | os.PathLike[str], root: str | os.PathLike[str]) -> bool:
+        """path を今の同一性で記録する(ふつうのファイルでなければ記録しない)。同じパスは置き換える。"""
+        ident = _identity(Path(path))
+        if ident is None:
+            return False
+        key = os.path.normcase(str(path))
+        self.entries = [e for e in self.entries if os.path.normcase(e[0]) != key]
+        self.entries.append((str(path), str(root), ident))
+        return True
+
+    def add_folder(self, path: str | os.PathLike[str], root: str | os.PathLike[str]) -> None:
+        key = os.path.normcase(str(path))
+        if all(os.path.normcase(f) != key for f, _ in self.folders):
+            self.folders.append((str(path), str(root)))
 
     def __bool__(self) -> bool:
         return bool(self.entries)
 
+    def _check(self, path: Path, root: str, ident: tuple[int, int, int, int]) -> str | None:
+        """消してよければ None、だめなら理由。"""
+        if path.is_symlink() or not _inside(path, Path(root)):
+            return tr("置き場所の外か、リンクです", "outside the destination or a link")
+        now = _identity(path)
+        if now is None:
+            return tr("もうありません", "no longer there")
+        if now != ident:
+            return tr(
+                "落としたあとで変わりました(別の実行が置き直したかもしれません)",
+                "changed since it was downloaded (another run may have replaced it)",
+            )
+        return None
+
     def existing(self) -> list[tuple[Path, int]]:
-        """今もある、置き場所の中のふつうのファイル(リンクでない)と大きさ。記録した順。"""
+        """今もある、記録した時と同じファイル(置き場所の中・リンクでない)と大きさ。記録した順。"""
         out: list[tuple[Path, int]] = []
-        for p, root in self.entries:
+        for p, root, ident in self.entries:
             path = Path(p)
-            try:
-                if path.is_symlink() or not path.is_file() or not _inside(path, Path(root)):
-                    continue
-                out.append((path, path.stat().st_size))
-            except OSError:
-                continue
+            if self._check(path, root, ident) is None:
+                out.append((path, ident[2]))
         return out
 
     def delete(self) -> tuple[list[Path], list[tuple[Path, str]]]:
-        """existing() のファイルを消す。(消したもの, [(消せなかったもの, 理由)])。"""
+        """記録したファイルを、消す直前にもう一度同じものか確かめてから消し、この実行で作ったフォルダが空に
+        なれば消す。(消したもの, [(消さなかったもの, 理由)])。もう無いものは数えない。"""
         removed: list[Path] = []
         failed: list[tuple[Path, str]] = []
-        for path, _size in self.existing():
+        for p, root, ident in self.entries:
+            path = Path(p)
+            why = self._check(path, root, ident)
+            if why is not None:
+                if _identity(path) is not None or path.is_symlink():
+                    failed.append((path, why))
+                continue
             try:
                 path.unlink()
                 removed.append(path)
@@ -1168,6 +1211,13 @@ class DownloadRecord:
                 continue
             except OSError as e:
                 failed.append((path, str(e.strerror or e)))
+        # 深いものから。空のときだけ消える(os.rmdir)。置き場所そのものは消さない
+        for f, root in sorted(self.folders, key=lambda x: len(Path(x[0]).parts), reverse=True):
+            folder = Path(f)
+            if folder.is_symlink() or not _inside(folder, Path(root)) or _real(folder) == _real(Path(root)):
+                continue
+            with contextlib.suppress(OSError):
+                folder.rmdir()
         if removed:
             log.info("deleted %d downloaded file(s)", len(removed))
         return removed, failed
@@ -1345,8 +1395,16 @@ def _fetch_one(
             raise DownloadRefused(
                 tr(f"置き場所の外には書きません: {p}", f"Will not write outside the destination: {p}")
             )
+    made: list[Path] = []  # この実行で作るフォルダ(#145。消したあと空なら消す)
+    d = dest.parent
+    while not d.exists() and _inside(d, root) and _real(d) != _real(root):
+        made.append(d)
+        d = d.parent
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
+        if record is not None:
+            for d in made:
+                record.add_folder(d, root)
     except OSError as e:
         raise DownloadError(
             tr(
@@ -1364,14 +1422,13 @@ def _fetch_one(
     import requests
 
     with _file_lock(lock, pf.relpath):
-        if record is not None:  # この実行で作った印(ふつうは終わると消える。残ったときに消せるように)
-            record.add(lock, root)
         if os.path.lexists(dest):  # 鍵を待つ間に、別の download が同じファイルを置き終えた
             _existing_ok(dest, pf, report)
             result.skipped.append(pf.relpath)
             return
-        if record is not None and not os.path.lexists(part):  # 前の実行の .part は入れない
-            record.add(part, root)
+        # 前の実行の .part を続けたもの(落とし終えたファイルも)は記録しない
+        # (もとからあったものとして扱う。#145)
+        fresh = record is not None and not os.path.lexists(part)
         try:
             _transfer(
                 pf,
@@ -1384,8 +1441,6 @@ def _fetch_one(
                 report=report,
                 result=result,
             )
-            if record is not None:
-                record.add(dest, root)
         except DownloadError:
             raise
         except requests.RequestException as e:
@@ -1402,6 +1457,12 @@ def _fetch_one(
                     f"{pf.relpath}: cannot write ({e.strerror or e})",
                 )
             ) from e
+        finally:
+            if fresh and record is not None:  # 鍵を持っているうちに、置いたものを今の同一性で記録する
+                if pf.relpath in result.downloaded:
+                    record.add(dest, root)
+                elif os.path.lexists(part):
+                    record.add(part, root)
 
 
 def _transfer(
@@ -1675,8 +1736,8 @@ def download(
     download が落としているなら DownloadError。既に置いてあるファイルは、計画の状態によらずその場で sha256 を
     計り、合うときだけ飛ばす(違えば上書きせず DownloadRefused)。中断(KeyboardInterrupt)は .part を残して
     そのまま上げる(もう一度呼ぶと続きから)。
-    record(DownloadRecord)を渡すと、この呼び出しで新しく置いたファイルと、作った .part・.lock を足す
-    (#145。例外で止まっても、それまでの分が残る。もとからあったファイルは入れない)。
+    record(DownloadRecord)を渡すと、この呼び出しで初めから落としたファイル(か残った .part)と作ったフォルダを
+    足す(#145。例外で止まっても、それまでの分が残る。もとからあったファイル・前の実行の .part は入れない)。
     """
     if isinstance(plan_or_model, DownloadPlan):
         if plan_kwargs:

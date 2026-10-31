@@ -4849,6 +4849,12 @@ def _with_delete_offer(args: argparse.Namespace, run) -> int:
     args._dl_record = record
     try:
         return run(args)
+    except CliError as e:
+        if not record or getattr(args, "json", False):
+            raise
+        # 誤りを先に出してから、消すかを尋ねる(main の表示と同じ形。終了コードも同じ)
+        print(tr(f"エラー: {e}", f"error: {e}"), file=sys.stderr)
+        return 2 if isinstance(e, UsageError) else 1
     finally:
         if record:
             _offer_delete_downloaded(args, record)
@@ -4911,7 +4917,7 @@ def _offer_delete_downloaded(args: argparse.Namespace, record) -> None:
         file=err,
     )
     for path, why in failed:
-        print(tr(f"消せませんでした: {path}({why})", f"Could not delete: {path} ({why})"), file=err)
+        print(tr(f"消しませんでした: {path}({why})", f"Not deleted: {path} ({why})"), file=err)
 
 
 def _str_or_none(p) -> str | None:

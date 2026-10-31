@@ -76,8 +76,9 @@ Step by step, in detail:
    the same questions and consent rules as `genmodelfit download`. With `--yes` or without a terminal it never
    downloads and says that `--download` would. At the very end (also after a failure or Ctrl+C) it lists the files
    this run downloaded, with the total size, and asks whether to delete them (`[y/N]`; Enter keeps them). Only files
-   this run newly downloaded (and its leftover `.part` files) are listed; files that were already there are never
-   listed or deleted, and a file that several of the models use is listed once. With `--yes` or without a terminal
+   this run newly downloaded (and its leftover `.part` files) are listed; files that were already there (also a
+   `.part` from an earlier run and the file finished from it) are never listed or deleted, a file that changed since
+   (another run replaced it) is not deleted, and a file that several of the models use is listed once. With `--yes` or without a terminal
    it keeps them; `--delete-downloaded` deletes them without asking.
 4. Before measuring it only checks a token it already has (`GITHUB_TOKEN` or `GH_TOKEN`, which needs the
    `public_repo` scope, else the saved sign-in) and stops at once if it does not work. With `--yes` and no terminal it

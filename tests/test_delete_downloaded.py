@@ -65,9 +65,45 @@ def test_record_keeps_this_runs_part_but_not_an_older_part(server, comfy):
     with pytest.raises(KeyboardInterrupt):
         gmf.download(plan(db, comfy), yes=True, progress=stop, record=rec2)
     assert rec2.existing() == []
+    # 前の実行の .part を続けて落とし終えたファイルも、もとからあったものとして扱う(記録しない。安全な側)
     rec3 = DownloadRecord()
     gmf.download(plan(db, comfy), yes=True, record=rec3)
-    assert sorted(p for p, _ in rec3.existing()) == sorted([comfy / "models" / UNET, comfy / "models" / VAE])
+    assert (comfy / "models" / UNET).read_bytes() == BODY_A
+    assert [p for p, _ in rec3.existing()] == [comfy / "models" / VAE]
+
+
+def test_record_never_has_locks_and_removes_the_folders_it_made(server, comfy):
+    db = make_db(server)
+    (comfy / "models" / "vae").mkdir(parents=True)  # もとからあるフォルダ
+    rec = DownloadRecord()
+    gmf.download(plan(db, comfy), yes=True, record=rec)
+    assert not any(p.endswith(".lock") for p, _, _ in rec.entries)
+    assert {Path(f).name for f, _ in rec.folders} == {"diffusion_models", "sub"}
+    keep = comfy / "models" / "diffusion_models" / "keep.txt"
+    rec.delete()
+    assert not (comfy / "models" / "diffusion_models" / "sub").exists()
+    assert (comfy / "models" / "vae").is_dir()  # もとからあるフォルダは消さない
+    assert not (comfy / "models" / "diffusion_models").exists()
+    # 作ったフォルダでも、ほかのファイルが入れば残す
+    rec2 = DownloadRecord()
+    gmf.download(plan(db, comfy), yes=True, record=rec2)
+    keep.write_text("x")
+    rec2.delete()
+    assert keep.exists() and not (comfy / "models" / "diffusion_models" / "sub").exists()
+
+
+def test_a_file_replaced_after_recording_is_not_deleted(tmp_path):
+    root = tmp_path / "models"
+    root.mkdir()
+    f = root / "a.safetensors"
+    f.write_bytes(b"x" * 10)
+    rec = DownloadRecord()
+    assert rec.add(f, root)
+    f.unlink()
+    f.write_bytes(b"y" * 12)  # 別の実行が置き直した
+    assert rec.existing() == []
+    removed, failed = rec.delete()
+    assert removed == [] and failed and failed[0][0] == f and f.read_bytes() == b"y" * 12
 
 
 def test_record_lists_a_path_once_and_never_outside_the_destination(tmp_path):
@@ -133,8 +169,9 @@ def fake_dl(monkeypatch, tmp_path):
         p.write_bytes(b"n" * 2048)
         made.append(p)
         args._dl_record.add(p, root)
-        args._dl_record.add(root / "checkpoints" / "shared_vae.safetensors", root)
         (root / "checkpoints" / "shared_vae.safetensors").write_bytes(b"v" * 10)
+        args._dl_record.add(root / "checkpoints" / "shared_vae.safetensors", root)
+        args._dl_record.add(root / "checkpoints" / "shared_vae.safetensors", root)  # 2 つのモデルが使う
         return 0
 
     monkeypatch.setattr(cli, "_measure_download", fake)
@@ -235,10 +272,35 @@ def test_nothing_downloaded_asks_nothing(capsys, monkeypatch, this_pc, share_pla
     assert "落としたファイル" not in capsys.readouterr().err
 
 
-def test_share_json_reports_nothing_extra(capsys, monkeypatch, this_pc, share_plan, gh):
+def test_share_json_never_asks_or_prints_about_deleting(capsys, monkeypatch, this_pc, share_plan, gh):
+    """--json は落とさない(_share_checks)ので、--delete-downloaded を付けても尋ねず、stdout は JSON だけ。"""
     monkeypatch.setenv("GITHUB_TOKEN", TOKEN)
+    monkeypatch.setattr("builtins.input", lambda prompt="": pytest.fail("尋ねない"))
     assert cli.main(["share", "--yes", "--json", "--delete-downloaded", "--url", "http://x:1"]) == 0
-    json.loads(capsys.readouterr().out)  # --json は落とさないので、消すものも無い(出力は JSON のまま)
+    cap = capsys.readouterr()
+    json.loads(cap.out)
+    assert "落としたファイル" not in cap.err and "消しました" not in cap.err
+
+
+def test_error_is_printed_before_the_delete_question(capsys, monkeypatch, this_pc, dl_only, gh, fake_dl):
+    monkeypatch.setenv("GITHUB_TOKEN", TOKEN)
+    monkeypatch.setattr(cli, "_interactive", lambda: True)
+
+    def boom(*a, **k):
+        raise cli.CliError("broken")
+
+    monkeypatch.setattr(cli, "_share_send", boom)
+    events = []
+
+    def ask(prompt=""):
+        events.append("ask:" + prompt)
+        return {"消しますか? [y/N] ": "n"}.get(prompt, "y" if "落とし" in prompt else "")
+
+    monkeypatch.setattr("builtins.input", ask)
+    assert cli.main(["--lang", "ja", "share", "--url", "http://x:1"]) == 1
+    err = capsys.readouterr().err
+    assert err.index("エラー: broken") < err.index("消さずに残しました")
+    assert events[-1] == "ask:消しますか? [y/N] "
 
 
 # --- CLI: measure -------------------------------------------------------------------------------
