@@ -121,6 +121,7 @@ Gpu:
 | `gfx_target` | str \| null | (0.7.0) AMD LLVM target, e.g. `gfx1100` |
 | `carveout_gb` | float \| null | (0.7.0) for `memory: shared`, the VRAM the BIOS sets aside (not part of `ram_total_gb`); the RAM check counts only GPU use above it. null otherwise |
 | `pci_id` | str \| null | (0.9.0) PCI model ID `vendor:device` (`1002:744c`) for AMD / Intel GPUs (Windows WMI `PNPDeviceID`, Linux `lspci -nn`); null for NVIDIA (nvidia-smi names match everywhere) and Apple. Used to match other users' measurements of the same GPU (`estimate.same_gpu`) |
+| `vram_overridden` | bool | (0.14.1) true when `--vram` / `vram_gb=` replaced the amount: `name`, generation and precision stay this PC's GPU, only the VRAM is assumed. Reasons and notes then say "the <name> generation" instead of the bare name; `name` itself is unchanged. false otherwise (absent before 0.14.1) |
 
 Adapter (`other_gpus`): `name`, `vendor` (`nvidia` / `amd` / `intel` / `apple` / `unknown`), `vram_gb` (Windows: registry
 `HardwareInformation.qwMemorySize`, else WMI `AdapterRAM` below 4 GiB; Linux AMD: sysfs; Intel Arc on Linux: the

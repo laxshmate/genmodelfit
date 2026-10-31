@@ -1571,9 +1571,9 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
     if gpu_fp32:
         notes.append(
             tr(
-                f"{g.name} では ComfyUI が半精度を使わず fp32 で計算するので、作業用メモリと VAE を 2 倍で"
+                f"{g.label} では ComfyUI が半精度を使わず fp32 で計算するので、作業用メモリと VAE を 2 倍で"
                 "見積もった(本体は VRAM に余裕があれば fp32 に広げて載せる。遅い)",
-                f"ComfyUI computes in fp32 on {g.name} (no half precision), so the working memory and VAE"
+                f"ComfyUI computes in fp32 on {g.label} (no half precision), so the working memory and VAE"
                 " were doubled (the model is widened to fp32 if VRAM allows; slow)",
             )
         )
@@ -1582,12 +1582,12 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
             tr(
                 f"このモデルの系統({shown(fam.comfy_class)})は ComfyUI が fp16 で動かさない(supported_models "
                 "の "
-                f"{shown(fam.source)})ので、bf16 を持たない {g.name} では fp32 で計算する。"
+                f"{shown(fam.source)})ので、bf16 を持たない {g.label} では fp32 で計算する。"
                 "作業用メモリを 2 倍で見積もった"
                 "(本体は VRAM に余裕があれば fp32 で載せる。遅い)",
                 f"ComfyUI does not run this model family ({shown(fam.comfy_class)}) in fp16 "
                 "(supported_models:"
-                f" {shown(fam.source)}), so {g.name}, which lacks bf16, computes in fp32."
+                f" {shown(fam.source)}), so {g.label}, which lacks bf16, computes in fp32."
                 " The working memory was doubled (the model is loaded in fp32 if VRAM allows; slow)",
             )
         )
@@ -1596,10 +1596,11 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
     elif no_bf16 and fam is not None and not fam.fp16 and manual_bf16:
         notes.append(
             tr(
-                f"{g.name} は bf16 の計算に対応しないが、ComfyUI はこの系統({shown(fam.comfy_class)})を bf16 "
+                f"{g.label} は bf16 の計算に対応しないが、ComfyUI はこの系統"
+                f"({shown(fam.comfy_class)})を bf16 "
                 "で動かす"
                 "(AMD の RDNA 2 以前の扱い。作業用メモリは変えていない)",
-                f"{g.name} does not support bf16 compute, but ComfyUI runs this family "
+                f"{g.label_start} does not support bf16 compute, but ComfyUI runs this family "
                 f"({shown(fam.comfy_class)})"
                 " in bf16 (the handling for AMD RDNA 2 and older; working memory unchanged)",
             )
@@ -1608,27 +1609,27 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
         notes.append(
             tr(
                 "このモデルの系統(ComfyUI のどのモデルか)が分からないので、bf16 を持たない "
-                f"{g.name} で fp32 で計算するかは見積もりに入れていない",
+                f"{g.label} で fp32 で計算するかは見積もりに入れていない",
                 "The model family (which ComfyUI model it is) is unknown, so whether "
-                f"{g.name} (no bf16) computes in fp32 is not included in the estimate",
+                f"{g.label} (no bf16) computes in fp32 is not included in the estimate",
             )
         )
     elif prec == "bf16" and no_bf16:
         notes.append(
             tr(
-                f"{g.name} は bf16 の計算に対応しないので、ComfyUI は bf16 の重みを fp16 で動かす(VRAM "
+                f"{g.label} は bf16 の計算に対応しないので、ComfyUI は bf16 の重みを fp16 で動かす(VRAM "
                 "は同じ)",
-                f"{g.name} does not support bf16 compute, so ComfyUI runs the bf16 weights in fp16 (same "
-                "VRAM)",
+                f"{g.label_start} does not support bf16 compute, so ComfyUI runs the bf16 weights in fp16"
+                " (same VRAM)",
             )
         )
     if vae_fp32 and not gpu_fp32 and vae > 1:
         notes.append(
             tr(
-                f"VAE({shown(vae_kind.source)})は {g.name} では fp32 で載せるので、VAE の重みを 2 "
+                f"VAE({shown(vae_kind.source)})は {g.label} では fp32 で載せるので、VAE の重みを 2 "
                 "倍で見積もった"
                 "(仕上げで VRAM が足りなければ ComfyUI がタイルに分けるので遅くなる)",
-                f"The VAE ({shown(vae_kind.source)}) is loaded in fp32 on {g.name}, so its weights were "
+                f"The VAE ({shown(vae_kind.source)}) is loaded in fp32 on {g.label}, so its weights were "
                 "doubled"
                 " (if VRAM runs short when decoding, ComfyUI splits it into tiles, which is slower)",
             )
@@ -1637,12 +1638,12 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
         ada = getattr(g, "vendor", "nvidia") == "nvidia"
         notes.append(
             tr(
-                f"{g.name} は fp8 の計算に対応しない"
+                f"{g.label} は fp8 の計算に対応しない"
                 + ("(Ada 以降が対応)" if ada else "")
                 + "。ComfyUI は fp8 の重みを、fp16 に広げても "
                 "VRAM に収まれば広げて使い(VRAM を多く使う)、収まらなければ fp8 のまま計算のたびに"
                 "変換する(遅い)。見積もりは fp8 の大きさのまま",
-                f"{g.name} does not support fp8 compute"
+                f"{g.label_start} does not support fp8 compute"
                 + (" (Ada and later do)" if ada else "")
                 + ". ComfyUI widens fp8 weights to fp16 if they still fit in VRAM (uses more VRAM),"
                 " otherwise keeps fp8 and converts at every step (slow). The estimate keeps the fp8 size",
