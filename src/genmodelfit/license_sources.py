@@ -624,6 +624,97 @@ SOURCES: tuple[LicenseSource, ...] = (
         f"{HF}/nvidia/PixelDiT-1300M-1024px/blob/main/LICENSE を指す)",
         url=f"{HF}/nvidia/PiD#licenseterms-of-use",
     ),
+    # --- Wan Fun(再配布の README の元が同点になり、別の Fun の版をたどっていた。#144) ---
+    _s(
+        "wan2.2-fun-a14b-control",
+        "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        r"wan2\.2_fun_control_(high|low)_noise_14B_(bf16|fp8_scaled)\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.2-Fun-A14B-Control",
+        f"{HF}/Comfy-Org/Wan_2.2_ComfyUI_Repackaged の README が元に"
+        " alibaba-pai/Wan2.2-Fun-A14B-Control を挙げる。"
+        "alibaba-pai/Wan2.2-Fun-A14B-Control のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Control-Camera をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.2-fun-5b-control",
+        "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        r"wan2\.2_fun_control_5B_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.2-Fun-5B-Control",
+        f"{HF}/Comfy-Org/Wan_2.2_ComfyUI_Repackaged の README が元に"
+        " alibaba-pai/Wan2.2-Fun-5B-Control を挙げる。"
+        "alibaba-pai/Wan2.2-Fun-5B-Control のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で A14B の Control-Camera をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.2-fun-a14b-inp",
+        "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        r"wan2\.2_fun_inpaint_(high|low)_noise_14B_(bf16|fp8_scaled)\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.2-Fun-A14B-InP",
+        f"{HF}/Comfy-Org/Wan_2.2_ComfyUI_Repackaged の README が元に"
+        " alibaba-pai/Wan2.2-Fun-A14B-InP を挙げる。"
+        "alibaba-pai/Wan2.2-Fun-A14B-InP のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で VACE-Fun をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.2-fun-5b-inp",
+        "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+        r"wan2\.2_fun_inpaint_5B_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.2-Fun-5B-InP",
+        f"{HF}/Comfy-Org/Wan_2.2_ComfyUI_Repackaged の README が元に"
+        " alibaba-pai/Wan2.2-Fun-5B-InP を挙げる。"
+        "alibaba-pai/Wan2.2-Fun-5B-InP のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で VACE-Fun をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.1-fun-control-1.3b",
+        "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+        r"wan2\.1_fun_control_1\.3B_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control",
+        f"{HF}/Comfy-Org/Wan_2.1_ComfyUI_repackaged の README が元に"
+        " alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control を挙げる。"
+        "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で 14B の Control-Camera をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.1-fun-camera-1.3b",
+        "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+        r"wan2\.1_fun_camera_v1\.1_1\.3B_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera",
+        f"{HF}/Comfy-Org/Wan_2.1_ComfyUI_repackaged の README が元に"
+        " alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera を挙げる。"
+        "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で 14B の Control-Camera をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
     _s(
         "infinitetalk-comfy",
         "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
@@ -807,6 +898,11 @@ def apply_license_sources(db: Database | Iterable[ModelEntry]) -> list[tuple[str
     changed: list[tuple[str, str, str]] = []
     for e in entries:
         hit = False
+        # テンプレートの base_model は本体の元(license_from)から決めたもの(set_entry_license)。表で元が
+        # 変わったら決め直す(作り直しと同じ答えにする。#144)
+        derived = e.source == "comfyui-template" and any(
+            f.role == "main" and f.license_from == e.base_model for f in e.files
+        )
         for f in e.files:
             row = apply_to_file(f)
             if row is not None:
@@ -817,6 +913,8 @@ def apply_license_sources(db: Database | Iterable[ModelEntry]) -> list[tuple[str
                 changed.append((e.id, f.name, f"lineage:{lin}"))
                 hit = True
         if hit:
+            if derived:
+                e.base_model = None
             set_entry_license(e)
     return changed
 

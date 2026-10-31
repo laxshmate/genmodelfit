@@ -52,6 +52,14 @@ All notable changes to this project are documented here. The format is based on
   the same repository (4.25 GB) is now in `files` with `other` / `qwen-research` (component source table row
   `auk-qwen2.5-omni-3b`), so the model's license is the strictest one and the size and VRAM estimates include it. Marked reviewed (`claude-maker-143`).
   (AuK を非商用にした。Qwen の部品を足した)
+- **Wan Fun origins** (#144): the main files of `video_wan2_2_14B_fun_control`, `video_wan2_2_5B_fun_control`,
+  `video_wan2_2_14B_fun_inpaint`, `video_wan2_2_5B_fun_inpaint`, `wan2.1_fun_control` and
+  `video_wan2.1_fun_camera_v1.1_1.3B` followed another Fun variant (Control-Camera, VACE-Fun, the 14B camera model):
+  the origin candidates in the Comfy-Org repackaged README tie on name overlap and the last one by name won. Override
+  rows in the component source table now name each file's own repository (all apache-2.0, so no license changes);
+  `license_from`, the files' `license_url` and the templates' `base_model` follow. `apply_license_sources` also
+  re-derives a template's `base_model` when a row changes its main file's origin, like a rebuild does.
+  (Wan Fun の本体の元を直した)
 
 ## [0.13.2] - 2026-10-29
 
