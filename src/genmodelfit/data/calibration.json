@@ -1,6 +1,6 @@
 {
  "source": "calibration.json",
- "date": "2026-10-27",
+ "date": "2026-10-31",
  "method": "全部載せの VRAM = overhead + 重み + 作業用メモリ。作業用メモリは段ごとに当てられるモデルは ComfyUI の見込み max(S, V_eff, T)(係数なし)、ほかは種類ごとの式。合わせるのは act_3d_gb だけで、固定分と画像・動画・音声の係数は 0.10 の値に固定(frozen)。相対誤差の 2 乗和(張り付いた実測は片側) + 事前値への罰(重み 0.0001)を、範囲付きの座標降下で最小化。精度は leave-one-out",
  "n": 9,
  "n_censored": 3,
@@ -171,9 +171,9 @@
    "note": null,
    "measured_gb": 10.8,
    "censored": false,
-   "fit_predicted_gb": 11.79,
-   "loo_predicted_gb": 11.79,
-   "loo_error_pct": 9.2,
+   "fit_predicted_gb": 12.73,
+   "loo_predicted_gb": 12.73,
+   "loo_error_pct": 17.8,
    "weights_only_error_pct": -13.5,
    "loo_ok": null,
    "censored_trivial": false
@@ -219,8 +219,8 @@
   "target_abs_pct": 20.0,
   "n_point": 6,
   "n_censored": 3,
-  "mean_abs_pct": 8.8,
-  "max_abs_pct": 14.7,
+  "mean_abs_pct": 10.2,
+  "max_abs_pct": 17.8,
   "weights_only_mean_abs_pct": 22.8,
   "censored_ok": 3,
   "censored_trivial": 3,
@@ -248,7 +248,7 @@
    "music": {
     "n_point": 1,
     "n_censored": 0,
-    "max_abs_pct": 9.2,
+    "max_abs_pct": 17.8,
     "target_met": null
    },
    "video": {

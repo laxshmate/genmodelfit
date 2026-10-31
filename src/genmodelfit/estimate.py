@@ -875,6 +875,9 @@ class Need:
     # VAE はタイルにしない V で見込む。full(使う量)より小さくならない。None は full と同じ
     # (段ごとに当てられないモデル)。全部載せを選べるかだけに使い、帯の Mem% は full のまま
     resident: float | None = None
+    # タイルにしない V を使う量に入れる VAE(#148)で、タイルに分けて仕上げるときの必要量。
+    # 判定は両方を比べる(_judge_tiled)
+    tiled: Need | None = None
 
 
 def need_staged(
@@ -902,6 +905,7 @@ def need_staged(
     resident = c.overhead_gb + parts.total * w + max(0.0, st.resident_peak + min(0.0, delta))
     seq = c.overhead_gb + max(peak[s] * w + stage_work[s] for s in STAGES)
     off = c.overhead_gb + max(peak[s] * w * c.offload_fraction + stage_work[s] for s in STAGES)
+    tiled_st = st.tiled()
     return Need(
         full=full,
         sequential=min(seq, full),
@@ -913,6 +917,7 @@ def need_staged(
         vae=parts.decode * w,
         stages=st,
         resident=max(resident, full),
+        tiled=None if tiled_st is None else need_staged(parts, tiled_st, c, delta, full_only=full_only),
     )
 
 
@@ -1935,7 +1940,7 @@ def _estimate(
         reasons.append(tr(f"設定: {desc}", f"Settings: {desc}"))
     parts = prep.parts_for(s)
     disk = parts.files_gb
-    fit, mode, why, ram_need = _judge(n, system, prep.c, entry, parts.total)
+    fit, mode, why, ram_need, n = _judge_tiled(n, system, prep.c, entry, parts.total)
     fit_from, measured_peak, level_gb = "estimate", None, None
     # 重み + 固定分(作業用メモリ 0 の全部載せ)。実測で段階を決めるときの量の下限(#95。表の VRAM と同じ下限)
     floor_parts = prep.parts_for(s)
@@ -2059,7 +2064,13 @@ def _stage_notes(n: Need, parts: Parts, system: SystemInfo, prec: GpuPrecision, 
         return []
     out = list(st.notes)
     vram = system.vram_gb
-    if vram > 0 and st.V_tile < st.V and c.overhead_gb + parts.decode * c.weight_factor + st.V > vram:
+    if (
+        vram > 0
+        and not st.untiled
+        and not st.fallback  # untiled の VAE は _judge_tiled が書く(#148)
+        and st.V_tile < st.V
+        and c.overhead_gb + parts.decode * c.weight_factor + st.V > vram
+    ):
         # 段階は VRAM によらないタイルの値 min(V, V_tile) で決める(VRAM を増やして段階が下がらない)
         out.append(
             tr(
@@ -2466,6 +2477,51 @@ def _ram_check(fit: str, mode: str, reasons: list[str], need_gb: float, system: 
 
 
 def _judge(
+    n: Need, system: SystemInfo, c: Coefficients, entry: ModelEntry, weights_gb: float | None = None
+) -> tuple[str, str, list[str], float]:
+    """(段階, 動かし方, 理由, その動かし方で要るメインメモリ)。タイルに分けて仕上げる見積もりも比べる
+    (_judge_tiled)。"""
+    return _judge_tiled(n, system, c, entry, weights_gb)[:4]
+
+
+def _judge_tiled(
+    n: Need, system: SystemInfo, c: Coefficients, entry: ModelEntry, weights_gb: float | None = None
+) -> tuple[str, str, list[str], float, Need]:
+    """_judge_one に、タイルにしない V を使う量に入れる VAE(#148。working.VaeWork.untiled)の
+    逃げ道を足したもの。最後の値は判定に使った必要量(表の VRAM もこれ)。
+
+    ComfyUI はまずタイルにせずに復号し(sd.py:1278-1311@426f5ee)、CUDA の OOM のときだけタイルに分けて
+    やり直す(sd.py:1312-1326・model_management.py:389-395@426f5ee)。Windows の NVIDIA は既定で共有メモリへ
+    はみ出して OOM にならない(RTX 3070 の 120 秒の実測)。どちらも遅いので、タイルの見積もりの段階は
+    marginal まで。タイルにしない見積もりと比べて良いほうを取る(同じならタイルにしない)。どちらも VRAM を
+    増やして下がらないので、良いほうも下がらない。GPU だけ(CPU の OOM は CUDA の OOM でなく、タイルに
+    分けずに失敗する: model_management.py:380)。"""
+    first = _judge_one(n, system, c, entry, weights_gb)
+    t = n.tiled
+    if t is None or system.vram_gb <= 0 or first[0] in ("perfect", "good"):
+        return (*first, n)
+    alt = _judge_one(t, system, c, entry, weights_gb)
+    if alt[0] == "too_tight" or alt[1] == "cpu":
+        return (*first, n)
+    level = _cap(alt[0], "marginal")
+    worse = _LEVELS.index(level) - _LEVELS.index(first[0])
+    if worse > 0 or (worse == 0 and first[1] != "cpu"):  # 同じ段階なら GPU(_judge_one と同じ)
+        return (*first, n)
+    st = n.stages
+    v = st.V if st is not None else 0.0
+    vt = st.V_tile if st is not None else 0.0
+    note = tr(
+        f"仕上げ(VAE)をタイルに分けずに動かすと作業用メモリが {v:.1f} GB 要り、この GPU には入らない。"
+        f"ComfyUI は VRAM が足りないとタイルに分けてやり直し(タイルなら {vt:.1f} GB)、Windows の NVIDIA では"
+        "共有メモリにはみ出して動く。どちらも遅いので段階は marginal まで",
+        f"Decoding (VAE) without tiles needs {v:.1f} GB of working memory, which does not fit this GPU."
+        f" ComfyUI retries in tiles when VRAM runs out ({vt:.1f} GB tiled), and NVIDIA on Windows spills"
+        " into shared memory. Both are slow, so the level is capped at marginal",
+    )
+    return level, alt[1], [*alt[2], note], alt[3], t
+
+
+def _judge_one(
     n: Need, system: SystemInfo, c: Coefficients, entry: ModelEntry, weights_gb: float | None = None
 ) -> tuple[str, str, list[str], float]:
     """(段階, 動かし方, 理由, その動かし方で要るメインメモリ)。

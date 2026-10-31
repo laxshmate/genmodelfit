@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.14.0] - Unreleased
+
+### Changed
+
+- ACE-Step 1.5 (and Stable Audio Open, same Oobleck VAE): the decode working memory now grows with the song length
+  (#148). It counts ComfyUI's untiled decode estimate, 1000 × latent frames × 2048 × 2 bytes (sd.py:735@426f5ee; about
+  0.095 GiB per second), instead of the constant tile value (about 1 GB). Measurements on an RTX 3070 and an RTX 5080
+  are 0.81 to 0.98 times this value from 30 s up. When the untiled decode does not fit, the tiled estimate is judged
+  too and capped at marginal (ComfyUI retries in tiles after an OOM; NVIDIA on Windows spills into shared memory), with
+  a note. Levels at the default lengths do not change; long songs on small GPUs go from good to marginal (e.g. 120 s on
+  8 / 12 GB). docs/accuracy "Tiles". Other VAEs are unchanged (the Wan VAE is left for a separate issue).
+  (ACE-Step 1.5 の仕上げの作業用メモリが曲の長さで増えるようにした。既定の長さの段階は変わらない)
+
 ## [0.13.2] - 2026-10-29
 
 ### Changed

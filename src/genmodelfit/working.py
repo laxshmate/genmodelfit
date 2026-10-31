@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from .i18n import tr
 
@@ -270,6 +270,10 @@ class VaeWork:
     fp32_only: bool = False  # working_dtypes が [float32] だけ(どの GPU でも 4 バイト)
     fp16: bool = True  # working_dtypes に float16 がある(bf16 の無い GPU でも 2 バイト)
     kl_ratio: bool = False  # AMD で × 2.73(VAE_KL_MEM_RATIO。sd.py:503-506)
+    # タイルにしない V を使う量に入れる VAE(#148。docs/accuracy.md「タイル」)。ComfyUI はまずタイルにせずに
+    # 復号し(sd.py:1278-1311)、CUDA の OOM のときだけタイルに分ける(sd.py:1312-1326、
+    # model_management.py:389-395)。実測でタイルにしない山が V に沿って増えると確かめた VAE だけ True
+    untiled: bool = False
 
 
 def _h3_dec(s: Shape) -> float:
@@ -376,6 +380,9 @@ VAE_WORK: dict[str, VaeWork] = {
             lambda s: 1000 * s.n,
             "1d",
             f"sd.py:734-735@{C}(ACE-Step 1.5・Stable Audio Open の Oobleck)",
+            # ACE-Step 1.5 の実測(RTX 3070・RTX 5080)で、作業用メモリが V の 0.8〜1.0 倍(30 秒以上)で
+            # 曲の長さに比例(#148)
+            untiled=True,
         ),
         VaeWork("yue2", lambda s: 1500 * s.L * 1920, lambda s: 1000 * s.n, "1d", f"sd.py:734・747@{C}"),
         VaeWork(
@@ -558,7 +565,7 @@ def vae_key(entry, w: Work, comfy_vae: str | None) -> str:
 
 @dataclass
 class StageMem:
-    """段ごとの作業用メモリ(GiB)。V_eff = min(V, V_tile) を段階に使う。"""
+    """段ごとの作業用メモリ(GiB)。使う量に入れる仕上げの値は V_eff(ふつうは min(V, V_tile))。"""
 
     S: float
     V: float
@@ -569,10 +576,20 @@ class StageMem:
     vae_bytes: int  # VAE の計算の 1 要素のバイト数
     kl_ratio: float  # AMD の倍率(掛けたもの)
     notes: list[str] = field(default_factory=list)
+    # タイルにしない V を使う量に入れる(VaeWork.untiled。#148)。False ならタイルの値 min(V, V_tile)
+    untiled: bool = False
+    # untiled の VAE が入らず、ComfyUI がタイルに分けて動かす(OOM のあと)見積もり(estimate._judge_tiled)
+    fallback: bool = False
 
     @property
     def V_eff(self) -> float:
-        return min(self.V, self.V_tile)
+        return self.V if self.untiled else min(self.V, self.V_tile)
+
+    def tiled(self) -> StageMem | None:
+        """タイルに分けて仕上げる見積もり(untiled の VAE で、タイルのほうが小さいときだけ。#148)。"""
+        if not self.untiled or self.V_tile >= self.V:
+            return None
+        return replace(self, untiled=False, fallback=True)
 
     @property
     def peak(self) -> float:
@@ -708,7 +725,7 @@ def stage_memory(
     if w.te:
         sec = s.seconds if s.seconds and s.seconds > 0 else 30.0
         T = _te_gib(w.te, sec, _names(entry)) * (2.0 if (no_bf16 or gpu_fp32) else 1.0)
-    return StageMem(S, V, V_tile, T, w.key, vkey, vae_bytes, ratio, notes)
+    return StageMem(S, V, V_tile, T, w.key, vkey, vae_bytes, ratio, notes, untiled=v.untiled)
 
 
 __all__ = [

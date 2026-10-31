@@ -115,6 +115,7 @@ Caps per run mode (`estimate.gpu_choice`, `cpu_top`):
 | GPU+RAM (part offloaded to system RAM) | Good | Slow, so never Perfect, but Good when there is room (as in llmfit). In the diffusers comparison (PR #11682) offloading slowed Wan by 1.14–1.5× (model-level and group offloading) and FLUX by 3.3–10.4× |
 | CPU: CPU-realtime speech (listed) and one-pass tools | Good | "Running on the CPU" below |
 | CPU: image, video, music, sound effect and 3D generation | Marginal | "Running on the CPU" below |
+| GPU, GPU~ with the decode (VAE) split into tiles (only the Oobleck VAE, which counts the untiled V; #148) | Marginal | ComfyUI retries in tiles after an OOM, and NVIDIA on Windows spills into shared memory. Both are slow ([accuracy.md "Tiles"](accuracy.md#tiles)) |
 
 ### When offloading is chosen
 
@@ -386,6 +387,7 @@ For #108 (offloaded rows up to Good) the representative changes were counted (bu
 | Offloading up to Good, only when it raises the level; GPU Perfect / Good rows never switch; system RAM counts; limits use GPU rows only (#108) | `tests/test_levels.py` (`test_offload_is_capped_at_good_and_chosen_only_when_it_raises_the_level` and others) |
 | CPU caps (speech and tools Good, generation Marginal); the RAM band | `tests/test_levels.py::test_cpu_only_caps`, `test_cpu_top_table`, `test_cpu_level_uses_the_ram_band` |
 | Parts switched off by default: counted when reached from an output node in the type table (inside a subgraph, on a lazy branch); a Soft Switch whose selected side is unconnected uses the other side; the contents of a nested bypassed instance are used; parts on nodes that reach no output are not downloaded either; a bypassed node's own files are not counted; the #81 values (4.96 / 5.14 GB, Good on 8 GB); FLUX.2 Klein; #112 (Wan 2.2 5B Good on 8 GB); the upper-bound sentence; no level goes down | `tests/test_optional.py` |
+| #148: the Oobleck VAE's working memory grows with song length; the tile fallback is capped at Marginal; no fallback on the CPU; other VAEs unchanged; adding VRAM never lowers the level | `tests/test_issue_148.py` |
 | Verified kinds (true for NVIDIA dedicated VRAM, false for AMD, Apple, GB10; one model with many measurements is not verified, two models are, whatever the origin); ✓ only when verified; the gate ignores the kind; AMD and NVIDIA distributions are close; more VRAM or RAM never lowers the level | `tests/test_levels.py` |
 
 `SCHEMA_VERSION` (the shape version of the bundled and released db.json) is unchanged. The meaning of the output changed, so the package is 0.11.0 ([CHANGELOG.md](../CHANGELOG.md)).
