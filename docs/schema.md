@@ -871,7 +871,7 @@ Python `gmf.info(model_id)` matches the exact id only and returns `None` otherwi
 ### ModelEntry
 
 `id`, `name`, `modality`, `tasks`, `source`, `files` (ModelFile[]), `template` (Template \| null), `params_b`,
-`precision`, `license`, `license_url`, `base_model`, `content`, `content_evidence` (str[]: why it is marked
+`precision`, `license`, `license_url`, `base_model` (in genmodelfit, "the origin repository of the redistributed file": for official templates the main file's `license_from`, for HF entries the first `base_model` on that repository's card, for hand-added models the written value; for templates it is not the HF card's `base_model`, the origin of the origin; 0.14.0, #144), `content`, `content_evidence` (str[]: why it is marked
 uncensored), `discovered_from` (str[]: where it was found), `updated`, `homepage`, `downloads` / `likes`
 (int \| null: Hugging Face counters, set for `source: huggingface`; `downloads` is the last 30 days),
 `downloads_all_time` (int \| null: all-time downloads, used for the inclusion floor), `total_size_bytes`,

@@ -7801,14 +7801,17 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "baidu/ERNIE-Image-Turbo",
-     "license_url": "https://huggingface.co/baidu/ERNIE-Image-Turbo",
+     "license_from": "baidu/ERNIE-Image",
+     "license_url": "https://huggingface.co/baidu/ERNIE-Image",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/ERNIE-Image",
-      "baidu/ERNIE-Image-Turbo"
+      "baidu/ERNIE-Image"
      ],
-     "license_evidence": [],
+     "license_evidence": [
+      "license_source:ernie-image-base",
+      "https://huggingface.co/Comfy-Org/ERNIE-Image の cardData の base_model が元に baidu/ERNIE-Image を挙げる。baidu/ERNIE-Image のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で ERNIE-Image-Turbo をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
+     ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
      "header_precision": "bf16",
@@ -7923,8 +7926,8 @@
    "params_b": null,
    "precision": "bf16",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/baidu/ERNIE-Image-Turbo",
-   "base_model": "baidu/ERNIE-Image-Turbo",
+   "license_url": "https://huggingface.co/baidu/ERNIE-Image",
+   "base_model": "baidu/ERNIE-Image",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -12945,14 +12948,17 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "meituan-longcat/LongCat-Image-Edit-Turbo",
-     "license_url": "https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo",
+     "license_from": "meituan-longcat/LongCat-Image",
+     "license_url": "https://huggingface.co/meituan-longcat/LongCat-Image",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/LongCat-Image",
-      "meituan-longcat/LongCat-Image-Edit-Turbo"
+      "meituan-longcat/LongCat-Image"
      ],
-     "license_evidence": [],
+     "license_evidence": [
+      "license_source:longcat-image-t2i",
+      "https://huggingface.co/Comfy-Org/LongCat-Image の cardData の base_model が元に meituan-longcat/LongCat-Image を挙げる。meituan-longcat/LongCat-Image のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で LongCat-Image-Edit-Turbo をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
+     ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
      "header_precision": "bf16",
@@ -13038,8 +13044,8 @@
    "params_b": null,
    "precision": "bf16",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo",
-   "base_model": "meituan-longcat/LongCat-Image-Edit-Turbo",
+   "license_url": "https://huggingface.co/meituan-longcat/LongCat-Image",
+   "base_model": "meituan-longcat/LongCat-Image",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -16669,15 +16675,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-2512",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
+     "license_from": "Qwen/Qwen-Image",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image_ComfyUI",
-      "Qwen/Qwen-Image-2512"
+      "Qwen/Qwen-Image"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-2508",
+      "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image を挙げる。Qwen/Qwen-Image のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-2512 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -16734,8 +16741,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
-   "base_model": "Qwen/Qwen-Image-2512",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image",
+   "base_model": "Qwen/Qwen-Image",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -17933,15 +17940,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-2512",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
+     "license_from": "Qwen/Qwen-Image",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image_ComfyUI",
-      "Qwen/Qwen-Image-2512"
+      "Qwen/Qwen-Image"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-2508",
+      "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image を挙げる。Qwen/Qwen-Image のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-2512 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -18028,8 +18036,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
-   "base_model": "Qwen/Qwen-Image-2512",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image",
+   "base_model": "Qwen/Qwen-Image",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -18181,15 +18189,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-Edit-2511",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
+     "license_from": "Qwen/Qwen-Image-Edit",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image-Edit_ComfyUI",
-      "Qwen/Qwen-Image-Edit-2511"
+      "Qwen/Qwen-Image-Edit"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-edit-2508",
+      "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image-Edit を挙げる。Qwen/Qwen-Image-Edit のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -18216,8 +18225,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
-   "base_model": "Qwen/Qwen-Image-Edit-2511",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit",
+   "base_model": "Qwen/Qwen-Image-Edit",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -18340,15 +18349,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-Edit-2511",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
+     "license_from": "Qwen/Qwen-Image-Edit-2509",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image-Edit_ComfyUI",
-      "Qwen/Qwen-Image-Edit-2511"
+      "Qwen/Qwen-Image-Edit-2509"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-edit-2509",
+      "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image-Edit-2509 を挙げる。Qwen/Qwen-Image-Edit-2509 のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -18405,8 +18415,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
-   "base_model": "Qwen/Qwen-Image-Edit-2511",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+   "base_model": "Qwen/Qwen-Image-Edit-2509",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -18529,15 +18539,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-Edit-2511",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
+     "license_from": "Qwen/Qwen-Image-Edit-2509",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image-Edit_ComfyUI",
-      "Qwen/Qwen-Image-Edit-2511"
+      "Qwen/Qwen-Image-Edit-2509"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-edit-2509",
+      "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image-Edit-2509 を挙げる。Qwen/Qwen-Image-Edit-2509 のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -18624,8 +18635,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
-   "base_model": "Qwen/Qwen-Image-Edit-2511",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+   "base_model": "Qwen/Qwen-Image-Edit-2509",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -19154,15 +19165,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-2512",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
+     "license_from": "Qwen/Qwen-Image",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image_ComfyUI",
-      "Qwen/Qwen-Image-2512"
+      "Qwen/Qwen-Image"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-2508",
+      "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image を挙げる。Qwen/Qwen-Image のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-2512 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -19277,7 +19289,7 @@
    "precision": "fp8",
    "license": null,
    "license_url": null,
-   "base_model": "Qwen/Qwen-Image-2512",
+   "base_model": "Qwen/Qwen-Image",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -19380,15 +19392,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-2512",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
+     "license_from": "Qwen/Qwen-Image",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image_ComfyUI",
-      "Qwen/Qwen-Image-2512"
+      "Qwen/Qwen-Image"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-2508",
+      "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image を挙げる。Qwen/Qwen-Image のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-2512 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -19506,8 +19519,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
-   "base_model": "Qwen/Qwen-Image-2512",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image",
+   "base_model": "Qwen/Qwen-Image",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -19820,15 +19833,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-2512",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
+     "license_from": "Qwen/Qwen-Image",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image_ComfyUI",
-      "Qwen/Qwen-Image-2512"
+      "Qwen/Qwen-Image"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-2508",
+      "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image を挙げる。Qwen/Qwen-Image のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-2512 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -19885,8 +19899,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
-   "base_model": "Qwen/Qwen-Image-2512",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image",
+   "base_model": "Qwen/Qwen-Image",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -22373,15 +22387,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-2512",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
+     "license_from": "Qwen/Qwen-Image",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image_ComfyUI",
-      "Qwen/Qwen-Image-2512"
+      "Qwen/Qwen-Image"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-2508",
+      "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image を挙げる。Qwen/Qwen-Image のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-2512 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -22439,7 +22454,7 @@
    "precision": "fp8",
    "license": "other",
    "license_url": "https://huggingface.co/alvdansen/illustration-1.0-qwen-image",
-   "base_model": "Qwen/Qwen-Image-2512",
+   "base_model": "Qwen/Qwen-Image",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -22779,15 +22794,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-2512",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
+     "license_from": "Qwen/Qwen-Image",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image_ComfyUI",
-      "Qwen/Qwen-Image-2512"
+      "Qwen/Qwen-Image"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-2508",
+      "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image を挙げる。Qwen/Qwen-Image のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-2512 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -22841,8 +22857,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
-   "base_model": "Qwen/Qwen-Image-2512",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image",
+   "base_model": "Qwen/Qwen-Image",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -23182,15 +23198,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-Edit-2511",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
+     "license_from": "Qwen/Qwen-Image-Edit-2509",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image-Edit_ComfyUI",
-      "Qwen/Qwen-Image-Edit-2511"
+      "Qwen/Qwen-Image-Edit-2509"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-edit-2509",
+      "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image-Edit-2509 を挙げる。Qwen/Qwen-Image-Edit-2509 のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -23277,8 +23294,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
-   "base_model": "Qwen/Qwen-Image-Edit-2511",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+   "base_model": "Qwen/Qwen-Image-Edit-2509",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -23400,15 +23417,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-Edit-2511",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
+     "license_from": "Qwen/Qwen-Image-Edit-2509",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image-Edit_ComfyUI",
-      "Qwen/Qwen-Image-Edit-2511"
+      "Qwen/Qwen-Image-Edit-2509"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-edit-2509",
+      "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image-Edit-2509 を挙げる。Qwen/Qwen-Image-Edit-2509 のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -23495,8 +23513,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
-   "base_model": "Qwen/Qwen-Image-Edit-2511",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+   "base_model": "Qwen/Qwen-Image-Edit-2509",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -24047,15 +24065,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-Edit-2511",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
+     "license_from": "Qwen/Qwen-Image-Edit-2509",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image-Edit_ComfyUI",
-      "Qwen/Qwen-Image-Edit-2511"
+      "Qwen/Qwen-Image-Edit-2509"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-edit-2509",
+      "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image-Edit-2509 を挙げる。Qwen/Qwen-Image-Edit-2509 のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -24142,8 +24161,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
-   "base_model": "Qwen/Qwen-Image-Edit-2511",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+   "base_model": "Qwen/Qwen-Image-Edit-2509",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -24266,15 +24285,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Qwen/Qwen-Image-Edit-2511",
-     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
+     "license_from": "Qwen/Qwen-Image-Edit-2509",
+     "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
      "repo_license": "apache-2.0",
      "license_path": [
       "Comfy-Org/Qwen-Image-Edit_ComfyUI",
-      "Qwen/Qwen-Image-Edit-2511"
+      "Qwen/Qwen-Image-Edit-2509"
      ],
      "license_evidence": [
-      "family:qwen-image"
+      "license_source:qwen-image-edit-2509",
+      "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に Qwen/Qwen-Image-Edit-2509 を挙げる。Qwen/Qwen-Image-Edit-2509 のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -24361,8 +24381,8 @@
    "params_b": null,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
-   "base_model": "Qwen/Qwen-Image-Edit-2511",
+   "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+   "base_model": "Qwen/Qwen-Image-Edit-2509",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -29287,15 +29307,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Wan-AI/Wan2.1-VACE-14B",
-     "license_url": "https://huggingface.co/Wan-AI/Wan2.1-VACE-14B",
+     "license_from": "bytedance-research/ATI",
+     "license_url": "https://huggingface.co/bytedance-research/ATI",
      "repo_license": null,
      "license_path": [
       "Kijai/WanVideo_comfy",
-      "Wan-AI/Wan2.1-VACE-14B"
+      "bytedance-research/ATI"
      ],
      "license_evidence": [
-      "family:wan"
+      "license_source:wan2.1-ati-kijai",
+      "https://huggingface.co/Kijai/WanVideo_comfy の README「ATI: https://huggingface.co/bytedance-research/ATI」が元に bytedance-research/ATI を挙げる。bytedance-research/ATI のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Wan2.1-VACE-14B をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -29325,8 +29346,8 @@
    "params_b": 14.0,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Wan-AI/Wan2.1-VACE-14B",
-   "base_model": "Wan-AI/Wan2.1-VACE-14B",
+   "license_url": "https://huggingface.co/bytedance-research/ATI",
+   "base_model": "bytedance-research/ATI",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -47465,15 +47486,16 @@
      "license_name": null,
      "gated": false,
      "role": "main",
-     "license_from": "Wan-AI/Wan2.1-VACE-14B",
-     "license_url": "https://huggingface.co/Wan-AI/Wan2.1-VACE-14B",
+     "license_from": "bytedance-research/ATI",
+     "license_url": "https://huggingface.co/bytedance-research/ATI",
      "repo_license": null,
      "license_path": [
       "Kijai/WanVideo_comfy",
-      "Wan-AI/Wan2.1-VACE-14B"
+      "bytedance-research/ATI"
      ],
      "license_evidence": [
-      "family:wan"
+      "license_source:wan2.1-ati-kijai",
+      "https://huggingface.co/Kijai/WanVideo_comfy の README「ATI: https://huggingface.co/bytedance-research/ATI」が元に bytedance-research/ATI を挙げる。bytedance-research/ATI のカードは license: apache-2.0(自動の決め方は、元の候補の名前の重なりが同点になり、名前の順で Wan2.1-VACE-14B をたどっていた。出どころを直す。#144)(2026-10-31 に確認)"
      ],
      "head_status": 302,
      "head_checked_at": "2026-10-21T06:20:06Z",
@@ -47590,8 +47612,8 @@
    "params_b": 14.0,
    "precision": "fp8",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Wan-AI/Wan2.1-VACE-14B",
-   "base_model": "Wan-AI/Wan2.1-VACE-14B",
+   "license_url": "https://huggingface.co/bytedance-research/ATI",
+   "base_model": "bytedance-research/ATI",
    "content": "sfw",
    "content_evidence": [],
    "discovered_from": [
@@ -54301,7 +54323,7 @@
    "params_b": 0.6,
    "precision": "gguf-q8_0",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz",
+   "license_url": "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF",
    "base_model": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
    "content": "sfw",
    "content_evidence": [],

@@ -58,7 +58,11 @@ All notable changes to this project are documented here. The format is based on
   the origin candidates in the Comfy-Org repackaged README tie on name overlap and the last one by name won. Override
   rows in the component source table now name each file's own repository (all apache-2.0, so no license changes);
   `license_from`, the files' `license_url` and the templates' `base_model` follow. `apply_license_sources` also
-  re-derives a template's `base_model` when a row changes its main file's origin, like a rebuild does.
+  re-derives a template's `base_model` when a row changes its main file's origin, like a rebuild does. The same tie
+  sent Qwen-Image to Qwen-Image-2512, Qwen-Image-Edit and Edit-2509 to Edit-2511, ERNIE-Image to ERNIE-Image-Turbo,
+  LongCat-Image to LongCat-Image-Edit-Turbo and the Kijai ATI weights to Wan2.1-VACE-14B; override rows fix those too
+  (from the repackagers' cardData `base_model` and Kijai's README). docs/schema now says what `base_model` means here:
+  the origin repository of the redistributed file, not the HF card's `base_model`.
   (Wan Fun の本体の元を直した)
 - **A model's `license_url` points at its main file** (#144): with several files under the same license, the URL came
   from the first file by name, often a component (`video_wan2_2_14B_fun_control` showed the VAE's

@@ -715,6 +715,97 @@ SOURCES: tuple[LicenseSource, ...] = (
         override=True,
         checked="2026-10-31",
     ),
+    # --- 同じ同点の誤り(#144 の続き。Comfy-Org・Kijai の README の元の候補で確かめた) ---
+    _s(
+        "qwen-image-2508",
+        "Comfy-Org/Qwen-Image_ComfyUI",
+        r"qwen_image_(bf16|fp8_e4m3fn)\.safetensors",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen-Image",
+        f"{HF}/Comfy-Org/Qwen-Image_ComfyUI の cardData の base_model が元に"
+        " Qwen/Qwen-Image を挙げる。"
+        "Qwen/Qwen-Image のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Qwen-Image-2512 をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "qwen-image-edit-2508",
+        "Comfy-Org/Qwen-Image-Edit_ComfyUI",
+        r"qwen_image_edit_(bf16|fp8_e4m3fn)\.safetensors",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen-Image-Edit",
+        f"{HF}/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に"
+        " Qwen/Qwen-Image-Edit を挙げる。"
+        "Qwen/Qwen-Image-Edit のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "qwen-image-edit-2509",
+        "Comfy-Org/Qwen-Image-Edit_ComfyUI",
+        r"qwen_image_edit_2509_(bf16|fp8_e4m3fn)\.safetensors",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen-Image-Edit-2509",
+        f"{HF}/Comfy-Org/Qwen-Image-Edit_ComfyUI の cardData の base_model が元に"
+        " Qwen/Qwen-Image-Edit-2509 を挙げる。"
+        "Qwen/Qwen-Image-Edit-2509 のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Qwen-Image-Edit-2511 をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "ernie-image-base",
+        "Comfy-Org/ERNIE-Image",
+        r"ernie-image\.safetensors",
+        "apache-2.0",
+        None,
+        "baidu/ERNIE-Image",
+        f"{HF}/Comfy-Org/ERNIE-Image の cardData の base_model が元に"
+        " baidu/ERNIE-Image を挙げる。"
+        "baidu/ERNIE-Image のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で ERNIE-Image-Turbo をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "longcat-image-t2i",
+        "Comfy-Org/LongCat-Image",
+        r"longcat_image_bf16\.safetensors",
+        "apache-2.0",
+        None,
+        "meituan-longcat/LongCat-Image",
+        f"{HF}/Comfy-Org/LongCat-Image の cardData の base_model が元に"
+        " meituan-longcat/LongCat-Image を挙げる。"
+        "meituan-longcat/LongCat-Image のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で LongCat-Image-Edit-Turbo をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
+    _s(
+        "wan2.1-ati-kijai",
+        "Kijai/WanVideo_comfy",
+        r"Wan2_1-I2V-ATI-14B_fp8_e4m3fn\.safetensors",
+        "apache-2.0",
+        None,
+        "bytedance-research/ATI",
+        f"{HF}/Kijai/WanVideo_comfy の README「ATI: https://huggingface.co/bytedance-research/ATI」が元に"
+        " bytedance-research/ATI を挙げる。"
+        "bytedance-research/ATI のカードは license: apache-2.0"
+        "(自動の決め方は、元の候補の名前の重なりが同点になり、"
+        "名前の順で Wan2.1-VACE-14B をたどっていた。出どころを直す。#144)",
+        override=True,
+        checked="2026-10-31",
+    ),
     _s(
         "infinitetalk-comfy",
         "Comfy-Org/Wan_2.1_ComfyUI_repackaged",

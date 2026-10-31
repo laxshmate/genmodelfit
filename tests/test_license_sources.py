@@ -36,6 +36,7 @@ KREA = ("other", "krea-2-community-license")
 W22 = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
 W21 = "Comfy-Org/Wan_2.1_ComfyUI_repackaged"
 _DM = "split_files/diffusion_models/"
+QE = "Comfy-Org/Qwen-Image-Edit_ComfyUI"
 
 CASES = [
     # 上書きの行(override。自動の決め方が寛容な側に誤る・違う元をたどるもの。0.1.1 のレビュー)
@@ -188,6 +189,17 @@ CASES = [
     (W22, "split_files/diffusion_models/wan2.2_fun_inpaint_5B_bf16.safetensors", "apache-2.0", None),
     (W21, "split_files/diffusion_models/wan2.1_fun_control_1.3B_bf16.safetensors", "apache-2.0", None),
     (W21, "split_files/diffusion_models/wan2.1_fun_camera_v1.1_1.3B_bf16.safetensors", "apache-2.0", None),
+    ("Comfy-Org/Qwen-Image_ComfyUI", f"{_DM}qwen_image_fp8_e4m3fn.safetensors", "apache-2.0", None),
+    ("Comfy-Org/Qwen-Image-Edit_ComfyUI", f"{_DM}qwen_image_edit_fp8_e4m3fn.safetensors", "apache-2.0", None),
+    (
+        "Comfy-Org/Qwen-Image-Edit_ComfyUI",
+        f"{_DM}qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+        "apache-2.0",
+        None,
+    ),
+    ("Comfy-Org/ERNIE-Image", "diffusion_models/ernie-image.safetensors", "apache-2.0", None),
+    ("Comfy-Org/LongCat-Image", f"{_DM}longcat_image_bf16.safetensors", "apache-2.0", None),
+    ("Kijai/WanVideo_comfy", "Wan2_1-I2V-ATI-14B_fp8_e4m3fn.safetensors", "apache-2.0", None),
     ("Comfy-Org/void-model", "vae/cogvideox_vae.safetensors", "apache-2.0", None),
     ("Comfy-Org/HuMo_ComfyUI", "whisper_large_v3_fp16.safetensors", "apache-2.0", None),
     ("Comfy-Org/PixelDiT", "gemma_2_2b_it_elm_bf16.safetensors", "gemma", None),
@@ -573,9 +585,16 @@ def test_entries_api_accepts_list():
         ("wan2.1_fun_control", "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control"),
         ("video_wan2.1_fun_camera_v1.1_1.3B", "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera"),
         ("video_wan2.1_fun_camera_v1.1_14B", "alibaba-pai/Wan2.1-Fun-V1.1-14B-Control-Camera"),
+        ("image_qwen_image", "Qwen/Qwen-Image"),
+        ("image_qwen_image_edit", "Qwen/Qwen-Image-Edit"),
+        ("image_qwen_image_edit_2509", "Qwen/Qwen-Image-Edit-2509"),
+        ("image_ernie_image", "baidu/ERNIE-Image"),
+        ("image_longcat_text_to_image", "meituan-longcat/LongCat-Image"),
+        ("video_wan_ati", "bytedance-research/ATI"),
+        ("template-Animation_Trajectory_Control_Wan_ATI", "bytedance-research/ATI"),
     ],
 )
-def test_wan_fun_main_files_follow_their_own_origin(bundled, mid, origin):
+def test_main_files_follow_their_own_origin(bundled, mid, origin):
     """Wan の Fun の本体は、再配布の README の元のうち自分の版をたどる(名前の重なりの同点で別の版に
     ならない。#144)。テンプレートの base_model もその元。"""
     m = bundled.get(mid)
