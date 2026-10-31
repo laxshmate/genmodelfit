@@ -13,8 +13,8 @@ All notable changes to this project are documented here. The format is based on
   (runtime `supertonic`, a new value; SDK `supertonic`, MIT). 16 files pinned to revision `3cadd1ee…` (401,276,744
   bytes; sizes and sha256 match the Hub API `lfs`, the small JSON files were downloaded and hashed), license
   `openrail` (the card; `LICENSE` is BigScience Open RAIL-M with use restrictions), 31 speech languages from the card,
-  precision fp32 (the ONNX weights read with Range). It is new, so it waits for review (`review approve`) before it
-  is recommended automatically. (読み上げの Supertonic 3 を手のモデルに足した)
+  precision fp32 (the ONNX weights read with Range). Marked reviewed with `review approve` (by `claude-maker-127`,
+  with the LICENSE and file-tree URLs as evidence; the owner checks it in the PR). (読み上げの Supertonic 3 を手のモデルに足した)
 - CPU-only PCs: Supertonic joins the speech models whose authors say they run in real time on a CPU
   (`estimate.CPU_REALTIME_TTS`; the README of github.com/supertone-inc/supertonic shows it running in real time on a
   Raspberry Pi), so on the CPU it is capped at Good instead of Marginal. Piper (`manual:tsukuyomi-chan-piper-plus`)

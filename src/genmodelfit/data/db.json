@@ -176,8 +176,8 @@
    "within_10pct": 215
   },
   "review": {
-   "ok": 329,
-   "pending": 1,
+   "ok": 330,
+   "pending": 0,
    "marked": {
     "new": 1
    },
@@ -56536,14 +56536,17 @@
    },
    "card_languages": null,
    "review": {
-    "status": "pending",
+    "status": "ok",
     "reasons": [
      "new"
     ],
-    "decided_by": null,
-    "decided_at": null,
-    "evidence": [],
-    "note": null
+    "decided_by": "claude-maker-127",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
+     "https://huggingface.co/api/models/Supertone/supertonic-3/tree/3cadd1ee6394adea1bd021217a0e650ede09a323"
+    ],
+    "note": "#127: 手のモデル。ライセンス(Open RAIL-M)・16 ファイルの大きさと sha256 を一次資料で確かめた"
    },
    "total_size_bytes": 401276744
   },

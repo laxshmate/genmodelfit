@@ -83,7 +83,10 @@ def test_bundled_list_starts_all_ok(bundled):
     assert bundled.models
     for m in bundled.models:
         assert m.review is not None and m.review.status == "ok", m.id
-        assert m.review.decided_by == review.BASELINE and m.review.decided_at == "2026-10-21"
+        if m.review.decided_by == review.BASELINE:
+            assert m.review.decided_at == "2026-10-21"
+        else:  # あとから review approve で確かめたもの(#127 から)は根拠と日付がある
+            assert m.review.evidence and m.review.decided_at and m.review.decided_by, m.id
     assert bundled.sources["review"]["pending"] == 0
 
 
