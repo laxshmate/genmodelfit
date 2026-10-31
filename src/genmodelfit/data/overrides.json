@@ -137,12 +137,13 @@
    }
   },
   "hf:myshell-ai/MeloTTS-English": {
-   "_note": "https://huggingface.co/myshell-ai/MeloTTS-English のカードの language が ko(誤り。モデル名と本文の表のとおり英語の声)",
+   "_note": "https://huggingface.co/myshell-ai/MeloTTS-English のカードの language が ko(誤り。モデル名と本文の表のとおり英語の声) / 動かし方(#142、2026-10-31 に確認): https://huggingface.co/myshell-ai/MeloTTS-English のカードの使い方「from melo.api import TTS」と、導入の手順 https://github.com/myshell-ai/MeloTTS/blob/main/docs/install.md",
    "languages": {
     "speech": [
      "en"
     ]
-   }
+   },
+   "runtime": "melotts"
   },
   "image_qwen_image_2_1_t2i": {
    "_note": "公式テンプレート(Comfy-Org/workflow_templates の templates/image_qwen_image_2_1_t2i.json、一次資料)の既定の指示が英語(既定で切ってある指示の書き直しの部品を数えない #81 で、部品の表から en が付かなくなったため手の表で書く。文字を読む部品 qwen3vl_8b はカードに言語の記述が無い。zh は Qwen-Image 2.1 のカードに記述が無いので付けない)",
@@ -176,6 +177,82 @@
      "ja"
     ]
    }
+  },
+  "hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512": {
+   "runtime": "cosyvoice",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512 のカードの使い方: git clone https://github.com/FunAudioLLM/CosyVoice.git と「from cosyvoice.cli.cosyvoice import AutoModel」"
+  },
+  "hf:Jmica/Drama-3-GGUF": {
+   "runtime": "audio-cpp",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/Jmica/Drama-3-GGUF のカード「Drama 3 support is merged into audio.cpp main (https://github.com/0xShug0/audio.cpp)」「The runtime is a native C++ CLI and HTTP server」"
+  },
+  "hf:OpenMOSS-Team/MOSS-TTS-v1.5": {
+   "runtime": "transformers",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/OpenMOSS-Team/MOSS-TTS-v1.5 のカードの使い方: 「from transformers import AutoModel, AutoProcessor」と trust_remote_code=True(リポジトリの modeling_moss_tts.py・processing_moss_tts.py)。依存は https://github.com/OpenMOSS/MOSS-TTS を pip install -e . で入れる"
+  },
+  "hf:Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice": {
+   "runtime": "qwen-tts",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice のカード「pip install -U qwen-tts」「from qwen_tts import Qwen3TTSModel」"
+  },
+  "hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice": {
+   "runtime": "qwen-tts",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice のカード「pip install -U qwen-tts」「from qwen_tts import Qwen3TTSModel」"
+  },
+  "hf:ResembleAI/chatterbox": {
+   "runtime": "chatterbox",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/ResembleAI/chatterbox のカードの library_name: chatterbox と「pip install chatterbox-tts」「from chatterbox.mtl_tts import ChatterboxMultilingualTTS」"
+  },
+  "hf:Serveurperso/Qwen3-TTS-GGUF": {
+   "runtime": "qwentts-cpp",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF のカード「git clone --recurse-submodules https://github.com/ServeurpersoCom/qwentts.cpp.git」"
+  },
+  "hf:ai4bharat/indic-parler-tts": {
+   "runtime": "parler-tts",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/ai4bharat/indic-parler-tts のカード「pip install git+https://github.com/huggingface/parler-tts.git」「from parler_tts import ParlerTTSForConditionalGeneration」(カードは gated: auto。ページの本文で確かめた)"
+  },
+  "hf:audio-cpp/AuK-Base-and-Flash-GGUF": {
+   "runtime": "audio-cpp",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/audio-cpp/AuK-Base-and-Flash-GGUF のカード「These GGUF files are for use with audio.cpp (https://github.com/0xShug0/audio.cpp)」「Pass the downloaded directory to audiocpp_cli --model」"
+  },
+  "hf:bosonai/higgs-tts-3-4b": {
+   "runtime": "sglang-omni",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/bosonai/higgs-tts-3-4b のカードの Usage「Pair the weights in this repo with SGLang-Omni (https://github.com/sgl-project/sglang-omni)」(ほかに vLLM-Omni も挙げる)"
+  },
+  "hf:drbaph/Higgs-Audio-v3-Studio": {
+   "runtime": "higgs-audio-v3-studio",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/drbaph/Higgs-Audio-v3-Studio のカード「GitHub app repository: https://github.com/Saganaki22/Higgs-Audio-v3-Studio」「The desktop app uses a ported native C++/CUDA inference engine」"
+  },
+  "hf:hexgrad/Kokoro-82M": {
+   "runtime": "kokoro",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/hexgrad/Kokoro-82M のカード「pip install -q kokoro>=0.9.2 soundfile」「from kokoro import KPipeline」"
+  },
+  "hf:k2-fsa/OmniVoice": {
+   "runtime": "omnivoice",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/k2-fsa/OmniVoice のカードの library_name: omnivoice と「pip install omnivoice」「from omnivoice import OmniVoice」"
+  },
+  "hf:microsoft/VibeVoice-1.5B": {
+   "runtime": "vibevoice",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/microsoft/VibeVoice-1.5B のカード「Installation and Usage: Please refer to GitHub README (https://github.com/microsoft/VibeVoice)」"
+  },
+  "hf:microsoft/VibeVoice-Realtime-0.5B": {
+   "runtime": "vibevoice",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/microsoft/VibeVoice-Realtime-0.5B のカード「Installation and Usage: Please refer to GitHub README (https://github.com/microsoft/VibeVoice/blob/main/docs/vibevoice-realtime-0.5b.md)」"
+  },
+  "hf:openbmb/VoxCPM2": {
+   "runtime": "voxcpm",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/openbmb/VoxCPM2 のカードの library_name: voxcpm と「pip install voxcpm」「from voxcpm import VoxCPM」"
+  },
+  "hf:pnnbao-ump/VieNeu-TTS-v3-Turbo": {
+   "runtime": "vieneu",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Turbo のカード「pip install vieneu」「from vieneu import Vieneu」"
+  },
+  "hf:sesame/csm-1b": {
+   "runtime": "transformers",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/sesame/csm-1b のカードの使い方「from transformers import CsmForConditionalGeneration, AutoProcessor」(カードは gated: auto。ページの本文で確かめた)"
+  },
+  "hf:speechbrain/tts-hifigan-libritts-22050Hz": {
+   "runtime": "speechbrain",
+   "_note": "動かし方(#142、2026-10-31 に確認): https://huggingface.co/speechbrain/tts-hifigan-libritts-22050Hz のカード「pip install speechbrain」「from speechbrain.inference.vocoders import HIFIGAN」"
   }
  }
 }

@@ -684,6 +684,95 @@
      "repo_license": "stable-audio-community"
     }
    ]
+  },
+  "hf:OpenMOSS-Team/MOSS-TTS-v1.5": {
+   "evidence": "https://huggingface.co/OpenMOSS-Team/MOSS-TTS-v1.5 の processing_moss_tts.py(版 cdd3b911)の from_pretrained は、codec_path も processor_config.json の audio_tokenizer_name_or_path も無ければ「OpenMOSS-Team/MOSS-Audio-Tokenizer」を読む(processor_config.json には無い)。カードの使い方も AutoProcessor.from_pretrained から processor.audio_tokenizer を使う(2026-10-31 に確認)",
+   "files": [
+    {
+     "name": "model-00001-of-00002.safetensors",
+     "url": "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer/resolve/main/model-00001-of-00002.safetensors",
+     "sha256": "037f441ed30a0ab59f6049de83b824a1b3bd6feb7dbd46c3fbca41fc2f649f28",
+     "size_bytes": 4998259168,
+     "gated": false,
+     "role": "vae"
+    },
+    {
+     "name": "model-00002-of-00002.safetensors",
+     "url": "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer/resolve/main/model-00002-of-00002.safetensors",
+     "sha256": "a187d73d2cda1c2d0676586d9d03c09c0a5813450266af32029c871493fc9582",
+     "size_bytes": 2100202560,
+     "gated": false,
+     "role": "vae"
+    }
+   ]
+  },
+  "hf:ResembleAI/chatterbox": {
+   "evidence": "https://github.com/resemble-ai/chatterbox の src/chatterbox/mtl_tts.py(コミット 5de7a54a)の ChatterboxMultilingualTTS.from_pretrained は ve.pt・t3 の重み・s3gen.pt・grapheme_mtl_merged_expanded_v1.json・conds.pt・Cangjie5_TC.json を落とし、from_local が ve.pt・s3gen.pt・conds.pt を読む。一覧の本体 t3_mtl23ls_v3.safetensors を使うには t3_model=\"v3\" が要る(省くと t3_mtl23ls_v2.safetensors)(2026-10-31 に確認)",
+   "files": [
+    {
+     "name": "s3gen.pt",
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/s3gen.pt",
+     "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3",
+     "size_bytes": 1057165844,
+     "gated": false,
+     "role": "vae"
+    },
+    {
+     "name": "ve.pt",
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/ve.pt",
+     "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1",
+     "size_bytes": 5698626,
+     "gated": false,
+     "role": "other"
+    },
+    {
+     "name": "conds.pt",
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/conds.pt",
+     "sha256": "6552d70568833628ba019c6b03459e77fe71ca197d5c560cef9411bee9d87f4e",
+     "size_bytes": 107374,
+     "gated": false,
+     "role": "other"
+    }
+   ]
+  },
+  "hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice": {
+   "evidence": "https://github.com/QwenLM/Qwen3-TTS の qwen_tts/core/models/modeling_qwen3_tts.py(コミット 022e286b)の from_pretrained は、同じリポジトリの speech_tokenizer/(allow_patterns=[\"speech_tokenizer/*\"])を落として Qwen3TTSTokenizer として読む。無ければ ValueError(2026-10-31 に確認)",
+   "files": [
+    {
+     "name": "speech_tokenizer/model.safetensors",
+     "url": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice/resolve/main/speech_tokenizer/model.safetensors",
+     "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+     "size_bytes": 682293092,
+     "gated": false,
+     "role": "vae"
+    }
+   ]
+  },
+  "hf:Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice": {
+   "evidence": "https://github.com/QwenLM/Qwen3-TTS の qwen_tts/core/models/modeling_qwen3_tts.py(コミット 022e286b)の from_pretrained は、同じリポジトリの speech_tokenizer/(allow_patterns=[\"speech_tokenizer/*\"])を落として Qwen3TTSTokenizer として読む。無ければ ValueError(2026-10-31 に確認)",
+   "files": [
+    {
+     "name": "speech_tokenizer/model.safetensors",
+     "url": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/resolve/main/speech_tokenizer/model.safetensors",
+     "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+     "size_bytes": 682293092,
+     "gated": false,
+     "role": "vae"
+    }
+   ]
+  },
+  "hf:openbmb/VoxCPM2": {
+   "evidence": "https://github.com/OpenBMB/VoxCPM の src/voxcpm/model/voxcpm2.py(コミット cce58a5b)は、同じフォルダの audiovae.safetensors か audiovae.pth を読み、どちらも無ければ止まる(リポジトリにあるのは audiovae.pth)。雑音除去の ZipEnhancer(src/voxcpm/core.py の既定 iic/speech_zipenhancer_ans_multiloss_16k_base)は ModelScope にあり、カードの例は load_denoiser=False なので数えない(2026-10-31 に確認)",
+   "files": [
+    {
+     "name": "audiovae.pth",
+     "url": "https://huggingface.co/openbmb/VoxCPM2/resolve/main/audiovae.pth",
+     "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1",
+     "size_bytes": 376951122,
+     "gated": false,
+     "role": "vae"
+    }
+   ]
   }
  }
 }

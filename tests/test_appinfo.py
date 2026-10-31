@@ -904,3 +904,52 @@ def test_verify_keeps_a_license_name_that_refines_the_card():
     nc = _CardClient({"Supertone/supertonic-3": ("cc-by-nc-4.0", None)})
     warns = appinfo.verify_manual_licenses(ms, nc)
     assert warns and ms[0].license == "cc-by-nc-4.0"
+
+# --- HF の読み上げの動かし方と部品(#142) ------------------------------------------------------------
+
+
+def test_every_hf_speech_model_has_a_runtime_from_the_hand_table():
+    """HF の読み上げは規則で動かし方を決めず、手の表に書く(カードの使い方で確かめたもの)。同梱の一覧の
+    どれにも値があり、手の表の行には根拠(_note)がある。"""
+    table = appinfo.overrides()
+    db = load(None, use_cache=False)
+    speech = [m for m in db.models if m.source == "huggingface" and m.modality == "tts"]
+    assert speech
+    for m in speech:
+        assert m.runtime and m.runtime == table[m.id]["runtime"], m.id
+        assert "#142" in table[m.id]["_note"], m.id
+    # 規則だけでは決めない(手の表を外すと null)
+    one = speech[0]
+    appinfo.apply_app_fields([one], table={})
+    assert one.runtime is None
+
+
+@pytest.mark.parametrize(
+    ("mid", "names", "lic"),
+    [
+        (
+            "hf:OpenMOSS-Team/MOSS-TTS-v1.5",
+            {"model-00001-of-00002.safetensors", "model-00002-of-00002.safetensors"},
+            "apache-2.0",
+        ),
+        ("hf:ResembleAI/chatterbox", {"s3gen.pt", "ve.pt", "conds.pt"}, "mit"),
+        ("hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice", {"speech_tokenizer/model.safetensors"}, "apache-2.0"),
+        ("hf:Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice", {"speech_tokenizer/model.safetensors"}, "apache-2.0"),
+        ("hf:openbmb/VoxCPM2", {"audiovae.pth"}, "apache-2.0"),
+    ],
+)
+def test_speech_models_carry_the_parts_their_code_loads(mid, names, lic):
+    """公式のコードが読む部品(音声トークナイザ・コーデックなど)を files に足し、ライセンスは部品の
+    出どころの表、見積もりにも数える(#142)。"""
+    from genmodelfit.estimate import select_files
+
+    m = load(None, use_cache=False).get(mid)
+    got = {f.name: f for f in m.files}
+    assert names <= set(got)
+    for n in names:
+        f = got[n]
+        assert f.license == lic and re.fullmatch(r"[0-9a-f]{64}", f.sha256) and f.size_bytes > 0
+        assert any(x.startswith("license_source:") for x in f.license_evidence)
+        assert any(x.startswith("manual_component:") for x in f.license_evidence)
+    counted = {f.name for f in select_files(m)[0]}
+    assert names <= counted, counted

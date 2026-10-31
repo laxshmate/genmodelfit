@@ -426,6 +426,10 @@ NewBie の `gemma_3_4b_it_bf16`、FLUX.2 klein 9B の `qwen_3_8b*`、Krea-2・Ma
 | Comfy-Org/MOSS-Image | `qwen3.5_9b_*` | apache-2.0 | [OpenMOSS-Team/MOSS-Image-Base](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) の text_encoder(Qwen3.5-9B。Qwen/Qwen3.5-9B も apache-2.0) | 再配布の base_model・text_encoder/config.json |
 | Kijai/SUPIR_pruned | `SUPIR-v0[QF]_*` | other(supir-non-commercial) | https://github.com/Fanghua-Yu/SUPIR の「Non-Commercial Use Only Declaration」 | 公式の重みの名前 |
 | Comfy-Org/stable-audio-3 | `t5gemma_b_b_ul2` | gemma(元は申請が要る) | [google/t5gemma-b-b-ul2](https://huggingface.co/google/t5gemma-b-b-ul2) | 公式 Stability-AI/stable-audio-tools の docs/conditioning.md |
+| OpenMOSS-Team/MOSS-Audio-Tokenizer | `model-0000[12]-of-00002` | apache-2.0 | 置き場所自身のカード(`license: apache-2.0`) | MOSS-TTS v1.5 の processor が既定で読む(0.14.0、#142) |
+| ResembleAI/chatterbox | `ve.pt`・`s3gen.pt`・`conds.pt` | mit | 置き場所自身のカード(`license: mit`) | 公式の src/chatterbox/mtl_tts.py が読む(0.14.0、#142) |
+| Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice・-0.6B-CustomVoice | `speech_tokenizer/model.safetensors` | apache-2.0 | [Qwen/Qwen3-TTS-Tokenizer-12Hz](https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz)(`license: apache-2.0`) | sha256 が同じ(0.14.0、#142) |
+| openbmb/VoxCPM2 | `audiovae.pth` | apache-2.0 | 置き場所自身のカード(`license: apache-2.0`) | 公式の src/voxcpm/model/voxcpm2.py が読む(0.14.0、#142) |
 | Comfy-Org/void-model | `cogvideox_vae` | apache-2.0 | [zai-org/CogVideoX-2b](https://huggingface.co/zai-org/CogVideoX-2b)「including its corresponding Transformers module and VAE module … Apache 2.0」 | sha256 が alibaba-pai/CogVideoX-Fun-V1.5-5b-InP の VAE と同じ。2b と 5b の VAE は同じ |
 | Comfy-Org/HuMo_ComfyUI | `whisper_large_v3_fp16` | apache-2.0 | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) | sha256 が同じ |
 | Comfy-Org/PixelDiT | `gemma_2_2b_it_elm_*` | gemma(元は申請が要る) | [google/gemma-2-2b-it](https://huggingface.co/google/gemma-2-2b-it) | 元の nvidia/PixelDiT-1300M-1024px のカード「Text encoder: Gemma-2-2B-IT」 |
@@ -522,7 +526,7 @@ auto(HEAD の期限を見ないとき)は 83 → 99。新しく auto になる 1
 部品が複数あるとき: 多言語が 1 つでもあれば多言語、すべて英語の部品なら英語だけ、表に無い部品(Gemma・Mistral・Llama・
 Qwen3-VL・gpt-oss など。カードに言語の記述が無い、または確かめていない)が混じれば決めない(カードがあればカードのまま)。
 
-手の表 `src/genmodelfit/data/overrides.json` は 16 件。アプリが実機で確かめた 9 件(AI生成キットの catalog.json の `notes` と実機の確認に合わせた):
+手の表 `src/genmodelfit/data/overrides.json` は 35 件(言語・説明の 16 件と、HF の読み上げの動かし方だけの 19 件。動かし方は「動かし方」の節。MeloTTS-English は言語の行に動かし方を足した)。言語・説明の 16 件のうち、アプリが実機で確かめた 9 件(AI生成キットの catalog.json の `notes` と実機の確認に合わせた):
 Z-Image Turbo 2 件・Wan 2.1/2.2 は `prompt` が `en` `ja` `zh`(「日本語の指示もある程度理解しますが、英語で書くとより正確」
 「日本語・英語・中国語の指示を理解します」。Z-Image のカードは `en` だけだが、部品の Qwen3 で日本語の指示も通ることを実機で確かめた)、
 SDXL は `en` のみ(「日本語はほとんど理解しません」)、ACE-Step 1.5 は `prompt` が `en`(「曲の雰囲気は英語で書くとより正確」)・
@@ -553,8 +557,10 @@ Supertonic 3 は `speech` がカードの 31 言語(カードの `language` と�
 
 項目 `runtime`。
 
-公式テンプレート由来は `comfyui`。HF 由来は、読み上げ以外で ComfyUI の系統(`comfy_family`)に当たったものだけ `comfyui`
-(読み上げは仕組みがモデルごとに違うので決めない = null)。手のモデルは書いた値(`piper` `irodori-tts` `supertonic` `comfyui`)。
+公式テンプレート由来は `comfyui`。HF 由来は、読み上げ以外で ComfyUI の系統(`comfy_family`)に当たったものだけ `comfyui`。
+HF 由来の読み上げは仕組みがモデルごとに違うので、規則では決めず、手の表(`overrides.json` の `runtime`)に書いたものだけ
+(0.14.0、#142。カードの使い方・`library_name`・公式の README で確かめ、行の `_note` に根拠。2026-10-31 に一覧の 20 件すべて):
+`cosyvoice` `audio-cpp` `transformers` `qwen-tts` `chatterbox` `qwentts-cpp` `parler-tts` `sglang-omni` `higgs-audio-v3-studio` `kokoro` `omnivoice` `vibevoice` `melotts` `voxcpm` `vieneu` `speechbrain`。手の表に無い読み上げは null。手のモデルは書いた値(`piper` `irodori-tts` `supertonic` `comfyui`)。
 `comfyui` でも null でもない値のモデルは、見積もりが `.onnx` などの ComfyUI で使わない形式のファイルも数える
 (`estimate.select_files`。つくよみちゃんの重みは onnx)。それ以外のモデルの数え方は変えていない。
 
@@ -613,6 +619,10 @@ HF の収集はリポジトリの本体(と同じリポジトリの部品)だけ
 | ID | 足すファイル | ライセンス | 確かめた場所(2026-10-21) |
 |---|---|---|---|
 | `hf:stabilityai/stable-audio-3-small-sfx` | https://huggingface.co/Comfy-Org/stable-audio-3 の `text_encoders/t5gemma_b_b_ul2.safetensors`(sha256 `1e1eba25…`、1,187,264,003 バイト。ComfyUI 用の T5Gemma) | `gemma`(`license_sources` の `stable-audio-3-t5gemma`) | https://huggingface.co/stabilityai/stable-audio-3-small-sfx の Hub API: ファイルに `t5gemma-b-b-ul2/model.safetensors`(sha256 `9b05ea5a…` = https://huggingface.co/google/t5gemma-b-b-ul2 の `model.safetensors` と同じ。google/t5gemma-b-b-ul2 は `license: gemma`)と `LICENSE_GEMMA.md` があり、利用申請の文(`extra_gated_prompt`)に「This model also includes components redistributed under the Gemma Terms of Use (https://ai.google.dev/gemma/terms)」。Stability AI の https://github.com/Stability-AI/stable-audio-tools/blob/main/docs/conditioning.md「This uses a T5Gemma (https://huggingface.co/google/t5gemma-b-b-ul2) encoder」 |
+| `hf:OpenMOSS-Team/MOSS-TTS-v1.5`(0.14.0、#142。以下 2026-10-31) | https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer の `model-00001-of-00002.safetensors`・`model-00002-of-00002.safetensors`(合計 7,098,461,728 バイト。音声トークナイザ) | `apache-2.0`(`moss-audio-tokenizer`) | MOSS-TTS v1.5 の `processing_moss_tts.py`(版 cdd3b911)の `from_pretrained` は、指定が無ければ `OpenMOSS-Team/MOSS-Audio-Tokenizer` を読む |
+| `hf:ResembleAI/chatterbox` | 同じリポジトリの `s3gen.pt`(1,057,165,844 バイト)・`ve.pt`・`conds.pt` | `mit`(`chatterbox-parts`) | https://github.com/resemble-ai/chatterbox の `src/chatterbox/mtl_tts.py`(コミット 5de7a54a)の `from_pretrained` / `from_local` が読む。一覧の本体 `t3_mtl23ls_v3.safetensors` を使うには `t3_model="v3"` が要る(省くと v2) |
+| `hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice`・`-0.6B-CustomVoice` | 同じリポジトリの `speech_tokenizer/model.safetensors`(682,293,092 バイト) | `apache-2.0`(`qwen3-tts-speech-tokenizer`) | https://github.com/QwenLM/Qwen3-TTS の `modeling_qwen3_tts.py`(コミット 022e286b)の `from_pretrained` が `speech_tokenizer/` を落として読む(無ければ止まる) |
+| `hf:openbmb/VoxCPM2` | 同じリポジトリの `audiovae.pth`(376,951,122 バイト) | `apache-2.0`(`voxcpm2-audiovae`) | https://github.com/OpenBMB/VoxCPM の `src/voxcpm/model/voxcpm2.py`(コミット cce58a5b)が読む(無ければ止まる)。雑音除去の ZipEnhancer は ModelScope にあり、カードの例は `load_denoiser=False` なので足さない |
 
 ほかの Stable Audio 3 の項目(`audio_stable_audio_3_medium`・`_medium_base`・`manual:stable-audio-3-small-music`)は
 もとから同じ部品を持つ(tests/test_appinfo.py がすべての Stable Audio 3 の項目に `gemma` の T5Gemma があることを検査する)。

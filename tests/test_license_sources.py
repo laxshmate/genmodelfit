@@ -164,6 +164,11 @@ CASES = [
     ("Comfy-Org/MOSS-Image", "qwen3.5_9b_w4a8_gptq.safetensors", "apache-2.0", None),
     ("Kijai/SUPIR_pruned", "SUPIR-v0Q_fp16.safetensors", "other", "supir-non-commercial"),
     ("Comfy-Org/stable-audio-3", "t5gemma_b_b_ul2.safetensors", "gemma", None),
+    ("OpenMOSS-Team/MOSS-Audio-Tokenizer", "model-00001-of-00002.safetensors", "apache-2.0", None),
+    ("ResembleAI/chatterbox", "s3gen.pt", "mit", None),
+    ("ResembleAI/chatterbox", "ve.pt", "mit", None),
+    ("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice", "speech_tokenizer/model.safetensors", "apache-2.0", None),
+    ("openbmb/VoxCPM2", "audiovae.pth", "apache-2.0", None),
     ("Comfy-Org/void-model", "vae/cogvideox_vae.safetensors", "apache-2.0", None),
     ("Comfy-Org/HuMo_ComfyUI", "whisper_large_v3_fp16.safetensors", "apache-2.0", None),
     ("Comfy-Org/PixelDiT", "gemma_2_2b_it_elm_bf16.safetensors", "gemma", None),
@@ -230,7 +235,7 @@ def test_table_license_for_real_files(repo, name, lic, lic_name):
     assert f.license_from == row.source and f.license_url == row.url
     assert f.license_path[0] == repo and f.license_path[-1] == row.source
     assert f"{ls.EVIDENCE_KEY}:{row.key}" in f.license_evidence
-    assert any(ls.CHECKED in e for e in f.license_evidence)
+    assert any(row.checked in e for e in f.license_evidence)
 
 
 @pytest.mark.parametrize("repo,name", NOT_COVERED, ids=[f"{c[0]}:{c[1]}" for c in NOT_COVERED])

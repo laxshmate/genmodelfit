@@ -76,7 +76,7 @@
   "app_fields": {
    "languages_prompt": 209,
    "languages_speech": 23,
-   "runtime": 304,
+   "runtime": 324,
    "description": 13,
    "from_card": 213
   },
@@ -178,7 +178,9 @@
   "review": {
    "ok": 330,
    "pending": 0,
-   "marked": {},
+   "marked": {
+    "files_changed": 5
+   },
    "rejected_skipped": 0
   },
   "counts": {
@@ -53011,7 +53013,7 @@
      "de"
     ]
    },
-   "runtime": null,
+   "runtime": "cosyvoice",
    "description": {},
    "card_languages": [
     "zh",
@@ -53190,7 +53192,7 @@
      "fo"
     ]
    },
-   "runtime": null,
+   "runtime": "audio-cpp",
    "description": {},
    "card_languages": [
     "zh",
@@ -53403,6 +53405,70 @@
      "repo_precision_source": null,
      "optional": null,
      "optional_replaces": null
+    },
+    {
+     "name": "model-00001-of-00002.safetensors",
+     "url": "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer/resolve/main/model-00001-of-00002.safetensors",
+     "sha256": "037f441ed30a0ab59f6049de83b824a1b3bd6feb7dbd46c3fbca41fc2f649f28",
+     "size_bytes": 4998259168,
+     "directory": null,
+     "repo_id": "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "vae",
+     "license_from": "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+     "license_url": "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer",
+     "repo_license": null,
+     "license_path": [
+      "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+      "OpenMOSS-Team/MOSS-Audio-Tokenizer"
+     ],
+     "license_evidence": [
+      "license_source:moss-audio-tokenizer",
+      "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer のカードは license: apache-2.0(MOSS-TTS v1.5 の processor が既定で読む音声トークナイザ)(2026-10-31 に確認)",
+      "manual_component: https://huggingface.co/OpenMOSS-Team/MOSS-TTS-v1.5 の processing_moss_tts.py(版 cdd3b911)の from_pretrained は、codec_path も processor_config.json の audio_tokenizer_name_or_path も無ければ「OpenMOSS-Team/MOSS-Audio-Tokenizer」を読む(processor_config.json には無い)。カードの使い方も AutoProcessor.from_pretrained から processor.audio_tokenizer を使う(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
+    },
+    {
+     "name": "model-00002-of-00002.safetensors",
+     "url": "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer/resolve/main/model-00002-of-00002.safetensors",
+     "sha256": "a187d73d2cda1c2d0676586d9d03c09c0a5813450266af32029c871493fc9582",
+     "size_bytes": 2100202560,
+     "directory": null,
+     "repo_id": "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "vae",
+     "license_from": "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+     "license_url": "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer",
+     "repo_license": null,
+     "license_path": [
+      "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+      "OpenMOSS-Team/MOSS-Audio-Tokenizer"
+     ],
+     "license_evidence": [
+      "license_source:moss-audio-tokenizer",
+      "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer のカードは license: apache-2.0(MOSS-TTS v1.5 の processor が既定で読む音声トークナイザ)(2026-10-31 に確認)",
+      "manual_component: https://huggingface.co/OpenMOSS-Team/MOSS-TTS-v1.5 の processing_moss_tts.py(版 cdd3b911)の from_pretrained は、codec_path も processor_config.json の audio_tokenizer_name_or_path も無ければ「OpenMOSS-Team/MOSS-Audio-Tokenizer」を読む(processor_config.json には無い)。カードの使い方も AutoProcessor.from_pretrained から processor.audio_tokenizer を使う(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
     }
    ],
    "template": null,
@@ -53464,7 +53530,7 @@
      "vi"
     ]
    },
-   "runtime": null,
+   "runtime": "transformers",
    "description": {},
    "card_languages": [
     "zh",
@@ -53500,13 +53566,18 @@
    ],
    "review": {
     "status": "ok",
-    "reasons": [],
-    "decided_by": "baseline-2026-10-21",
-    "decided_at": "2026-10-21",
-    "evidence": [],
-    "note": "確認の印を入れたとき(0.6.0、#42)の同梱の一覧。すべて確認済みとして始めた"
+    "reasons": [
+     "files_changed"
+    ],
+    "decided_by": "claude-maker-142",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://huggingface.co/OpenMOSS-Team/MOSS-TTS-v1.5/blob/cdd3b911b1585e3f2dbc7775ef10f9926f58850a/processing_moss_tts.py",
+     "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer"
+    ],
+    "note": "#142: 一次資料で確かめた(PR の説明を参照)"
    },
-   "total_size_bytes": 16979739072
+   "total_size_bytes": 24078200800
   },
   {
    "id": "hf:Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
@@ -53543,13 +53614,45 @@
      "repo_precision_source": null,
      "optional": null,
      "optional_replaces": null
+    },
+    {
+     "name": "speech_tokenizer/model.safetensors",
+     "url": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/resolve/main/speech_tokenizer/model.safetensors",
+     "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+     "size_bytes": 682293092,
+     "directory": null,
+     "repo_id": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "vae",
+     "license_from": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+     "license_url": "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz",
+     "repo_license": null,
+     "license_path": [
+      "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+      "Qwen/Qwen3-TTS-Tokenizer-12Hz"
+     ],
+     "license_evidence": [
+      "license_source:qwen3-tts-speech-tokenizer",
+      "speech_tokenizer/model.safetensors(sha256 836b7b35…)は https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz の model.safetensors と同じ。Qwen/Qwen3-TTS-Tokenizer-12Hz のカードは license: apache-2.0(置き場所の Qwen3-TTS-12Hz-*-CustomVoice も license: apache-2.0)(2026-10-31 に確認)",
+      "manual_component: https://github.com/QwenLM/Qwen3-TTS の qwen_tts/core/models/modeling_qwen3_tts.py(コミット 022e286b)の from_pretrained は、同じリポジトリの speech_tokenizer/(allow_patterns=[\"speech_tokenizer/*\"])を落として Qwen3TTSTokenizer として読む。無ければ ValueError(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
     }
    ],
    "template": null,
    "params_b": 0.6,
    "precision": "bf16",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+   "license_url": "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz",
    "base_model": null,
    "content": "sfw",
    "content_evidence": [],
@@ -53586,7 +53689,7 @@
      "it"
     ]
    },
-   "runtime": null,
+   "runtime": "qwen-tts",
    "description": {},
    "card_languages": [
     "zh",
@@ -53602,13 +53705,18 @@
    ],
    "review": {
     "status": "ok",
-    "reasons": [],
-    "decided_by": "baseline-2026-10-21",
-    "decided_at": "2026-10-21",
-    "evidence": [],
-    "note": "確認の印を入れたとき(0.6.0、#42)の同梱の一覧。すべて確認済みとして始めた"
+    "reasons": [
+     "files_changed"
+    ],
+    "decided_by": "claude-maker-142",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://github.com/QwenLM/Qwen3-TTS/blob/022e286b98fbec7e1e916cb940cdf532cd9f488e/qwen_tts/core/models/modeling_qwen3_tts.py",
+     "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz"
+    ],
+    "note": "#142: 一次資料で確かめた(PR の説明を参照)"
    },
-   "total_size_bytes": 1811626576
+   "total_size_bytes": 2493919668
   },
   {
    "id": "hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
@@ -53645,13 +53753,45 @@
      "repo_precision_source": null,
      "optional": null,
      "optional_replaces": null
+    },
+    {
+     "name": "speech_tokenizer/model.safetensors",
+     "url": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice/resolve/main/speech_tokenizer/model.safetensors",
+     "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+     "size_bytes": 682293092,
+     "directory": null,
+     "repo_id": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "vae",
+     "license_from": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+     "license_url": "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz",
+     "repo_license": null,
+     "license_path": [
+      "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+      "Qwen/Qwen3-TTS-Tokenizer-12Hz"
+     ],
+     "license_evidence": [
+      "license_source:qwen3-tts-speech-tokenizer",
+      "speech_tokenizer/model.safetensors(sha256 836b7b35…)は https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz の model.safetensors と同じ。Qwen/Qwen3-TTS-Tokenizer-12Hz のカードは license: apache-2.0(置き場所の Qwen3-TTS-12Hz-*-CustomVoice も license: apache-2.0)(2026-10-31 に確認)",
+      "manual_component: https://github.com/QwenLM/Qwen3-TTS の qwen_tts/core/models/modeling_qwen3_tts.py(コミット 022e286b)の from_pretrained は、同じリポジトリの speech_tokenizer/(allow_patterns=[\"speech_tokenizer/*\"])を落として Qwen3TTSTokenizer として読む。無ければ ValueError(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
     }
    ],
    "template": null,
    "params_b": 1.7,
    "precision": "bf16",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+   "license_url": "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz",
    "base_model": null,
    "content": "sfw",
    "content_evidence": [],
@@ -53675,18 +53815,23 @@
    "workflow_precision": null,
    "precision_source": "header",
    "languages": {},
-   "runtime": null,
+   "runtime": "qwen-tts",
    "description": {},
    "card_languages": [],
    "review": {
     "status": "ok",
-    "reasons": [],
-    "decided_by": "baseline-2026-10-21",
-    "decided_at": "2026-10-21",
-    "evidence": [],
-    "note": "確認の印を入れたとき(0.6.0、#42)の同梱の一覧。すべて確認済みとして始めた"
+    "reasons": [
+     "files_changed"
+    ],
+    "decided_by": "claude-maker-142",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://github.com/QwenLM/Qwen3-TTS/blob/022e286b98fbec7e1e916cb940cdf532cd9f488e/qwen_tts/core/models/modeling_qwen3_tts.py",
+     "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz"
+    ],
+    "note": "#142: 一次資料で確かめた(PR の説明を参照)"
    },
-   "total_size_bytes": 3833402552
+   "total_size_bytes": 4515695644
   },
   {
    "id": "hf:ResembleAI/chatterbox",
@@ -53719,6 +53864,102 @@
      "head_checked_at": "2026-10-21T06:20:06Z",
      "header_precision": "fp32",
      "header_params": 535989248,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
+    },
+    {
+     "name": "s3gen.pt",
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/s3gen.pt",
+     "sha256": "9b9ff07e60b20c136e2b1b3d7563a24604e8d2c4c267888d1ee929dd0151d2a3",
+     "size_bytes": 1057165844,
+     "directory": null,
+     "repo_id": "ResembleAI/chatterbox",
+     "license": "mit",
+     "license_name": null,
+     "gated": false,
+     "role": "vae",
+     "license_from": "ResembleAI/chatterbox",
+     "license_url": "https://huggingface.co/ResembleAI/chatterbox",
+     "repo_license": null,
+     "license_path": [
+      "ResembleAI/chatterbox",
+      "ResembleAI/chatterbox"
+     ],
+     "license_evidence": [
+      "license_source:chatterbox-parts",
+      "https://huggingface.co/ResembleAI/chatterbox のカードは license: mit(同じリポジトリの ve.pt・s3gen.pt・conds.pt。公式の src/chatterbox/mtl_tts.py が読む)(2026-10-31 に確認)",
+      "manual_component: https://github.com/resemble-ai/chatterbox の src/chatterbox/mtl_tts.py(コミット 5de7a54a)の ChatterboxMultilingualTTS.from_pretrained は ve.pt・t3 の重み・s3gen.pt・grapheme_mtl_merged_expanded_v1.json・conds.pt・Cangjie5_TC.json を落とし、from_local が ve.pt・s3gen.pt・conds.pt を読む。一覧の本体 t3_mtl23ls_v3.safetensors を使うには t3_model=\"v3\" が要る(省くと t3_mtl23ls_v2.safetensors)(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
+    },
+    {
+     "name": "ve.pt",
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/ve.pt",
+     "sha256": "4b16d836bc598509860f6fa068165a8bb5e9ac84f05582dfcf278a5a372879f1",
+     "size_bytes": 5698626,
+     "directory": null,
+     "repo_id": "ResembleAI/chatterbox",
+     "license": "mit",
+     "license_name": null,
+     "gated": false,
+     "role": "other",
+     "license_from": "ResembleAI/chatterbox",
+     "license_url": "https://huggingface.co/ResembleAI/chatterbox",
+     "repo_license": null,
+     "license_path": [
+      "ResembleAI/chatterbox",
+      "ResembleAI/chatterbox"
+     ],
+     "license_evidence": [
+      "license_source:chatterbox-parts",
+      "https://huggingface.co/ResembleAI/chatterbox のカードは license: mit(同じリポジトリの ve.pt・s3gen.pt・conds.pt。公式の src/chatterbox/mtl_tts.py が読む)(2026-10-31 に確認)",
+      "manual_component: https://github.com/resemble-ai/chatterbox の src/chatterbox/mtl_tts.py(コミット 5de7a54a)の ChatterboxMultilingualTTS.from_pretrained は ve.pt・t3 の重み・s3gen.pt・grapheme_mtl_merged_expanded_v1.json・conds.pt・Cangjie5_TC.json を落とし、from_local が ve.pt・s3gen.pt・conds.pt を読む。一覧の本体 t3_mtl23ls_v3.safetensors を使うには t3_model=\"v3\" が要る(省くと t3_mtl23ls_v2.safetensors)(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
+    },
+    {
+     "name": "conds.pt",
+     "url": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/conds.pt",
+     "sha256": "6552d70568833628ba019c6b03459e77fe71ca197d5c560cef9411bee9d87f4e",
+     "size_bytes": 107374,
+     "directory": null,
+     "repo_id": "ResembleAI/chatterbox",
+     "license": "mit",
+     "license_name": null,
+     "gated": false,
+     "role": "other",
+     "license_from": "ResembleAI/chatterbox",
+     "license_url": "https://huggingface.co/ResembleAI/chatterbox",
+     "repo_license": null,
+     "license_path": [
+      "ResembleAI/chatterbox",
+      "ResembleAI/chatterbox"
+     ],
+     "license_evidence": [
+      "license_source:chatterbox-parts",
+      "https://huggingface.co/ResembleAI/chatterbox のカードは license: mit(同じリポジトリの ve.pt・s3gen.pt・conds.pt。公式の src/chatterbox/mtl_tts.py が読む)(2026-10-31 に確認)",
+      "manual_component: https://github.com/resemble-ai/chatterbox の src/chatterbox/mtl_tts.py(コミット 5de7a54a)の ChatterboxMultilingualTTS.from_pretrained は ve.pt・t3 の重み・s3gen.pt・grapheme_mtl_merged_expanded_v1.json・conds.pt・Cangjie5_TC.json を落とし、from_local が ve.pt・s3gen.pt・conds.pt を読む。一覧の本体 t3_mtl23ls_v3.safetensors を使うには t3_model=\"v3\" が要る(省くと t3_mtl23ls_v2.safetensors)(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
      "repo_precision": null,
      "repo_precision_source": null,
      "optional": null,
@@ -53779,7 +54020,7 @@
      "zh"
     ]
    },
-   "runtime": null,
+   "runtime": "chatterbox",
    "description": {},
    "card_languages": [
     "ar",
@@ -53808,13 +54049,18 @@
    ],
    "review": {
     "status": "ok",
-    "reasons": [],
-    "decided_by": "baseline-2026-10-21",
-    "decided_at": "2026-10-21",
-    "evidence": [],
-    "note": "確認の印を入れたとき(0.6.0、#42)の同梱の一覧。すべて確認済みとして始めた"
+    "reasons": [
+     "files_changed"
+    ],
+    "decided_by": "claude-maker-142",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://github.com/resemble-ai/chatterbox/blob/5de7a54aa4e5e2baadb0182dde554908b48b85c2/src/chatterbox/mtl_tts.py",
+     "https://huggingface.co/ResembleAI/chatterbox"
+    ],
+    "note": "#142: 一次資料で確かめた(PR の説明を参照)"
    },
-   "total_size_bytes": 2143989928
+   "total_size_bytes": 3206961772
   },
   {
    "id": "hf:Serveurperso/Qwen3-TTS-GGUF",
@@ -53896,7 +54142,7 @@
      "ar"
     ]
    },
-   "runtime": null,
+   "runtime": "qwentts-cpp",
    "description": {},
    "card_languages": [
     "zh",
@@ -54007,7 +54253,7 @@
      "om"
     ]
    },
-   "runtime": null,
+   "runtime": "parler-tts",
    "description": {},
    "card_languages": [
     "en",
@@ -54131,7 +54377,7 @@
    "workflow_precision": null,
    "precision_source": "filename",
    "languages": {},
-   "runtime": null,
+   "runtime": "audio-cpp",
    "description": {},
    "card_languages": [],
    "review": {
@@ -54302,7 +54548,7 @@
      "zu"
     ]
    },
-   "runtime": null,
+   "runtime": "sglang-omni",
    "description": {},
    "card_languages": [
     "af",
@@ -54562,7 +54808,7 @@
      "zu"
     ]
    },
-   "runtime": null,
+   "runtime": "higgs-audio-v3-studio",
    "description": {},
    "card_languages": [
     "af",
@@ -54740,7 +54986,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "kokoro",
    "description": {},
    "card_languages": [
     "en"
@@ -54952,7 +55198,7 @@
      "zu"
     ]
    },
-   "runtime": null,
+   "runtime": "omnivoice",
    "description": {},
    "card_languages": [
     "ab",
@@ -55215,7 +55461,7 @@
      "zh"
     ]
    },
-   "runtime": null,
+   "runtime": "vibevoice",
    "description": {},
    "card_languages": [
     "en",
@@ -55300,7 +55546,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "vibevoice",
    "description": {},
    "card_languages": [
     "en"
@@ -55382,7 +55628,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "melotts",
    "description": {},
    "card_languages": [
     "ko"
@@ -55428,6 +55674,38 @@
      "head_checked_at": "2026-10-21T06:20:06Z",
      "header_precision": "bf16",
      "header_params": 2290004544,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
+    },
+    {
+     "name": "audiovae.pth",
+     "url": "https://huggingface.co/openbmb/VoxCPM2/resolve/main/audiovae.pth",
+     "sha256": "94b5d51e107e0507d4acc976cfdadb64edd6fd06d1f751dadbf2fd1594274bf1",
+     "size_bytes": 376951122,
+     "directory": null,
+     "repo_id": "openbmb/VoxCPM2",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "vae",
+     "license_from": "openbmb/VoxCPM2",
+     "license_url": "https://huggingface.co/openbmb/VoxCPM2",
+     "repo_license": null,
+     "license_path": [
+      "openbmb/VoxCPM2",
+      "openbmb/VoxCPM2"
+     ],
+     "license_evidence": [
+      "license_source:voxcpm2-audiovae",
+      "https://huggingface.co/openbmb/VoxCPM2 のカードは license: apache-2.0(同じリポジトリの audiovae.pth。公式の src/voxcpm/model/voxcpm2.py が読む)(2026-10-31 に確認)",
+      "manual_component: https://github.com/OpenBMB/VoxCPM の src/voxcpm/model/voxcpm2.py(コミット cce58a5b)は、同じフォルダの audiovae.safetensors か audiovae.pth を読み、どちらも無ければ止まる(リポジトリにあるのは audiovae.pth)。雑音除去の ZipEnhancer(src/voxcpm/core.py の既定 iic/speech_zipenhancer_ans_multiloss_16k_base)は ModelScope にあり、カードの例は load_denoiser=False なので数えない(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
      "repo_precision": null,
      "repo_precision_source": null,
      "optional": null,
@@ -55495,7 +55773,7 @@
      "vi"
     ]
    },
-   "runtime": null,
+   "runtime": "voxcpm",
    "description": {},
    "card_languages": [
     "zh",
@@ -55531,13 +55809,18 @@
    ],
    "review": {
     "status": "ok",
-    "reasons": [],
-    "decided_by": "baseline-2026-10-21",
-    "decided_at": "2026-10-21",
-    "evidence": [],
-    "note": "確認の印を入れたとき(0.6.0、#42)の同梱の一覧。すべて確認済みとして始めた"
+    "reasons": [
+     "files_changed"
+    ],
+    "decided_by": "claude-maker-142",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://github.com/OpenBMB/VoxCPM/blob/cce58a5b59303c9bd63d12f23afe6a49a4a80c59/src/voxcpm/model/voxcpm2.py",
+     "https://huggingface.co/openbmb/VoxCPM2"
+    ],
+    "note": "#142: 一次資料で確かめた(PR の説明を参照)"
    },
-   "total_size_bytes": 4580080592
+   "total_size_bytes": 4957031714
   },
   {
    "id": "hf:pnnbao-ump/VieNeu-TTS-v3-Turbo",
@@ -55609,7 +55892,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "vieneu",
    "description": {},
    "card_languages": [
     "vi",
@@ -55721,7 +56004,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "transformers",
    "description": {},
    "card_languages": [
     "en"
@@ -55803,7 +56086,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "speechbrain",
    "description": {},
    "card_languages": [
     "en"

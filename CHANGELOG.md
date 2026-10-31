@@ -29,6 +29,20 @@ All notable changes to this project are documented here. The format is based on
   Raspberry Pi), so on the CPU it is capped at Good instead of Marginal. Piper (`manual:tsukuyomi-chan-piper-plus`)
   was already capped at Good since 0.11.0 (#108). The rule itself is unchanged. (CPU で実時間に動く読み上げの表に
   Supertonic を足した)
+- **Runtime for Hugging Face speech models** (#142): the 20 `hf:` text-to-speech models now have `runtime`
+  (`transformers`, `qwen-tts`, `chatterbox`, `voxcpm`, `audio-cpp`, `kokoro` and so on), written in the hand table
+  (`overrides.json`) from each card's usage and the official READMEs; it was null. A runtime other than ComfyUI also
+  means gate uses `app_runtime` instead of the three ComfyUI checks (both hold). (HF の読み上げの動かし方を埋めた)
+
+### Fixed
+
+- **Speech models missing the parts their code loads** (#142), added with `components` in `manual.json` and licensed
+  by the component source table: MOSS-TTS v1.5 gets the MOSS-Audio-Tokenizer (7.1 GB), Chatterbox `s3gen.pt`, `ve.pt`
+  and `conds.pt` (the listed `t3_mtl23ls_v3` needs `t3_model="v3"`), both Qwen3-TTS-12Hz CustomVoice models
+  `speech_tokenizer/model.safetensors` (0.68 GB), VoxCPM2 `audiovae.pth` (0.38 GB). The VRAM estimates grow
+  accordingly; on a CPU-only PC Chatterbox and Qwen3-TTS 0.6B are now over the 2 GB small-model limit and judged as
+  needing a GPU. The 5 changed models are marked reviewed (`claude-maker-142`, with the code as evidence).
+  (読み上げの部品を足した。見積もりが大きくなる)
 
 ## [0.13.2] - 2026-10-29
 

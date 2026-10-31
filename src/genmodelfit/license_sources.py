@@ -110,6 +110,7 @@ def _s(
     via: Iterable[str] = (),
     gated: bool = False,
     override: bool = False,
+    checked: str = CHECKED,
 ) -> LicenseSource:
     rs = (repos,) if isinstance(repos, str) else tuple(repos)
     return LicenseSource(
@@ -123,6 +124,7 @@ def _s(
         evidence,
         tuple(via),
         gated,
+        checked,
         override=override,
     )
 
@@ -466,6 +468,52 @@ SOURCES: tuple[LicenseSource, ...] = (
         "license: gemma(gated: manual)",
         url="https://ai.google.dev/gemma/terms",
         gated=True,
+    ),
+    # --- 読み上げの部品(HF の収集では入らない。data/manual.json の components。#142) ---
+    _s(
+        "moss-audio-tokenizer",
+        "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+        r"model-0000[12]-of-00002\.safetensors",
+        "apache-2.0",
+        None,
+        "OpenMOSS-Team/MOSS-Audio-Tokenizer",
+        f"{HF}/OpenMOSS-Team/MOSS-Audio-Tokenizer のカードは license: apache-2.0"
+        "(MOSS-TTS v1.5 の processor が既定で読む音声トークナイザ)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "chatterbox-parts",
+        "ResembleAI/chatterbox",
+        r"(ve|s3gen|conds)\.pt",
+        "mit",
+        None,
+        "ResembleAI/chatterbox",
+        f"{HF}/ResembleAI/chatterbox のカードは license: mit(同じリポジトリの ve.pt・s3gen.pt・conds.pt。"
+        "公式の src/chatterbox/mtl_tts.py が読む)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "qwen3-tts-speech-tokenizer",
+        ("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice", "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"),
+        r"model\.safetensors",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+        f"speech_tokenizer/model.safetensors(sha256 836b7b35…)は {HF}/Qwen/Qwen3-TTS-Tokenizer-12Hz の "
+        "model.safetensors と同じ。Qwen/Qwen3-TTS-Tokenizer-12Hz のカードは license: apache-2.0"
+        "(置き場所の Qwen3-TTS-12Hz-*-CustomVoice も license: apache-2.0)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "voxcpm2-audiovae",
+        "openbmb/VoxCPM2",
+        r"audiovae\.pth",
+        "apache-2.0",
+        None,
+        "openbmb/VoxCPM2",
+        f"{HF}/openbmb/VoxCPM2 のカードは license: apache-2.0(同じリポジトリの audiovae.pth。公式の "
+        "src/voxcpm/model/voxcpm2.py が読む)",
+        checked="2026-10-31",
     ),
     _s(
         "cogvideox-vae",

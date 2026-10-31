@@ -899,7 +899,7 @@ readers drop unknown keys, see "Database file"):
   (the material for `languages`, so an offline re-apply gives the same result). `[]` = the card was read and has no
   language, null = not read.
 - `runtime` (str \| null): `comfyui` for official templates and for Hugging Face image / video / music / sfx / 3D entries
-  whose files match a ComfyUI family; `piper`, `irodori-tts`, `supertonic` for the hand-added speech models; null = not decided. A
+  whose files match a ComfyUI family; `piper`, `irodori-tts`, `supertonic` for the hand-added speech models; for Hugging Face speech models, the value in the hand table (`overrides.json`: `transformers`, `qwen-tts`, `chatterbox` and so on; 0.14.0, #142); null = not decided. A
   runtime other than `comfyui` (and null) makes the estimator count `.onnx` and other non-ComfyUI weight files.
 - `description` (`{"ja": str, "en": str}`): a short hand-written description, only for the models that have one.
 - `source: "manual"` (id `manual:<slug>`): models added by hand in `src/genmodelfit/data/manual.json` (`template` is null). Their license

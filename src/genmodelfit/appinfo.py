@@ -138,7 +138,8 @@ def prompt_from_tables(e: ModelEntry) -> list[str]:
 
 def runtime_of(e: ModelEntry) -> str | None:
     """動かす仕組み。公式テンプレート由来は comfyui。HF 由来は、ComfyUI の系統に当たる画像・動画・音楽・
-    効果音・3D だけ comfyui(読み上げは仕組みがモデルごとに違うので決めない)。"""
+    効果音・3D だけ comfyui(読み上げは仕組みがモデルごとに違うので規則では決めない。手の表 overrides.json の
+    runtime に書く。#142。docs/sources.md「動かし方」)。"""
     if e.source == "comfyui-template":
         return "comfyui"
     if e.source == "huggingface" and e.modality != "tts" and e.comfy_family:

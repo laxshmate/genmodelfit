@@ -901,7 +901,7 @@ Python の `gmf.info(model_id)` は、id の完全一致だけで探し、無け
   - カードが無ければ、既知のテキストエンコーダから `["en"]` になる(多言語のエンコーダだけで `ja` を足すことはない)。
   - 何も決まらなければ、キーを出さない(推測しない)。必要な言語が入っているかを調べること。
 - `card_languages`(str[] \| null): `update` / `update --fields-only` が保存した、Hugging Face のカードの `language`(`languages` の材料。だからオフラインでの適用し直しでも同じ結果になる)。`[]` はカードを読んだが言語が無い、null は読んでいない。
-- `runtime`(str \| null): 公式テンプレート、およびファイルが ComfyUI の系統に合う Hugging Face の image / video / music / sfx / 3D のエントリでは `comfyui`。手で足した読み上げのモデルでは `piper`、`irodori-tts`、`supertonic`。null は未決定。`comfyui` 以外(と null 以外)の runtime では、推定器が `.onnx` などの ComfyUI 以外の重みのファイルも数える。
+- `runtime`(str \| null): 公式テンプレート、およびファイルが ComfyUI の系統に合う Hugging Face の image / video / music / sfx / 3D のエントリでは `comfyui`。手で足した読み上げのモデルでは `piper`、`irodori-tts`、`supertonic`。Hugging Face の読み上げは手の表(`overrides.json`)に書いた値(`transformers`・`qwen-tts`・`chatterbox` など。0.14.0、#142)。null は未決定。`comfyui` 以外(と null 以外)の runtime では、推定器が `.onnx` などの ComfyUI 以外の重みのファイルも数える。
 - `description`(`{"ja": str, "en": str}`): 手書きの短い説明。あるモデルだけ。
 - `source: "manual"`(id は `manual:<slug>`): `src/genmodelfit/data/manual.json` に手で足したモデル(`template` は null)。ファイルごとのライセンスは、足した人が上流のカードから読んだもの(`license_evidence` が `manual:` で始まる)。`update` はそれを `license_from` のカードと比べ、食い違えば厳しいほうを取る(警告つき)。
 - 手で足した部品(0.6.0、#40): `src/genmodelfit/data/manual.json` の `components` が、Hugging Face のコレクションが拾わないファイルを、別の出どころのエントリに足す(最初の例: `hf:stabilityai/stable-audio-3-small-sfx` の T5Gemma テキストエンコーダ。Gemma 利用規約)。ライセンスは手で書かない。ファイルごとの出どころの表(`license_sources.py`。行が無ければ不明)から来る。`license_evidence` は `manual_component: <このモデルがそのファイルを使う理由>` で終わる。`update` は(どのモードでも)毎回これを適用する。

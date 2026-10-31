@@ -481,6 +481,10 @@ For the bundled list, `license_sources.apply_license_sources(db)` applies it wit
 | Comfy-Org/MOSS-Image | `qwen3.5_9b_*` | apache-2.0 | text_encoder of [OpenMOSS-Team/MOSS-Image-Base](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) (Qwen3.5-9B; Qwen/Qwen3.5-9B is also apache-2.0) | base_model of the repackager, text_encoder/config.json |
 | Kijai/SUPIR_pruned | `SUPIR-v0[QF]_*` | other (supir-non-commercial) | "Non-Commercial Use Only Declaration" of https://github.com/Fanghua-Yu/SUPIR | the official weight names |
 | Comfy-Org/stable-audio-3 | `t5gemma_b_b_ul2` | gemma (the origin requires an application) | [google/t5gemma-b-b-ul2](https://huggingface.co/google/t5gemma-b-b-ul2) | docs/conditioning.md of the official Stability-AI/stable-audio-tools |
+| OpenMOSS-Team/MOSS-Audio-Tokenizer | `model-0000[12]-of-00002` | apache-2.0 | the host's own card (`license: apache-2.0`) | MOSS-TTS v1.5's processor loads it by default (0.14.0, #142) |
+| ResembleAI/chatterbox | `ve.pt`, `s3gen.pt`, `conds.pt` | mit | the host's own card (`license: mit`) | the official src/chatterbox/mtl_tts.py loads them (0.14.0, #142) |
+| Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice, -0.6B-CustomVoice | `speech_tokenizer/model.safetensors` | apache-2.0 | [Qwen/Qwen3-TTS-Tokenizer-12Hz](https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz) (`license: apache-2.0`) | same sha256 (0.14.0, #142) |
+| openbmb/VoxCPM2 | `audiovae.pth` | apache-2.0 | the host's own card (`license: apache-2.0`) | the official src/voxcpm/model/voxcpm2.py loads it (0.14.0, #142) |
 | Comfy-Org/void-model | `cogvideox_vae` | apache-2.0 | [zai-org/CogVideoX-2b](https://huggingface.co/zai-org/CogVideoX-2b): "including its corresponding Transformers module and VAE module … Apache 2.0" | same sha256 as the VAE of alibaba-pai/CogVideoX-Fun-V1.5-5b-InP. The 2b and 5b VAEs are the same |
 | Comfy-Org/HuMo_ComfyUI | `whisper_large_v3_fp16` | apache-2.0 | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) | same sha256 |
 | Comfy-Org/PixelDiT | `gemma_2_2b_it_elm_*` | gemma (the origin requires an application) | [google/gemma-2-2b-it](https://huggingface.co/google/gemma-2-2b-it) | card of the original nvidia/PixelDiT-1300M-1024px: "Text encoder: Gemma-2-2B-IT" |
@@ -601,7 +605,7 @@ When there are several components:
 - If all are English-only components, the result is English only.
 - If a component not in the table is mixed in (Gemma, Mistral, Llama, Qwen3-VL, gpt-oss and so on; the card has no language description, or it was not checked), it is left undecided (the card is used as is, if there is one).
 
-The hand table `src/genmodelfit/data/overrides.json` has 16 rows.
+The hand table `src/genmodelfit/data/overrides.json` has 35 rows (16 for languages and descriptions, and 19 that only set the runtime of HF speech models; see "Runtime". MeloTTS-English has a runtime added to its language row). Of the 16 for languages and descriptions:
 
 9 were checked by the app on a real machine (matched to `notes` of AI生成キット's catalog.json and the real-machine checks):
 
@@ -653,7 +657,9 @@ Field `runtime`.
 
 - From an official template: `comfyui`.
 - From HF: only items that match a ComfyUI family (`comfy_family`) and are not speech get `comfyui`.
-  Speech is not decided because each model works differently (= null).
+- Speech from HF works differently for each model, so no rule decides it; only what the hand table says (`runtime` in
+  `overrides.json`; 0.14.0, #142; checked against the card's usage, `library_name` and the official README, with the basis
+  in the row's `_note`; all 20 in the list on 2026-10-31): `cosyvoice` `audio-cpp` `transformers` `qwen-tts` `chatterbox` `qwentts-cpp` `parler-tts` `sglang-omni` `higgs-audio-v3-studio` `kokoro` `omnivoice` `vibevoice` `melotts` `voxcpm` `vieneu` `speechbrain`. Speech not in the hand table is null.
 - Manual models use the value written (`piper`, `irodori-tts`, `supertonic`, `comfyui`).
 - For a model whose value is neither `comfyui` nor null, the estimate also counts files in formats ComfyUI does not use, such as `.onnx` (`estimate.select_files`; Tsukuyomi-chan's weights are onnx).
 - The way other models are counted is unchanged.
@@ -728,6 +734,10 @@ The ID is not changed (this keeps the ID on the user side).
 | ID | File added | License | Where checked (2026-10-21) |
 |---|---|---|---|
 | `hf:stabilityai/stable-audio-3-small-sfx` | `text_encoders/t5gemma_b_b_ul2.safetensors` of https://huggingface.co/Comfy-Org/stable-audio-3 (sha256 `1e1eba25…`, 1,187,264,003 bytes. T5Gemma for ComfyUI) | `gemma` (`stable-audio-3-t5gemma` in `license_sources`) | Hub API of https://huggingface.co/stabilityai/stable-audio-3-small-sfx: it has the files `t5gemma-b-b-ul2/model.safetensors` (sha256 `9b05ea5a…` = same as `model.safetensors` of https://huggingface.co/google/t5gemma-b-b-ul2; google/t5gemma-b-b-ul2 is `license: gemma`) and `LICENSE_GEMMA.md`, and the application text (`extra_gated_prompt`) says "This model also includes components redistributed under the Gemma Terms of Use (https://ai.google.dev/gemma/terms)". Stability AI's https://github.com/Stability-AI/stable-audio-tools/blob/main/docs/conditioning.md: "This uses a T5Gemma (https://huggingface.co/google/t5gemma-b-b-ul2) encoder" |
+| `hf:OpenMOSS-Team/MOSS-TTS-v1.5` (0.14.0, #142; this and below checked on 2026-10-31) | `model-00001-of-00002.safetensors` and `model-00002-of-00002.safetensors` of https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer (7,098,461,728 bytes in total; the audio tokenizer) | `apache-2.0` (`moss-audio-tokenizer`) | `from_pretrained` in MOSS-TTS v1.5's `processing_moss_tts.py` (revision cdd3b911) loads `OpenMOSS-Team/MOSS-Audio-Tokenizer` unless told otherwise |
+| `hf:ResembleAI/chatterbox` | `s3gen.pt` (1,057,165,844 bytes), `ve.pt` and `conds.pt` in the same repository | `mit` (`chatterbox-parts`) | `from_pretrained` / `from_local` in `src/chatterbox/mtl_tts.py` of https://github.com/resemble-ai/chatterbox (commit 5de7a54a) load them. Using the listed main file `t3_mtl23ls_v3.safetensors` needs `t3_model="v3"` (without it, v2) |
+| `hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice`, `-0.6B-CustomVoice` | `speech_tokenizer/model.safetensors` in the same repository (682,293,092 bytes) | `apache-2.0` (`qwen3-tts-speech-tokenizer`) | `from_pretrained` in `modeling_qwen3_tts.py` of https://github.com/QwenLM/Qwen3-TTS (commit 022e286b) downloads and loads `speech_tokenizer/` (and stops without it) |
+| `hf:openbmb/VoxCPM2` | `audiovae.pth` in the same repository (376,951,122 bytes) | `apache-2.0` (`voxcpm2-audiovae`) | `src/voxcpm/model/voxcpm2.py` of https://github.com/OpenBMB/VoxCPM (commit cce58a5b) loads it (and stops without it). The ZipEnhancer denoiser is on ModelScope and the card's example uses `load_denoiser=False`, so it is not added |
 
 The other Stable Audio 3 items (`audio_stable_audio_3_medium`, `_medium_base`, `manual:stable-audio-3-small-music`) already have the same component
 (tests/test_appinfo.py checks that every Stable Audio 3 item has a `gemma` T5Gemma).
