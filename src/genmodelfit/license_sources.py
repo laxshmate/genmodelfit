@@ -80,8 +80,10 @@ class LicenseSource:
     override: bool = False
 
     def matches(self, repo_id: str | None, filename: str) -> bool:
-        base = filename.rsplit("/", 1)[-1]
-        return repo_id in self.repos and self.pattern.fullmatch(base) is not None
+        """pattern に / があればリポジトリの中のパス全体に、無ければファイル名(パスの最後)に当てる
+        (同じリポジトリの model.safetensors と audio_tokenizer/model.safetensors を分けるため。#142)。"""
+        target = filename if "/" in self.pattern.pattern else filename.rsplit("/", 1)[-1]
+        return repo_id in self.repos and self.pattern.fullmatch(target) is not None
 
     def resolved(self, repo_id: str) -> Resolved:
         ev = [f"{EVIDENCE_KEY}:{self.key}", f"{self.evidence}({self.checked} に確認)"]
@@ -495,13 +497,51 @@ SOURCES: tuple[LicenseSource, ...] = (
     _s(
         "qwen3-tts-speech-tokenizer",
         ("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice", "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"),
-        r"model\.safetensors",
+        r"speech_tokenizer/model\.safetensors",
         "apache-2.0",
         None,
         "Qwen/Qwen3-TTS-Tokenizer-12Hz",
         f"speech_tokenizer/model.safetensors(sha256 836b7b35…)は {HF}/Qwen/Qwen3-TTS-Tokenizer-12Hz の "
         "model.safetensors と同じ。Qwen/Qwen3-TTS-Tokenizer-12Hz のカードは license: apache-2.0"
         "(置き場所の Qwen3-TTS-12Hz-*-CustomVoice も license: apache-2.0)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "cosyvoice3-parts",
+        "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+        r"(llm|flow|hift)\.pt|campplus\.onnx|speech_tokenizer_v3\.onnx",
+        "apache-2.0",
+        None,
+        "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+        f"{HF}/FunAudioLLM/Fun-CosyVoice3-0.5B-2512 のカードは license: apache-2.0"
+        "(同じリポジトリの llm.pt・flow.pt・hift.pt・campplus.onnx・speech_tokenizer_v3.onnx。"
+        "公式の cosyvoice/cli/cosyvoice.py が読む)",
+        checked="2026-10-31",
+    ),
+    _s(
+        "omnivoice-audio-tokenizer",
+        "k2-fsa/OmniVoice",
+        r"audio_tokenizer/model\.safetensors",
+        "other",
+        "boson-higgs-audio-2-community-license",
+        "bosonai/higgs-audio-v2-tokenizer",
+        f"audio_tokenizer/model.safetensors(sha256 fe7c5e87…)は {HF}/bosonai/higgs-audio-v2-tokenizer の "
+        "model.safetensors と同じ。同じフォルダの LICENSE は"
+        "「BOSON HIGGS AUDIO 2 COMMUNITY LICENSE AGREEMENT」"
+        "(Meta Llama 3 Community License が元。年間の利用者が 100,000 を超えると別の許諾が要る)",
+        url=f"{HF}/bosonai/higgs-audio-v2-tokenizer/blob/main/LICENSE",
+        checked="2026-10-31",
+    ),
+    _s(
+        "qwentts-cpp-tokenizer",
+        "Serveurperso/Qwen3-TTS-GGUF",
+        r"qwen-tokenizer-12hz-(bf16|f32|q4_k_m|q8_0)\.gguf",
+        "apache-2.0",
+        None,
+        "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+        f"{HF}/Serveurperso/Qwen3-TTS-GGUF のカード「The tokenizer is shared across every talker」"
+        "「Audio codec : Qwen3-TTS-Tokenizer-12Hz (Qwen team), Apache 2.0」。"
+        "Qwen/Qwen3-TTS-Tokenizer-12Hz のカードは license: apache-2.0",
         checked="2026-10-31",
     ),
     _s(
@@ -683,7 +723,7 @@ def source_for(repo_id: str | None, filename: str) -> LicenseSource | None:
     base = filename.rsplit("/", 1)[-1]
     if unverified_component_for(base) or lineage_for([base]):
         return None
-    return next((s for s in SOURCES if s.matches(repo_id, base)), None)
+    return next((s for s in SOURCES if s.matches(repo_id, filename)), None)
 
 
 def _file_repo(f: ModelFile) -> tuple[str, str] | None:

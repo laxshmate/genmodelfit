@@ -179,7 +179,7 @@
    "ok": 330,
    "pending": 0,
    "marked": {
-    "files_changed": 5
+    "files_changed": 3
    },
    "rejected_skipped": 0
   },
@@ -52971,6 +52971,166 @@
      "repo_precision_source": null,
      "optional": null,
      "optional_replaces": null
+    },
+    {
+     "name": "llm.pt",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/llm.pt",
+     "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970",
+     "size_bytes": 2024669519,
+     "directory": null,
+     "repo_id": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "other",
+     "license_from": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license_url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "repo_license": null,
+     "license_path": [
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+     ],
+     "license_evidence": [
+      "license_source:cosyvoice3-parts",
+      "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512 のカードは license: apache-2.0(同じリポジトリの llm.pt・flow.pt・hift.pt・campplus.onnx・speech_tokenizer_v3.onnx。公式の cosyvoice/cli/cosyvoice.py が読む)(2026-10-31 に確認)",
+      "manual_component: https://github.com/FunAudioLLM/CosyVoice の cosyvoice/cli/cosyvoice.py(コミット 074ca6dc)の CosyVoice3 は、campplus.onnx・speech_tokenizer_v3.onnx を読み、llm.pt・flow.pt・hift.pt を load する(CosyVoice-BlankEN は Qwen の設定とトークナイザ。llm.pt がその重みを上書きするので、見積もりは LLM を二重に数えて多めに出ることがある)。URL は版 29e01c4e に固定(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
+    },
+    {
+     "name": "flow.pt",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/flow.pt",
+     "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b",
+     "size_bytes": 1329116148,
+     "directory": null,
+     "repo_id": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "other",
+     "license_from": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license_url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "repo_license": null,
+     "license_path": [
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+     ],
+     "license_evidence": [
+      "license_source:cosyvoice3-parts",
+      "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512 のカードは license: apache-2.0(同じリポジトリの llm.pt・flow.pt・hift.pt・campplus.onnx・speech_tokenizer_v3.onnx。公式の cosyvoice/cli/cosyvoice.py が読む)(2026-10-31 に確認)",
+      "manual_component: https://github.com/FunAudioLLM/CosyVoice の cosyvoice/cli/cosyvoice.py(コミット 074ca6dc)の CosyVoice3 は、campplus.onnx・speech_tokenizer_v3.onnx を読み、llm.pt・flow.pt・hift.pt を load する(CosyVoice-BlankEN は Qwen の設定とトークナイザ。llm.pt がその重みを上書きするので、見積もりは LLM を二重に数えて多めに出ることがある)。URL は版 29e01c4e に固定(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
+    },
+    {
+     "name": "hift.pt",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/hift.pt",
+     "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65",
+     "size_bytes": 83202622,
+     "directory": null,
+     "repo_id": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "vae",
+     "license_from": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license_url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "repo_license": null,
+     "license_path": [
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+     ],
+     "license_evidence": [
+      "license_source:cosyvoice3-parts",
+      "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512 のカードは license: apache-2.0(同じリポジトリの llm.pt・flow.pt・hift.pt・campplus.onnx・speech_tokenizer_v3.onnx。公式の cosyvoice/cli/cosyvoice.py が読む)(2026-10-31 に確認)",
+      "manual_component: https://github.com/FunAudioLLM/CosyVoice の cosyvoice/cli/cosyvoice.py(コミット 074ca6dc)の CosyVoice3 は、campplus.onnx・speech_tokenizer_v3.onnx を読み、llm.pt・flow.pt・hift.pt を load する(CosyVoice-BlankEN は Qwen の設定とトークナイザ。llm.pt がその重みを上書きするので、見積もりは LLM を二重に数えて多めに出ることがある)。URL は版 29e01c4e に固定(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
+    },
+    {
+     "name": "speech_tokenizer_v3.onnx",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/speech_tokenizer_v3.onnx",
+     "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d",
+     "size_bytes": 969451503,
+     "directory": null,
+     "repo_id": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "other",
+     "license_from": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license_url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "repo_license": null,
+     "license_path": [
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+     ],
+     "license_evidence": [
+      "license_source:cosyvoice3-parts",
+      "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512 のカードは license: apache-2.0(同じリポジトリの llm.pt・flow.pt・hift.pt・campplus.onnx・speech_tokenizer_v3.onnx。公式の cosyvoice/cli/cosyvoice.py が読む)(2026-10-31 に確認)",
+      "manual_component: https://github.com/FunAudioLLM/CosyVoice の cosyvoice/cli/cosyvoice.py(コミット 074ca6dc)の CosyVoice3 は、campplus.onnx・speech_tokenizer_v3.onnx を読み、llm.pt・flow.pt・hift.pt を load する(CosyVoice-BlankEN は Qwen の設定とトークナイザ。llm.pt がその重みを上書きするので、見積もりは LLM を二重に数えて多めに出ることがある)。URL は版 29e01c4e に固定(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
+    },
+    {
+     "name": "campplus.onnx",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/campplus.onnx",
+     "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73",
+     "size_bytes": 28303423,
+     "directory": null,
+     "repo_id": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "other",
+     "license_from": "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "license_url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+     "repo_license": null,
+     "license_path": [
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+      "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+     ],
+     "license_evidence": [
+      "license_source:cosyvoice3-parts",
+      "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512 のカードは license: apache-2.0(同じリポジトリの llm.pt・flow.pt・hift.pt・campplus.onnx・speech_tokenizer_v3.onnx。公式の cosyvoice/cli/cosyvoice.py が読む)(2026-10-31 に確認)",
+      "manual_component: https://github.com/FunAudioLLM/CosyVoice の cosyvoice/cli/cosyvoice.py(コミット 074ca6dc)の CosyVoice3 は、campplus.onnx・speech_tokenizer_v3.onnx を読み、llm.pt・flow.pt・hift.pt を load する(CosyVoice-BlankEN は Qwen の設定とトークナイザ。llm.pt がその重みを上書きするので、見積もりは LLM を二重に数えて多めに出ることがある)。URL は版 29e01c4e に固定(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
     }
    ],
    "template": null,
@@ -53028,13 +53188,18 @@
    ],
    "review": {
     "status": "ok",
-    "reasons": [],
-    "decided_by": "baseline-2026-10-21",
-    "decided_at": "2026-10-21",
-    "evidence": [],
-    "note": "確認の印を入れたとき(0.6.0、#42)の同梱の一覧。すべて確認済みとして始めた"
+    "reasons": [
+     "files_changed"
+    ],
+    "decided_by": "claude-maker-142",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://github.com/FunAudioLLM/CosyVoice/blob/074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc/cosyvoice/cli/cosyvoice.py",
+     "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+    ],
+    "note": "#142: 一次資料で確かめた(PR の説明を参照)"
    },
-   "total_size_bytes": 988097824
+   "total_size_bytes": 5422841039
   },
   {
    "id": "hf:Jmica/Drama-3-GGUF",
@@ -54098,13 +54263,45 @@
      "repo_precision_source": null,
      "optional": null,
      "optional_replaces": null
+    },
+    {
+     "name": "qwen-tokenizer-12hz-Q8_0.gguf",
+     "url": "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-tokenizer-12hz-Q8_0.gguf",
+     "sha256": "1883beeed99348fc35e23dd225e9082f93f6f8c109330a33d935baa8acdbfd94",
+     "size_bytes": 291150624,
+     "directory": null,
+     "repo_id": "Serveurperso/Qwen3-TTS-GGUF",
+     "license": "apache-2.0",
+     "license_name": null,
+     "gated": false,
+     "role": "vae",
+     "license_from": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+     "license_url": "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz",
+     "repo_license": null,
+     "license_path": [
+      "Serveurperso/Qwen3-TTS-GGUF",
+      "Qwen/Qwen3-TTS-Tokenizer-12Hz"
+     ],
+     "license_evidence": [
+      "license_source:qwentts-cpp-tokenizer",
+      "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF のカード「The tokenizer is shared across every talker」「Audio codec : Qwen3-TTS-Tokenizer-12Hz (Qwen team), Apache 2.0」。Qwen/Qwen3-TTS-Tokenizer-12Hz のカードは license: apache-2.0(2026-10-31 に確認)",
+      "manual_component: https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF のカード(版 b7ee2e8c)「The tokenizer is shared across every talker」と、talker と qwen-tokenizer-12hz-*.gguf を一緒に渡す例。一覧の talker は Q8_0 なので Q8_0 の tokenizer を足す。URL は版に固定(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
     }
    ],
    "template": null,
    "params_b": 0.6,
    "precision": "gguf-q8_0",
    "license": "apache-2.0",
-   "license_url": "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF",
+   "license_url": "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz",
    "base_model": "Qwen/Qwen3-TTS-Tokenizer-12Hz",
    "content": "sfw",
    "content_evidence": [],
@@ -54159,13 +54356,18 @@
    ],
    "review": {
     "status": "ok",
-    "reasons": [],
-    "decided_by": "baseline-2026-10-21",
-    "decided_at": "2026-10-21",
-    "evidence": [],
-    "note": "確認の印を入れたとき(0.6.0、#42)の同梱の一覧。すべて確認済みとして始めた"
+    "reasons": [
+     "files_changed"
+    ],
+    "decided_by": "claude-maker-142",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/blob/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/README.md",
+     "https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz"
+    ],
+    "note": "#142: 一次資料で確かめた(PR の説明を参照)"
    },
-   "total_size_bytes": 968588544
+   "total_size_bytes": 1259739168
   },
   {
    "id": "hf:ai4bharat/indic-parler-tts",
@@ -55040,6 +55242,38 @@
      "repo_precision_source": null,
      "optional": null,
      "optional_replaces": null
+    },
+    {
+     "name": "audio_tokenizer/model.safetensors",
+     "url": "https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/audio_tokenizer/model.safetensors",
+     "sha256": "fe7c5e8785e0a05833e1bfc3e002ec7f55af21e306b2e7154a448c1f54ccfb0d",
+     "size_bytes": 805665628,
+     "directory": null,
+     "repo_id": "k2-fsa/OmniVoice",
+     "license": "other",
+     "license_name": "boson-higgs-audio-2-community-license",
+     "gated": false,
+     "role": "vae",
+     "license_from": "bosonai/higgs-audio-v2-tokenizer",
+     "license_url": "https://huggingface.co/bosonai/higgs-audio-v2-tokenizer/blob/main/LICENSE",
+     "repo_license": null,
+     "license_path": [
+      "k2-fsa/OmniVoice",
+      "bosonai/higgs-audio-v2-tokenizer"
+     ],
+     "license_evidence": [
+      "license_source:omnivoice-audio-tokenizer",
+      "audio_tokenizer/model.safetensors(sha256 fe7c5e87…)は https://huggingface.co/bosonai/higgs-audio-v2-tokenizer の model.safetensors と同じ。同じフォルダの LICENSE は「BOSON HIGGS AUDIO 2 COMMUNITY LICENSE AGREEMENT」(Meta Llama 3 Community License が元。年間の利用者が 100,000 を超えると別の許諾が要る)(2026-10-31 に確認)",
+      "manual_component: https://github.com/k2-fsa/OmniVoice の omnivoice/models/omnivoice.py(コミット 08be0b4c)の from_pretrained は、同じリポジトリの audio_tokenizer/ を HiggsAudioV2TokenizerModel.from_pretrained で読む。URL は版 c5fdb5cc に固定(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
     }
    ],
    "template": null,
@@ -55329,13 +55563,18 @@
    ],
    "review": {
     "status": "ok",
-    "reasons": [],
-    "decided_by": "baseline-2026-10-21",
-    "decided_at": "2026-10-21",
-    "evidence": [],
-    "note": "確認の印を入れたとき(0.6.0、#42)の同梱の一覧。すべて確認済みとして始めた"
+    "reasons": [
+     "files_changed"
+    ],
+    "decided_by": "claude-maker-142",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://github.com/k2-fsa/OmniVoice/blob/08be0b4ccbac3e13e374e86fbfead4b4cac343e2/omnivoice/models/omnivoice.py",
+     "https://huggingface.co/bosonai/higgs-audio-v2-tokenizer/blob/815a03f1b57dcb5ae918db415f22cd0c8a6f0f54/LICENSE"
+    ],
+    "note": "#142: 一次資料で確かめた(PR の説明を参照)"
    },
-   "total_size_bytes": 2450344112
+   "total_size_bytes": 3256009740
   },
   {
    "id": "hf:microsoft/VibeVoice-1.5B",

@@ -430,6 +430,9 @@ NewBie の `gemma_3_4b_it_bf16`、FLUX.2 klein 9B の `qwen_3_8b*`、Krea-2・Ma
 | ResembleAI/chatterbox | `ve.pt`・`s3gen.pt`・`conds.pt` | mit | 置き場所自身のカード(`license: mit`) | 公式の src/chatterbox/mtl_tts.py が読む(0.14.0、#142) |
 | Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice・-0.6B-CustomVoice | `speech_tokenizer/model.safetensors` | apache-2.0 | [Qwen/Qwen3-TTS-Tokenizer-12Hz](https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz)(`license: apache-2.0`) | sha256 が同じ(0.14.0、#142) |
 | openbmb/VoxCPM2 | `audiovae.pth` | apache-2.0 | 置き場所自身のカード(`license: apache-2.0`) | 公式の src/voxcpm/model/voxcpm2.py が読む(0.14.0、#142) |
+| FunAudioLLM/Fun-CosyVoice3-0.5B-2512 | `llm.pt`・`flow.pt`・`hift.pt`・`campplus.onnx`・`speech_tokenizer_v3.onnx` | apache-2.0 | 置き場所自身のカード(`license: apache-2.0`) | 公式の cosyvoice/cli/cosyvoice.py が読む(0.14.0、#142) |
+| k2-fsa/OmniVoice | `audio_tokenizer/model.safetensors`(パス全体で当てる) | other(boson-higgs-audio-2-community-license) | [bosonai/higgs-audio-v2-tokenizer](https://huggingface.co/bosonai/higgs-audio-v2-tokenizer)(同じフォルダの LICENSE「BOSON HIGGS AUDIO 2 COMMUNITY LICENSE AGREEMENT」。Llama 3 の規約が元で、年間 100,000 人を超えると別の許諾) | sha256 が同じ(0.14.0、#142) |
+| Serveurperso/Qwen3-TTS-GGUF | `qwen-tokenizer-12hz-*.gguf` | apache-2.0 | [Qwen/Qwen3-TTS-Tokenizer-12Hz](https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz)(`license: apache-2.0`) | 置き場所のカード「Audio codec : Qwen3-TTS-Tokenizer-12Hz (Qwen team), Apache 2.0」(0.14.0、#142) |
 | Comfy-Org/void-model | `cogvideox_vae` | apache-2.0 | [zai-org/CogVideoX-2b](https://huggingface.co/zai-org/CogVideoX-2b)「including its corresponding Transformers module and VAE module … Apache 2.0」 | sha256 が alibaba-pai/CogVideoX-Fun-V1.5-5b-InP の VAE と同じ。2b と 5b の VAE は同じ |
 | Comfy-Org/HuMo_ComfyUI | `whisper_large_v3_fp16` | apache-2.0 | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) | sha256 が同じ |
 | Comfy-Org/PixelDiT | `gemma_2_2b_it_elm_*` | gemma(元は申請が要る) | [google/gemma-2-2b-it](https://huggingface.co/google/gemma-2-2b-it) | 元の nvidia/PixelDiT-1300M-1024px のカード「Text encoder: Gemma-2-2B-IT」 |
@@ -612,7 +615,7 @@ LFS でない小さいファイルは実際に落として sha256 を計算し�
 HF の収集はリポジトリの本体(と同じリポジトリの部品)だけを拾うので、別のリポジトリにある部品が抜けることがある。
 `components` は「モデルの ID → 足すファイル」の表で、update(作り直し・`--heads-only`・`--fields-only`)が
 `appinfo.merge_manual` の中で毎回当てる(同じ URL のファイルがあれば足さない。何度当てても同じ)。
-**ライセンスは表に書かず、部品の出どころの表(`license_sources.py`、上の「出どころの表」)の行で決める**
+**ライセンスは表に書かず、部品の出どころの表(`license_sources.py`、上の「出どころの表」)の行で決める**(行の名前の型に `/` があれば、リポジトリの中のパス全体に当てる。同じリポジトリの `model.safetensors` と `audio_tokenizer/model.safetensors` を分けるため。0.14.0、#142。後から足す部品の URL は版に固定する)
 (行が無ければ不明。寛容な側に誤らない)。そのモデルがその部品を使う根拠は `evidence` に書き、
 ファイルの `license_evidence` の最後に `manual_component: <根拠>` として残す。ID は変えない(使う側の ID を保つ)。
 
@@ -623,6 +626,9 @@ HF の収集はリポジトリの本体(と同じリポジトリの部品)だけ
 | `hf:ResembleAI/chatterbox` | 同じリポジトリの `s3gen.pt`(1,057,165,844 バイト)・`ve.pt`・`conds.pt` | `mit`(`chatterbox-parts`) | https://github.com/resemble-ai/chatterbox の `src/chatterbox/mtl_tts.py`(コミット 5de7a54a)の `from_pretrained` / `from_local` が読む。一覧の本体 `t3_mtl23ls_v3.safetensors` を使うには `t3_model="v3"` が要る(省くと v2) |
 | `hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice`・`-0.6B-CustomVoice` | 同じリポジトリの `speech_tokenizer/model.safetensors`(682,293,092 バイト) | `apache-2.0`(`qwen3-tts-speech-tokenizer`) | https://github.com/QwenLM/Qwen3-TTS の `modeling_qwen3_tts.py`(コミット 022e286b)の `from_pretrained` が `speech_tokenizer/` を落として読む(無ければ止まる) |
 | `hf:openbmb/VoxCPM2` | 同じリポジトリの `audiovae.pth`(376,951,122 バイト) | `apache-2.0`(`voxcpm2-audiovae`) | https://github.com/OpenBMB/VoxCPM の `src/voxcpm/model/voxcpm2.py`(コミット cce58a5b)が読む(無ければ止まる)。雑音除去の ZipEnhancer は ModelScope にあり、カードの例は `load_denoiser=False` なので足さない |
+| `hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512` | 同じリポジトリの `llm.pt`・`flow.pt`・`hift.pt`・`speech_tokenizer_v3.onnx`・`campplus.onnx`(合計 4,434,743,215 バイト。URL は版 29e01c4e に固定) | `apache-2.0`(`cosyvoice3-parts`) | https://github.com/FunAudioLLM/CosyVoice の `cosyvoice/cli/cosyvoice.py`(コミット 074ca6dc)の `CosyVoice3` が読む。`CosyVoice-BlankEN` は Qwen の設定とトークナイザで、`llm.pt` がその重みを上書きするので、見積もりは LLM を二重に数えて多めに出ることがある |
+| `hf:k2-fsa/OmniVoice` | 同じリポジトリの `audio_tokenizer/model.safetensors`(805,665,628 バイト。版 c5fdb5cc に固定) | `other` / `boson-higgs-audio-2-community-license`(`omnivoice-audio-tokenizer`)。一式は本体の `cc-by-nc` のまま | https://github.com/k2-fsa/OmniVoice の `omnivoice/models/omnivoice.py`(コミット 08be0b4c)が `audio_tokenizer/` を読む |
+| `hf:Serveurperso/Qwen3-TTS-GGUF` | 同じリポジトリの `qwen-tokenizer-12hz-Q8_0.gguf`(291,150,624 バイト。版 b7ee2e8c に固定) | `apache-2.0`(`qwentts-cpp-tokenizer`) | カード「The tokenizer is shared across every talker」。一覧の talker が Q8_0 なので Q8_0 |
 
 ほかの Stable Audio 3 の項目(`audio_stable_audio_3_medium`・`_medium_base`・`manual:stable-audio-3-small-music`)は
 もとから同じ部品を持つ(tests/test_appinfo.py がすべての Stable Audio 3 の項目に `gemma` の T5Gemma があることを検査する)。

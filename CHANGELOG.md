@@ -39,9 +39,13 @@ All notable changes to this project are documented here. The format is based on
 - **Speech models missing the parts their code loads** (#142), added with `components` in `manual.json` and licensed
   by the component source table: MOSS-TTS v1.5 gets the MOSS-Audio-Tokenizer (7.1 GB), Chatterbox `s3gen.pt`, `ve.pt`
   and `conds.pt` (the listed `t3_mtl23ls_v3` needs `t3_model="v3"`), both Qwen3-TTS-12Hz CustomVoice models
-  `speech_tokenizer/model.safetensors` (0.68 GB), VoxCPM2 `audiovae.pth` (0.38 GB). The VRAM estimates grow
-  accordingly; on a CPU-only PC Chatterbox and Qwen3-TTS 0.6B are now over the 2 GB small-model limit and judged as
-  needing a GPU. The 5 changed models are marked reviewed (`claude-maker-142`, with the code as evidence).
+  `speech_tokenizer/model.safetensors` (0.68 GB), VoxCPM2 `audiovae.pth` (0.38 GB), Fun-CosyVoice3 `llm.pt`,
+  `flow.pt`, `hift.pt`, `speech_tokenizer_v3.onnx` and `campplus.onnx` (4.4 GB), OmniVoice
+  `audio_tokenizer/model.safetensors` (0.81 GB; Boson Higgs Audio 2 community license, the set stays cc-by-nc) and the
+  Qwen3-TTS GGUF tokenizer `qwen-tokenizer-12hz-Q8_0.gguf` (0.29 GB). The later three are pinned to a revision.
+  Component source rows whose pattern has a `/` now match the whole path. The VRAM estimates grow accordingly; on a
+  CPU-only PC Chatterbox, Qwen3-TTS 0.6B and Fun-CosyVoice3 are now over the 2 GB small-model limit and judged as
+  needing a GPU. The 8 changed models are marked reviewed (`claude-maker-142`, with the code as evidence).
   (読み上げの部品を足した。見積もりが大きくなる)
 
 ## [0.13.2] - 2026-10-29

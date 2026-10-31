@@ -905,6 +905,7 @@ def test_verify_keeps_a_license_name_that_refines_the_card():
     warns = appinfo.verify_manual_licenses(ms, nc)
     assert warns and ms[0].license == "cc-by-nc-4.0"
 
+
 # --- HF の読み上げの動かし方と部品(#142) ------------------------------------------------------------
 
 
@@ -936,6 +937,13 @@ def test_every_hf_speech_model_has_a_runtime_from_the_hand_table():
         ("hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice", {"speech_tokenizer/model.safetensors"}, "apache-2.0"),
         ("hf:Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice", {"speech_tokenizer/model.safetensors"}, "apache-2.0"),
         ("hf:openbmb/VoxCPM2", {"audiovae.pth"}, "apache-2.0"),
+        (
+            "hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+            {"llm.pt", "flow.pt", "hift.pt", "speech_tokenizer_v3.onnx", "campplus.onnx"},
+            "apache-2.0",
+        ),
+        ("hf:k2-fsa/OmniVoice", {"audio_tokenizer/model.safetensors"}, "other"),
+        ("hf:Serveurperso/Qwen3-TTS-GGUF", {"qwen-tokenizer-12hz-Q8_0.gguf"}, "apache-2.0"),
     ],
 )
 def test_speech_models_carry_the_parts_their_code_loads(mid, names, lic):
@@ -953,3 +961,13 @@ def test_speech_models_carry_the_parts_their_code_loads(mid, names, lic):
         assert any(x.startswith("manual_component:") for x in f.license_evidence)
     counted = {f.name for f in select_files(m)[0]}
     assert names <= counted, counted
+    # #142 の後から足した部品の URL は版に固定(main だと中身が変わったとき sha256 が合わなくなる)
+    if mid in PINNED_PARTS:
+        assert all(re.search(r"/resolve/[0-9a-f]{40}/", got[n].url) for n in names), mid
+
+
+PINNED_PARTS = {
+    "hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+    "hf:k2-fsa/OmniVoice",
+    "hf:Serveurperso/Qwen3-TTS-GGUF",
+}

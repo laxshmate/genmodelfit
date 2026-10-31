@@ -773,6 +773,77 @@
      "role": "vae"
     }
    ]
+  },
+  "hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512": {
+   "evidence": "https://github.com/FunAudioLLM/CosyVoice の cosyvoice/cli/cosyvoice.py(コミット 074ca6dc)の CosyVoice3 は、campplus.onnx・speech_tokenizer_v3.onnx を読み、llm.pt・flow.pt・hift.pt を load する(CosyVoice-BlankEN は Qwen の設定とトークナイザ。llm.pt がその重みを上書きするので、見積もりは LLM を二重に数えて多めに出ることがある)。URL は版 29e01c4e に固定(2026-10-31 に確認)",
+   "files": [
+    {
+     "name": "llm.pt",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/llm.pt",
+     "sha256": "69f43bd545131c30e98947fb360ea8b4dc9916d8e83dded7757c7ea4f5a24970",
+     "size_bytes": 2024669519,
+     "gated": false,
+     "role": "other"
+    },
+    {
+     "name": "flow.pt",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/flow.pt",
+     "sha256": "a6fab32a7825e5b0bc855ddd948f8db9370b0a786fbc249caa4595e95b608e4b",
+     "size_bytes": 1329116148,
+     "gated": false,
+     "role": "other"
+    },
+    {
+     "name": "hift.pt",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/hift.pt",
+     "sha256": "b279d7641eb97ae55b3b540cfba4f953c26492a2df758328a89a4d007ab87a65",
+     "size_bytes": 83202622,
+     "gated": false,
+     "role": "vae"
+    },
+    {
+     "name": "speech_tokenizer_v3.onnx",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/speech_tokenizer_v3.onnx",
+     "sha256": "23236a74175dbdda47afc66dbadd5bcb41303c467a57c261cb8539ad9db9208d",
+     "size_bytes": 969451503,
+     "gated": false,
+     "role": "other"
+    },
+    {
+     "name": "campplus.onnx",
+     "url": "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512/resolve/29e01c4e8d000f4bcd70751be16fa94bf3d85a18/campplus.onnx",
+     "sha256": "a6ac6a63997761ae2997373e2ee1c47040854b4b759ea41ec48e4e42df0f4d73",
+     "size_bytes": 28303423,
+     "gated": false,
+     "role": "other"
+    }
+   ]
+  },
+  "hf:k2-fsa/OmniVoice": {
+   "evidence": "https://github.com/k2-fsa/OmniVoice の omnivoice/models/omnivoice.py(コミット 08be0b4c)の from_pretrained は、同じリポジトリの audio_tokenizer/ を HiggsAudioV2TokenizerModel.from_pretrained で読む。URL は版 c5fdb5cc に固定(2026-10-31 に確認)",
+   "files": [
+    {
+     "name": "audio_tokenizer/model.safetensors",
+     "url": "https://huggingface.co/k2-fsa/OmniVoice/resolve/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/audio_tokenizer/model.safetensors",
+     "sha256": "fe7c5e8785e0a05833e1bfc3e002ec7f55af21e306b2e7154a448c1f54ccfb0d",
+     "size_bytes": 805665628,
+     "gated": false,
+     "role": "vae"
+    }
+   ]
+  },
+  "hf:Serveurperso/Qwen3-TTS-GGUF": {
+   "evidence": "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF のカード(版 b7ee2e8c)「The tokenizer is shared across every talker」と、talker と qwen-tokenizer-12hz-*.gguf を一緒に渡す例。一覧の talker は Q8_0 なので Q8_0 の tokenizer を足す。URL は版に固定(2026-10-31 に確認)",
+   "files": [
+    {
+     "name": "qwen-tokenizer-12hz-Q8_0.gguf",
+     "url": "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-tokenizer-12hz-Q8_0.gguf",
+     "sha256": "1883beeed99348fc35e23dd225e9082f93f6f8c109330a33d935baa8acdbfd94",
+     "size_bytes": 291150624,
+     "gated": false,
+     "role": "vae"
+    }
+   ]
   }
  }
 }

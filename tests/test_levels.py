@@ -198,7 +198,7 @@ def test_limits_count_only_rows_that_run_on_the_gpu(db):
         ("manual:tsukuyomi-chan-piper-plus", "good"),  # 読み上げ(Piper)
         ("manual:supertonic-3", "good"),  # 読み上げ(Supertonic。ONNX Runtime の CPU。#127)
         ("hf:myshell-ai/MeloTTS-English", "good"),  # 「Fast enough for CPU real-time inference」
-        ("hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512", "marginal"),  # 言語モデル + フローマッチングの読み上げ
+        ("hf:Serveurperso/Qwen3-TTS-GGUF", "marginal"),  # 言語モデルの読み上げ(GGUF)
         ("hf:microsoft/VibeVoice-Realtime-0.5B", "marginal"),  # 拡散の頭の読み上げ
         ("utility_birefnet_remove_background", "good"),  # 背景除去(matting)
         ("audio_melbandroformer_audio_separation", "good"),  # 音の分離
