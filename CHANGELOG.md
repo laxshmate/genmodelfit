@@ -23,7 +23,7 @@ All notable changes to this project are documented here. The format is based on
 ### Changed
 
 - `share` says why when there is nothing to send, and what to do next (#146): already measured on this PC (with the
-  count), nodes missing in this ComfyUI (update ComfyUI), not-installed models declined or not downloaded
+  count; only when this PC has such runs, else that no installed model can be measured), nodes missing in this ComfyUI (update ComfyUI), not-installed models declined or not downloaded
   (`share --download`), nothing fits `--budget`, the models folder unknown (`--comfyui-dir`), runs that failed or
   cannot be sent, Ctrl+C, failure records already sent, and no unsent measurements (`share --no-measure --all` to send
   the sent ones again). `--json` adds `reasons` (`{code, text}`) and `next_step` next to `reason`, also after measuring.

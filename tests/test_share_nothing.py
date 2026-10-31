@@ -61,8 +61,21 @@ def test_declined_download_points_to_download_flag(capsys, monkeypatch, this_pc,
     assert cli.main(["--lang", "ja", "share", "--url", "http://x:1"]) == 0
     out = capsys.readouterr().out
     assert "  - 入っていない 1 件(2.0 GB)は、落とすのを断りました" in out
-    assert "  - この PC に入っていて GPU に載るモデルは、この PC でもう測ってあります" in out
+    assert "  - この PC に入っていて、GPU に載り測れるモデルがありません" in out
+    assert "もう測ってあります" not in out  # この PC で測ったものは無いので、それは理由にしない
     assert "次にできること: 落として測る: genmodelfit share --download" in out
+
+
+def test_declined_download_and_installed_over_budget_give_both(capsys, monkeypatch, this_pc, plan, gh):
+    plan["sugg"] = [sugg("a_long", 400), sugg("b_not_installed", 60, "no", 2 * 1024**3)]
+    monkeypatch.setattr(cli, "_interactive", lambda: True)
+    answers(monkeypatch, "")  # 落とす → Enter(既定は No)
+    assert cli.main(["--lang", "ja", "share", "--url", "http://x:1"]) == 0
+    out = capsys.readouterr().out
+    assert "  - 時間の上限(300 秒)に収まるものがありません" in out
+    assert "  - 入っていない 1 件(2.0 GB)は、落とすのを断りました" in out
+    # 次の一手は 1 行だけ: 入っているものを測れるように上限を広げる(断った落とす話は繰り返さない)
+    assert out.splitlines()[-1] == "次にできること: 上限を広げる: genmodelfit share --budget 400"
 
 
 def test_yes_without_terminal_says_it_never_downloads(capsys, monkeypatch, this_pc, plan, gh):
@@ -110,6 +123,14 @@ def test_reasons_from_the_data_share_has(monkeypatch, tmp_path):
         assert "--comfyui-dir" in d["next_step"]
         d = cli._share_nothing(_args(), sugg=[long], budget=300)
         assert codes(d) == ["budget", "no_unsent"] and d["next_step"].endswith("--budget 400")
+        # 入っていないものも含めて、どれも収まらない
+        d = cli._share_nothing(_args(), sugg=[sugg("n", 500, "no", 1)], budget=300, measured_here=lambda: 0)
+        assert codes(d) == ["no_installed", "budget", "no_unsent"] and d["next_step"].endswith("--budget 500")
+        # この PC で測ったものがあるときだけ「もう測ってある」
+        d = cli._share_nothing(_args(), sugg=[], budget=300, measured_here=lambda: 2)
+        assert codes(d) == ["measured_here", "no_unsent"]
+        d = cli._share_nothing(_args(), sugg=[], budget=300, measured_here=lambda: 0)
+        assert codes(d) == ["no_installed", "no_unsent"]
         d = cli._share_nothing(
             _args(_share_failures_known=True),
             sugg=[sugg("a", 60)],

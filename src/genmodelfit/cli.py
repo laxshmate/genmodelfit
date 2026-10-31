@@ -3367,19 +3367,38 @@ def _share_nothing(args: argparse.Namespace, **ctx: Any) -> dict[str, Any]:
         installed = [x for x in usable if x.installed is not None and x.installed.state == "yes"]
         unknown = [x for x in usable if x.installed is not None and x.installed.state == "unknown"]
         if not any(x.installed is not None and x.installed.state in ("yes", "unknown") for x in sugg):
+            # 入っていて測れる提案が無い: この PC で測ったものがあればそれが理由。無ければ、入っていないと言う
             count = ctx.get("measured_here")
             n = count() if callable(count) else 0
-            reasons.append(
-                (
-                    "measured_here",
-                    tr(
-                        "この PC に入っていて GPU に載るモデルは、この PC でもう測ってあります"
-                        + (f"(この GPU で {n} 件)" if n else ""),
-                        "The installed models that fit this GPU are already measured on this PC"
-                        + (f" ({n} on this GPU)" if n else ""),
-                    ),
+            if n:
+                reasons.append(
+                    (
+                        "measured_here",
+                        tr(
+                            "この PC に入っていて GPU に載るモデルは、この PC でもう測ってあります"
+                            f"(この GPU で {n} 件)",
+                            "The installed models that fit this GPU are already measured on this PC"
+                            f" ({n} on this GPU)",
+                        ),
+                    )
                 )
-            )
+            else:
+                reasons.append(
+                    (
+                        "no_installed",
+                        tr(
+                            "この PC に入っていて、GPU に載り測れるモデルがありません",
+                            "No installed model that fits this GPU can be measured on this PC",
+                        ),
+                    )
+                )
+                if any(x.installed is not None and x.installed.state == "no" for x in usable):
+                    later.append(
+                        tr(
+                            "入っていないモデルを落として測る: genmodelfit share --download",
+                            "Download and measure the ones not installed: genmodelfit share --download",
+                        )
+                    )
         if unknown:
             reasons.append(
                 (
@@ -3415,8 +3434,10 @@ def _share_nothing(args: argparse.Namespace, **ctx: Any) -> dict[str, Any]:
                     " then be measured)",
                 )
             )
-        candidates = installed + unknown
-        if candidates and not any(x.seconds <= budget for x in candidates) and not dl_plan:
+        # 時間の上限: 入っているものがあればその中で、無ければ入っていないものも含めて、どれも収まらないとき
+        # (落とすのを断ったうえに、入っているものが上限を超えるなら、両方の理由を出す)
+        candidates = installed + unknown or usable
+        if candidates and not any(x.seconds <= budget for x in candidates):
             shortest = min(x.seconds for x in candidates)
             reasons.append(
                 (
