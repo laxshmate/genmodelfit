@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.14.1] - Unreleased
+
+### Fixed
+
+- With `--vram` (or `vram_gb=`), reasons and notes no longer print this PC's GPU name as if it were the judged GPU
+  (#150). The amount is assumed but the generation stays this PC's, so they now say "the <GPU name> generation"
+  (Japanese "<GPU 名> 世代の GPU"). Only the wording changes: levels, numbers, GPU matching and the JSON `name` are
+  the same. `Gpu` has a new field `vram_overridden`.
+  `--vram` で量を上書きしたとき、理由・注意に GPU の名前をそのまま出さず「<名前> 世代の GPU」と書く(判定・数値は同じ)。
+
 ## [0.14.0] - 2026-10-31
 
 ### Fixed

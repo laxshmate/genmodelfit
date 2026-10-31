@@ -30,6 +30,7 @@ from genmodelfit.hardware import (
     query_nvidia_smi,
     torch_support,
 )
+from genmodelfit.i18n import forced
 from genmodelfit.models import Gpu, ModelEntry, ModelFile, SystemInfo
 
 E = importlib.import_module("genmodelfit.estimate")
@@ -505,6 +506,37 @@ def test_vram_override_keeps_arch_or_assumes_a_plain_gpu(monkeypatch):
     s = detect(memory=MEM, vram_gb=12, gpus=[kepler])
     assert s.best_gpu.name == "(仮定) 12 GB GPU" and s.best_gpu.arch is None
     assert detect(memory=MEM, vram_gb=0, gpus=[kepler]).vram_gb == 0
+
+
+def test_vram_override_names_the_generation_not_a_fictional_gpu(monkeypatch):
+    """--vram で量だけ変えたとき、理由・注意は「<名前> の世代」と書く(#150)。判定・数値は変えない。"""
+    import dataclasses
+
+    _patch_nvidia(monkeypatch, fx("nvsmi_rtx3070_win.csv"))
+    over = detect(memory=MEM, vram_gb=16).best_gpu
+    assert Gpu(name="x", vendor="nvidia", vram_total_gb=1).vram_overridden is False
+    assert over.vram_overridden is True and over.name == "NVIDIA GeForce RTX 3070"  # name は照合のまま
+    assert over.label == "NVIDIA GeForce RTX 3070 世代の GPU"
+    c = Coefficients()
+    ampere = arch_gpu("NVIDIA GeForce RTX 3090", "8.6", "566.03")
+    plain = dataclasses.replace(ampere)
+    flagged = dataclasses.replace(ampere, vram_overridden=True)
+    assert plain.label == plain.name
+    a = estimate(image("fp8"), pc(16, g=plain), coefficients=c)
+    b = estimate(image("fp8"), pc(16, g=flagged), coefficients=c)
+    assert any("NVIDIA GeForce RTX 3090 は fp8 の計算に対応しない" in r for r in a.reasons)
+    assert any("NVIDIA GeForce RTX 3090 世代の GPU は fp8 の計算に対応しない" in r for r in b.reasons)
+    assert not any("3090 は fp8" in r for r in b.reasons)
+    da, db = dataclasses.asdict(a), dataclasses.asdict(b)
+    for k in ("reasons", "notes"):
+        da.pop(k, None)
+        db.pop(k, None)
+    assert da == db  # 段階・数値はラベル以外同じ
+    with forced("en"):
+        assert flagged.label == "the NVIDIA GeForce RTX 3090 generation"
+        e = estimate(image("fp8"), pc(16, g=flagged), coefficients=c)
+        want = "The NVIDIA GeForce RTX 3090 generation does not support fp8 compute"
+        assert any(want in r for r in e.reasons)
 
 
 # --- メモリ ---------------------------------------------------------------------------------------
