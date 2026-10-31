@@ -78,7 +78,9 @@ def test_measured_points_are_within_the_formula():
         60: 5.00,
         120: 9.31,
     }
-    measured_5080 = {120: 9.5}  # RTX 5080 16 GB(PR #141。30 秒の 0.47 GB は前の回の確保が残った外れ)
+    # RTX 5080 16 GB(PR #141)。30 秒の 0.47 GB と、10 秒の点はどれも使わない
+    # (#131: 山が 0.02〜0.3 秒しか続かず、0.2 秒ごとに読む bench が取り逃がす)
+    measured_5080 = {120: 9.5}
     for sec, gb in [*measured.items(), *measured_5080.items()]:
         v = 1000 * round(sec * 25) * 2048 * 2 / GIB
         assert 0.8 <= gb / v <= 1.0, (sec, gb, v)

@@ -175,7 +175,7 @@ the V put into the amounts used is the **untiled V** (`working.VaeWork.untiled`)
 - Evidence: V = 1000 × L × 2048 × 2 bytes (sd.py:735@426f5ee), L = round(seconds × 48000 / 1920) (nodes_ace.py:105;
   the ComfyUI node defaults to 120 s: nodes_ace.py:95). ComfyUI first decodes without tiles (sd.py:1278-1311) and
   splits into tiles only on a CUDA OOM (sd.py:1312-1326, model_management.py:389-395).
-  The measured working memory is 0.81 to 0.98 times V at 30 s and longer ("ACE-Step 1.5 song length" under "Cross-check" below).
+  The measured working memory is 0.81 to 0.98 times V at 30 s and longer, and 0.81 to 0.90 times at the most trustworthy 60 and 120 s ("ACE-Step 1.5 song length" under "Cross-check" below; 10 s points miss the peak and are not used).
   For the image KL VAE it is 0.3 to 0.65 times, so V would worsen the prediction ("Cross-check", #102, below).
 - The old formula stayed at about 1 GB because it used the tile value V_tile (256 latent frames).
 - Tile fallback: when the untiled estimate does not run or is tight, the tiled estimate (min(V, V_tile)) is judged too.
@@ -852,14 +852,16 @@ Working-memory-only measurements (torch_reserved, dynamic VRAM) against the Oobl
 
 | length | V | V_tile | RTX 3070 8 GB (issue #148, ComfyUI 0.19.3) | RTX 5080 16 GB (#102) | RTX 5080 16 GB (PR #141) |
 |---|---:|---:|---:|---:|---:|
-| 10 s | 0.95 | 0.95 | 0.66 | 0.44 | 1.22 |
-| 30 s | 2.86 | 0.98 | 2.34 | 2.81 | 0.47 (outlier) |
+| 10 s | 0.95 | 0.95 | 0.66 (not used) | 0.44 (not used) | 1.22 (not used) |
+| 30 s | 2.86 | 0.98 | 2.34 (re-measured: 2.34, 2.72) | 2.81 | 0.47 (not used) |
 | 60 s | 5.72 | 0.98 | 5.00 | 5.16 | - |
 | 120 s | 11.44 | 0.98 | 9.31 (above 8 GB, spilled into shared memory) | 9.78 | 9.50 |
 
 - From 30 s up, measured ÷ V is 0.81 to 0.98. It grows in proportion to the length, which V_tile (constant) cannot explain.
 - The 30 s run of PR #141 (0.47 GB) started with the previous run's allocation still held (torch 0.47 GB), so it is
-  treated as an outlier (#131: measurements fluctuate).
+  not used (#131: measurements fluctuate).
+- **No 10 s point is used** (not even to check the formula). The #131 investigation found that the working-memory peak lasts only 0.02 to 0.05 s at 10 s and 0.2 to 0.3 s at 30 s, so bench, which reads every 0.2 s, missed it. Re-measured on the RTX 3070 with fast reads, 10 s gives 1.09 to 1.31 GB, but it is too brief to read reliably. The 60 s and 120 s peaks last longer and are the most trustworthy.
+- Re-measured, 30 s still gives 2.34 GB (sometimes 2.72 GB, a real difference between runs).
 - At 10 s V and V_tile are equal, so #148 does not change the value.
 - The ACE-Step 1.5 author measurement (20 s, 10.8 GB) is below the weights + fixed floor (dynamic VRAM kept some
   weights in main memory), so it says nothing about the working memory. The +17.8% in "Results" above comes from
