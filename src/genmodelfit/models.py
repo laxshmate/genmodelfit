@@ -426,10 +426,16 @@ class Gpu:
 
     @property
     def label(self) -> str:
-        """理由・注意の文の GPU の表示。上書きなしは name、ありは「<name> の世代」(照合は name)。"""
+        """理由・注意の文の GPU の表示。上書きなしは name、ありは「<name> 世代の GPU」(照合は name)。"""
         if self.vram_overridden:
-            return tr(f"{self.name} の世代", f"the {self.name} generation")
+            return tr(f"{self.name} 世代の GPU", f"the {self.name} generation")
         return self.name
+
+    @property
+    def label_start(self) -> str:
+        """文頭に置く label(英語の "the" を大文字にする)。"""
+        lab = self.label
+        return lab[:1].upper() + lab[1:]
 
 
 @dataclass

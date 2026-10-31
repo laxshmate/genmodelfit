@@ -1600,7 +1600,7 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
                 f"({shown(fam.comfy_class)})を bf16 "
                 "で動かす"
                 "(AMD の RDNA 2 以前の扱い。作業用メモリは変えていない)",
-                f"{g.label} does not support bf16 compute, but ComfyUI runs this family "
+                f"{g.label_start} does not support bf16 compute, but ComfyUI runs this family "
                 f"({shown(fam.comfy_class)})"
                 " in bf16 (the handling for AMD RDNA 2 and older; working memory unchanged)",
             )
@@ -1619,8 +1619,8 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
             tr(
                 f"{g.label} は bf16 の計算に対応しないので、ComfyUI は bf16 の重みを fp16 で動かす(VRAM "
                 "は同じ)",
-                f"{g.label} does not support bf16 compute, so ComfyUI runs the bf16 weights in fp16 (same "
-                "VRAM)",
+                f"{g.label_start} does not support bf16 compute, so ComfyUI runs the bf16 weights in fp16"
+                " (same VRAM)",
             )
         )
     if vae_fp32 and not gpu_fp32 and vae > 1:
@@ -1643,7 +1643,7 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
                 + "。ComfyUI は fp8 の重みを、fp16 に広げても "
                 "VRAM に収まれば広げて使い(VRAM を多く使う)、収まらなければ fp8 のまま計算のたびに"
                 "変換する(遅い)。見積もりは fp8 の大きさのまま",
-                f"{g.label} does not support fp8 compute"
+                f"{g.label_start} does not support fp8 compute"
                 + (" (Ada and later do)" if ada else "")
                 + ". ComfyUI widens fp8 weights to fp16 if they still fit in VRAM (uses more VRAM),"
                 " otherwise keeps fp8 and converts at every step (slow). The estimate keeps the fp8 size",

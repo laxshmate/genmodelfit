@@ -516,7 +516,7 @@ def test_vram_override_names_the_generation_not_a_fictional_gpu(monkeypatch):
     over = detect(memory=MEM, vram_gb=16).best_gpu
     assert Gpu(name="x", vendor="nvidia", vram_total_gb=1).vram_overridden is False
     assert over.vram_overridden is True and over.name == "NVIDIA GeForce RTX 3070"  # name は照合のまま
-    assert over.label == "NVIDIA GeForce RTX 3070 の世代"
+    assert over.label == "NVIDIA GeForce RTX 3070 世代の GPU"
     c = Coefficients()
     ampere = arch_gpu("NVIDIA GeForce RTX 3090", "8.6", "566.03")
     plain = dataclasses.replace(ampere)
@@ -525,7 +525,7 @@ def test_vram_override_names_the_generation_not_a_fictional_gpu(monkeypatch):
     a = estimate(image("fp8"), pc(16, g=plain), coefficients=c)
     b = estimate(image("fp8"), pc(16, g=flagged), coefficients=c)
     assert any("NVIDIA GeForce RTX 3090 は fp8 の計算に対応しない" in r for r in a.reasons)
-    assert any("NVIDIA GeForce RTX 3090 の世代 は fp8 の計算に対応しない" in r for r in b.reasons)
+    assert any("NVIDIA GeForce RTX 3090 世代の GPU は fp8 の計算に対応しない" in r for r in b.reasons)
     assert not any("3090 は fp8" in r for r in b.reasons)
     da, db = dataclasses.asdict(a), dataclasses.asdict(b)
     for k in ("reasons", "notes"):
@@ -535,7 +535,7 @@ def test_vram_override_names_the_generation_not_a_fictional_gpu(monkeypatch):
     with forced("en"):
         assert flagged.label == "the NVIDIA GeForce RTX 3090 generation"
         e = estimate(image("fp8"), pc(16, g=flagged), coefficients=c)
-        want = "the NVIDIA GeForce RTX 3090 generation does not support fp8 compute"
+        want = "The NVIDIA GeForce RTX 3090 generation does not support fp8 compute"
         assert any(want in r for r in e.reasons)
 
 
