@@ -28,6 +28,39 @@ All notable changes to this project are documented here. The format is based on
   from the bundled community data (calibration unchanged). With the change, 15 SDXL 1024 px runs all gave 2.28 GB; ACE-Step 10 s is
   flagged. Details in docs/accuracy "Measurement variance (#131)".
   (最大 VRAM の山を読み落とさないよう速く読み、読み切れない一瞬の山は標準の実測にしない)
+- **Speech models missing the parts their code loads** (#142), added with `components` in `manual.json` and licensed
+  by the component source table: MOSS-TTS v1.5 gets the MOSS-Audio-Tokenizer (7.1 GB), Chatterbox `s3gen.pt`, `ve.pt`
+  and `conds.pt` (the listed `t3_mtl23ls_v3` needs `t3_model="v3"`), both Qwen3-TTS-12Hz CustomVoice models
+  `speech_tokenizer/model.safetensors` (0.68 GB), VoxCPM2 `audiovae.pth` (0.38 GB), Fun-CosyVoice3 `llm.pt`,
+  `flow.pt`, `hift.pt`, `speech_tokenizer_v3.onnx` and `campplus.onnx` (4.4 GB), OmniVoice
+  `audio_tokenizer/model.safetensors` (0.81 GB; Boson Higgs Audio 2 community license, the set stays cc-by-nc) and the
+  Qwen3-TTS GGUF tokenizer `qwen-tokenizer-12hz-Q8_0.gguf` (0.29 GB). The later three are pinned to a revision.
+  Component source rows whose pattern has a `/` now match the whole path. The VRAM estimates grow accordingly; on a
+  CPU-only PC Chatterbox, Qwen3-TTS 0.6B and Fun-CosyVoice3 are now over the 2 GB small-model limit and judged as
+  needing a GPU. The 8 changed models are marked reviewed (`claude-maker-142`, with the code as evidence).
+  (読み上げの部品を足した。見積もりが大きくなる)
+- **AuK GGUF is non-commercial** (#143): `hf:audio-cpp/AuK-Base-and-Flash-GGUF` was listed as MIT, but audio.cpp needs
+  its Qwen2.5-Omni-3B component, which is under the Qwen RESEARCH LICENSE (non-commercial only). The Q8_0 Qwen GGUF of
+  the same repository (4.25 GB) is now in `files` with `other` / `qwen-research` (component source table row
+  `auk-qwen2.5-omni-3b`), so the model's license is the strictest one and the size and VRAM estimates include it. Marked reviewed (`claude-maker-143`).
+  (AuK を非商用にした。Qwen の部品を足した)
+- **Wan Fun origins** (#144): the main files of `video_wan2_2_14B_fun_control`, `video_wan2_2_5B_fun_control`,
+  `video_wan2_2_14B_fun_inpaint`, `video_wan2_2_5B_fun_inpaint`, `wan2.1_fun_control` and
+  `video_wan2.1_fun_camera_v1.1_1.3B` followed another Fun variant (Control-Camera, VACE-Fun, the 14B camera model):
+  the origin candidates in the Comfy-Org repackaged README tie on name overlap and the last one by name won. Override
+  rows in the component source table now name each file's own repository (all apache-2.0, so no license changes);
+  `license_from`, the files' `license_url` and the templates' `base_model` follow. `apply_license_sources` also
+  re-derives a template's `base_model` when a row changes its main file's origin, like a rebuild does. The same tie
+  sent Qwen-Image to Qwen-Image-2512, Qwen-Image-Edit and Edit-2509 to Edit-2511, ERNIE-Image to ERNIE-Image-Turbo,
+  LongCat-Image to LongCat-Image-Edit-Turbo and the Kijai ATI weights to Wan2.1-VACE-14B; override rows fix those too
+  (from the repackagers' cardData `base_model` and Kijai's README). docs/schema now says what `base_model` means here:
+  the origin repository of the redistributed file, not the HF card's `base_model`.
+  (Wan Fun の本体の元を直した)
+- **A model's `license_url` points at its main file** (#144): with several files under the same license, the URL came
+  from the first file by name, often a component (`video_wan2_2_14B_fun_control` showed the VAE's
+  Wan2.1-T2V-14B page). `set_entry_license` now takes the URL of the largest main file with the same license; 80
+  entries in the list changed (licenses themselves do not change). This replaces the hand-added models' own rule.
+  (一式の license_url を本体のものにした)
 
 ### Changed
 
@@ -68,6 +101,30 @@ All notable changes to this project are documented here. The format is based on
   `comfyui_version.py` / `pyproject.toml` (not imported); JSON `comfyui.version`. genmodelfit has no separate version of
   its measuring method, so only the ComfyUI version is compared.
   (ComfyUI の版が変わったら、前に測ったものも測り直しを提案する)
+- **Supertonic 3** (`manual:supertonic-3`, #127): a hand-added text-to-speech model that runs on ONNX Runtime
+  (runtime `supertonic`, a new value; SDK `supertonic`, MIT). 16 files pinned to revision `3cadd1ee…` (401,276,744
+  bytes; sizes and sha256 match the Hub API `lfs`, the small JSON files were downloaded and hashed), license
+  `openrail` / `openrail-m` (the card says `openrail`; the name comes from `LICENSE`, BigScience Open RAIL-M with use
+  restrictions), 31 speech languages from the card,
+  precision fp32 (the ONNX weights read with Range). Marked reviewed with `review approve` (by `claude-maker-127`,
+  with the LICENSE and file-tree URLs as evidence; the owner checks it in the PR). The developer's GitHub repository is
+  archived ("Development and support have ended"; the weights are also at supertone-oss-archive/supertonic-3 with
+  the same LFS oids), noted in the files' `license_evidence`. (読み上げの Supertonic 3 を手のモデルに足した)
+- Hand-added models: when the card's `license` is the same and the card has no `license_name`, a written
+  `license_name` is a refinement from the LICENSE text; `update` no longer warns or rewrites it
+  (`appinfo.verify_manual_licenses`; docs/sources "Manually added models"). (#127)
+- `tests/test_review_42.py`: approvals in the bundled list must come from an allowed name (`baseline-2026-10-21`,
+  `claude-weekly`, `claude-maker-<issue>`, the owner's login), with https evidence and a date from 2026-10-21 to
+  today; docs/release says the maintainer checks `claude-maker-*` approvals in the PR.
+- CPU-only PCs: Supertonic joins the speech models whose authors say they run in real time on a CPU
+  (`estimate.CPU_REALTIME_TTS`; the README of github.com/supertone-inc/supertonic shows it running in real time on a
+  Raspberry Pi), so on the CPU it is capped at Good instead of Marginal. Piper (`manual:tsukuyomi-chan-piper-plus`)
+  was already capped at Good since 0.11.0 (#108). The rule itself is unchanged. (CPU で実時間に動く読み上げの表に
+  Supertonic を足した)
+- **Runtime for Hugging Face speech models** (#142): the 20 `hf:` text-to-speech models now have `runtime`
+  (`transformers`, `qwen-tts`, `chatterbox`, `voxcpm`, `audio-cpp`, `kokoro` and so on), written in the hand table
+  (`overrides.json`) from each card's usage and the official READMEs; it was null. A runtime other than ComfyUI also
+  means gate uses `app_runtime` instead of the three ComfyUI checks (both hold). (HF の読み上げの動かし方を埋めた)
 
 ## [0.13.2] - 2026-10-29
 

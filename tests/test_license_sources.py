@@ -33,6 +33,11 @@ HUNYUAN = ("other", "tencent-hunyuan-community")
 KREA = ("other", "krea-2-community-license")
 
 # (置き場所, ファイル名, ライセンス, license_name)。2026-10-20 に一次資料で確かめた値(根拠は表の evidence)
+W22 = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
+W21 = "Comfy-Org/Wan_2.1_ComfyUI_repackaged"
+_DM = "split_files/diffusion_models/"
+QE = "Comfy-Org/Qwen-Image-Edit_ComfyUI"
+
 CASES = [
     # 上書きの行(override。自動の決め方が寛容な側に誤る・違う元をたどるもの。0.1.1 のレビュー)
     (
@@ -164,6 +169,37 @@ CASES = [
     ("Comfy-Org/MOSS-Image", "qwen3.5_9b_w4a8_gptq.safetensors", "apache-2.0", None),
     ("Kijai/SUPIR_pruned", "SUPIR-v0Q_fp16.safetensors", "other", "supir-non-commercial"),
     ("Comfy-Org/stable-audio-3", "t5gemma_b_b_ul2.safetensors", "gemma", None),
+    ("OpenMOSS-Team/MOSS-Audio-Tokenizer", "model-00001-of-00002.safetensors", "apache-2.0", None),
+    ("ResembleAI/chatterbox", "s3gen.pt", "mit", None),
+    ("ResembleAI/chatterbox", "ve.pt", "mit", None),
+    ("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice", "speech_tokenizer/model.safetensors", "apache-2.0", None),
+    ("openbmb/VoxCPM2", "audiovae.pth", "apache-2.0", None),
+    ("FunAudioLLM/Fun-CosyVoice3-0.5B-2512", "llm.pt", "apache-2.0", None),
+    (
+        "k2-fsa/OmniVoice",
+        "audio_tokenizer/model.safetensors",
+        "other",
+        "boson-higgs-audio-2-community-license",
+    ),
+    ("Serveurperso/Qwen3-TTS-GGUF", "qwen-tokenizer-12hz-Q8_0.gguf", "apache-2.0", None),
+    ("audio-cpp/AuK-Base-and-Flash-GGUF", "qwen2.5-omni-3b-q8_0.gguf", "other", "qwen-research"),
+    (W22, f"{_DM}wan2.2_fun_control_high_noise_14B_fp8_scaled.safetensors", "apache-2.0", None),
+    (W22, "split_files/diffusion_models/wan2.2_fun_control_5B_bf16.safetensors", "apache-2.0", None),
+    (W22, f"{_DM}wan2.2_fun_inpaint_low_noise_14B_bf16.safetensors", "apache-2.0", None),
+    (W22, "split_files/diffusion_models/wan2.2_fun_inpaint_5B_bf16.safetensors", "apache-2.0", None),
+    (W21, "split_files/diffusion_models/wan2.1_fun_control_1.3B_bf16.safetensors", "apache-2.0", None),
+    (W21, "split_files/diffusion_models/wan2.1_fun_camera_v1.1_1.3B_bf16.safetensors", "apache-2.0", None),
+    ("Comfy-Org/Qwen-Image_ComfyUI", f"{_DM}qwen_image_fp8_e4m3fn.safetensors", "apache-2.0", None),
+    ("Comfy-Org/Qwen-Image-Edit_ComfyUI", f"{_DM}qwen_image_edit_fp8_e4m3fn.safetensors", "apache-2.0", None),
+    (
+        "Comfy-Org/Qwen-Image-Edit_ComfyUI",
+        f"{_DM}qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+        "apache-2.0",
+        None,
+    ),
+    ("Comfy-Org/ERNIE-Image", "diffusion_models/ernie-image.safetensors", "apache-2.0", None),
+    ("Comfy-Org/LongCat-Image", f"{_DM}longcat_image_bf16.safetensors", "apache-2.0", None),
+    ("Kijai/WanVideo_comfy", "Wan2_1-I2V-ATI-14B_fp8_e4m3fn.safetensors", "apache-2.0", None),
     ("Comfy-Org/void-model", "vae/cogvideox_vae.safetensors", "apache-2.0", None),
     ("Comfy-Org/HuMo_ComfyUI", "whisper_large_v3_fp16.safetensors", "apache-2.0", None),
     ("Comfy-Org/PixelDiT", "gemma_2_2b_it_elm_bf16.safetensors", "gemma", None),
@@ -230,7 +266,7 @@ def test_table_license_for_real_files(repo, name, lic, lic_name):
     assert f.license_from == row.source and f.license_url == row.url
     assert f.license_path[0] == repo and f.license_path[-1] == row.source
     assert f"{ls.EVIDENCE_KEY}:{row.key}" in f.license_evidence
-    assert any(ls.CHECKED in e for e in f.license_evidence)
+    assert any(row.checked in e for e in f.license_evidence)
 
 
 @pytest.mark.parametrize("repo,name", NOT_COVERED, ids=[f"{c[0]}:{c[1]}" for c in NOT_COVERED])
@@ -536,3 +572,58 @@ def test_entries_api_accepts_list():
     changed = ls.apply_license_sources([e])
     assert changed == [("x", "ministral-3-3b.safetensors", "ernie-image-ministral-3-3b")]
     assert e.license == "apache-2.0"
+
+
+@pytest.mark.parametrize(
+    ("mid", "origin"),
+    [
+        ("video_wan2_2_14B_fun_control", "alibaba-pai/Wan2.2-Fun-A14B-Control"),
+        ("video_wan2_2_14B_fun_camera", "alibaba-pai/Wan2.2-Fun-A14B-Control-Camera"),
+        ("video_wan2_2_5B_fun_control", "alibaba-pai/Wan2.2-Fun-5B-Control"),
+        ("video_wan2_2_14B_fun_inpaint", "alibaba-pai/Wan2.2-Fun-A14B-InP"),
+        ("video_wan2_2_5B_fun_inpaint", "alibaba-pai/Wan2.2-Fun-5B-InP"),
+        ("wan2.1_fun_control", "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control"),
+        ("video_wan2.1_fun_camera_v1.1_1.3B", "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera"),
+        ("video_wan2.1_fun_camera_v1.1_14B", "alibaba-pai/Wan2.1-Fun-V1.1-14B-Control-Camera"),
+        ("image_qwen_image", "Qwen/Qwen-Image"),
+        ("image_qwen_image_edit", "Qwen/Qwen-Image-Edit"),
+        ("image_qwen_image_edit_2509", "Qwen/Qwen-Image-Edit-2509"),
+        ("image_ernie_image", "baidu/ERNIE-Image"),
+        ("image_longcat_text_to_image", "meituan-longcat/LongCat-Image"),
+        ("video_wan_ati", "bytedance-research/ATI"),
+        ("template-Animation_Trajectory_Control_Wan_ATI", "bytedance-research/ATI"),
+    ],
+)
+def test_main_files_follow_their_own_origin(bundled, mid, origin):
+    """Wan の Fun の本体は、再配布の README の元のうち自分の版をたどる(名前の重なりの同点で別の版に
+    ならない。#144)。テンプレートの base_model もその元。"""
+    m = bundled.get(mid)
+    mains = [f for f in m.files if f.role == "main"]
+    assert mains and all(f.license_from == origin for f in mains), [f.license_from for f in mains]
+    assert m.base_model == origin
+
+
+def test_apply_rederives_the_template_base_model_from_the_new_origin():
+    """表で本体の元が変わったら、テンプレートの base_model(本体の元から決めたもの)も決め直す(作り直しと
+    同じ答え。#144)。手で書いた base_model(手のモデル)と HF のカードの base_model は変えない。"""
+    path = "split_files/diffusion_models/wan2.2_fun_control_5B_bf16.safetensors"
+    old = "alibaba-pai/Wan2.2-Fun-A14B-Control-Camera"
+
+    def entry(source):
+        f = ModelFile(
+            name=path.rsplit("/", 1)[-1],
+            url=_url(W22, path),
+            repo_id=W22,
+            role="main",
+            license="apache-2.0",
+            license_from=old,
+            license_evidence=["family:wan"],
+        )
+        return ModelEntry(id="x", name="x", modality="video", source=source, files=[f], base_model=old)
+
+    t = entry("comfyui-template")
+    ls.apply_license_sources([t])
+    assert t.files[0].license_from == t.base_model == "alibaba-pai/Wan2.2-Fun-5B-Control"
+    hf = entry("huggingface")
+    ls.apply_license_sources([hf])
+    assert hf.files[0].license_from == "alibaba-pai/Wan2.2-Fun-5B-Control" and hf.base_model == old

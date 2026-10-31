@@ -415,7 +415,7 @@ Python `Fit.to_dict()` returns exactly this dict (`gmf.recommend()` / `gmf.fit_l
 | `name`, `modality`, `tasks` | | modality ∈ `image` `video` `music` `sfx` `tts` `3d`; `tasks` is a list (`t2i`, `i2v`, …) |
 | `content` | str | `sfw` or `uncensored` (see [README](../README.md)) |
 | `source` | str | `comfyui-template` / `huggingface` / `manual` |
-| `runtime` | str \| null | how the model runs: `comfyui` / `piper` / `irodori-tts` / … (`ModelEntry.runtime`, 0.5.0); null = unknown |
+| `runtime` | str \| null | how the model runs: `comfyui` / `piper` / `irodori-tts` / `supertonic` / … (`ModelEntry.runtime`, 0.5.0); null = unknown |
 | `languages` | object | `{"prompt": [...], "speech": [...]}` ISO 639-1 (`ModelEntry.languages`, 0.5.0); a missing key = unknown, `[]` = none (an image-to-3D model takes no prompt; a music model without vocals has no speech) |
 | `description` | object | `{"ja": "...", "en": "..."}` hand-written, only for some models (`ModelEntry.description`, 0.5.0); `{}` = none |
 | `fit_level` | str | `perfect` / `good` / `marginal` / `too_tight` (= `estimate.fit`), or `unknown` when the size is unknown and nothing was judged (0.1.1; until 0.1.0 these were `too_tight`) |
@@ -871,11 +871,11 @@ Python `gmf.info(model_id)` matches the exact id only and returns `None` otherwi
 ### ModelEntry
 
 `id`, `name`, `modality`, `tasks`, `source`, `files` (ModelFile[]), `template` (Template \| null), `params_b`,
-`precision`, `license`, `license_url`, `base_model`, `content`, `content_evidence` (str[]: why it is marked
+`precision`, `license`, `license_url`, `base_model` (in genmodelfit, "the origin repository of the redistributed file": for official templates the main file's `license_from`, for HF entries the first `base_model` on that repository's card, for hand-added models the written value; for templates it is not the HF card's `base_model`, the origin of the origin; 0.14.0, #144), `content`, `content_evidence` (str[]: why it is marked
 uncensored), `discovered_from` (str[]: where it was found), `updated`, `homepage`, `downloads` / `likes`
 (int \| null: Hugging Face counters, set for `source: huggingface`; `downloads` is the last 30 days),
 `downloads_all_time` (int \| null: all-time downloads, used for the inclusion floor), `total_size_bytes`,
-`license_name` (the name of an `other` license, from the strictest file), `license_evidence` (str[]: why the license is
+`license_name` (the name of an `other` license, from the strictest file; for a hand-added model it can also be a refinement of the same `license` from the body, such as `openrail` / `openrail-m`; 0.14.0), `license_evidence` (str[]: why the license is
 unknown — entries start with `license_unverified:`), `files_complete`, `size_floor_bytes` (below),
 `workflow_precision` (str \| null: precision inferred from the template's main loader node, see "Models" above;
 optional, 0.2.0), `precision_source` (str \| null: `header` / `filename` / `hf_api` / `config` / `workflow`, where
@@ -899,7 +899,7 @@ readers drop unknown keys, see "Database file"):
   (the material for `languages`, so an offline re-apply gives the same result). `[]` = the card was read and has no
   language, null = not read.
 - `runtime` (str \| null): `comfyui` for official templates and for Hugging Face image / video / music / sfx / 3D entries
-  whose files match a ComfyUI family; `piper`, `irodori-tts` for the hand-added speech models; null = not decided. A
+  whose files match a ComfyUI family; `piper`, `irodori-tts`, `supertonic` for the hand-added speech models; for Hugging Face speech models, the value in the hand table (`overrides.json`: `transformers`, `qwen-tts`, `chatterbox` and so on; 0.14.0, #142); null = not decided. A
   runtime other than `comfyui` (and null) makes the estimator count `.onnx` and other non-ComfyUI weight files.
 - `description` (`{"ja": str, "en": str}`): a short hand-written description, only for the models that have one.
 - `source: "manual"` (id `manual:<slug>`): models added by hand in `src/genmodelfit/data/manual.json` (`template` is null). Their license

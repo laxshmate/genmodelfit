@@ -148,7 +148,7 @@ The level is the band of system RAM use, capped as follows (`estimate.cpu_top`):
 
 | Type / use | Cap | Examples |
 |---|---|---|
-| Speech built to run in real time on a CPU (`estimate.CPU_REALTIME_TTS`; table below) | Good | MeloTTS, Piper, VieNeu-TTS |
+| Speech built to run in real time on a CPU (`estimate.CPU_REALTIME_TTS`; table below) | Good | MeloTTS, Piper, VieNeu-TTS, Supertonic |
 | All uses are one-pass tools (`tool`, `estimate`, `matting`, `interp`, `segment`, `separate`) | Good | background removal (BiRefNet), depth, pose, segmentation, audio separation |
 | Everything else (image, video, music, sound effect and 3D generation; speech whose authors do not say it runs in real time on a CPU; upscaling `upscale`) | Marginal | SDXL, Stable Audio, Fun-CosyVoice3, Chatterbox, VibeVoice, Qwen3-TTS, Kokoro, HiFi-GAN |
 
@@ -159,6 +159,7 @@ Speech built to run in real time on a CPU (the authors' own statements; also sho
 | MeloTTS | `hf:myshell-ai/MeloTTS-*` | model card: "Fast enough for CPU real-time inference" |
 | Piper | run with `piper` | README (tag 2023.11.14-2, github.com/rhasspy/piper/blob/2023.11.14-2/README.md): "A fast, local neural text to speech system that sounds great and is optimized for the Raspberry Pi 4." |
 | VieNeu-TTS | `hf:pnnbao-ump/VieNeu-TTS*` | model card: "on CPU everything runs on ONNX Runtime", "RTF < 1, one stream" |
+| Supertonic | run with `supertonic` | model card (revision 3cadd1ee): "Supertonic 3 runs fast on CPU, even compared with larger baselines measured on A100 GPU, and uses substantially less memory. It does not require a GPU"; README (commit 1e9799e9, github.com/supertone-inc/supertonic/blob/1e9799e964ea4c0dad7cde993b65c3c813a7b373/README.md): "Watch Supertonic running on a Raspberry Pi, demonstrating on-device, real-time text-to-speech synthesis" |
 
 Speech whose authors do not say it runs in real time on or suits a CPU (Kokoro, HiFi-GAN and others) is not listed and is capped at Marginal like generation.
 

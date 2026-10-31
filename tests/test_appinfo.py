@@ -107,7 +107,7 @@ def test_old_readers_read_the_bundled_list(monkeypatch):
         assert not hasattr(old, "nonexistent")
         assert old.id and old.source in ("comfyui-template", "huggingface", "manual")
         n_manual += m["source"] == "manual"
-    assert n_manual == 3
+    assert n_manual == len(json.loads(dbmod.bundled_text("manual.json"))["models"])
     # 新しい読み手も同じ一覧を読める(知らないキーを捨てる仕組みは ModelFile・Template にも)
     assert len(parse_db(data, "path").models) == len(data["models"])
 
@@ -303,13 +303,16 @@ def test_manual_entries_are_complete():
         "manual:tsukuyomi-chan-piper-plus",
         "manual:irodori-tts-v4.1-small",
         "manual:stable-audio-3-small-music",
+        "manual:supertonic-3",
     }
     for e in ms.values():
         assert e.source == "manual" and e.template is None and e.files_complete is True
         assert e.description.get("ja") and e.description.get("en")
         assert e.license is not None and e.license_url
         for f in e.files:
-            assert f.url.startswith("https://huggingface.co/") and "/resolve/main/" in f.url
+            assert f.url.startswith("https://huggingface.co/")
+            # main か、版を固定した 40 桁の版(Supertonic 3。#127)
+            assert re.search(r"/resolve/(main|[0-9a-f]{40})/", f.url), f.url
             assert re.fullmatch(r"[0-9a-f]{64}", f.sha256) and f.size_bytes > 0 and f.directory
             assert f.license and f.license_from and f.license_url and f.gated is False
             assert f.repo_id == "/".join(f.url.split("/")[3:5])
@@ -333,6 +336,17 @@ def test_manual_entries_are_complete():
     assert (sa.license, sa.license_name) == ("other", "stable-audio-community")  # gemma より本体が厳しい側
     assert {f.license for f in sa.files} == {"other", "gemma"}
     assert sa.languages == {"prompt": ["en"], "speech": []}
+    # Supertonic 3(#127): 16 個を版 3cadd1ee… に固定。OpenRAIL-M は用途の制限付きの段
+    st = ms["manual:supertonic-3"]
+    assert (st.runtime, st.modality) == ("supertonic", "tts")
+    assert (st.license, st.license_name) == ("openrail", "openrail-m")  # 名前は LICENSE の本文から
+    assert license_tier(st.license, st.license_name) == TIER_USE_RESTRICTED
+    assert len(st.files) == 16 and st.total_size_bytes == 401_276_744
+    assert all("/resolve/3cadd1ee6394adea1bd021217a0e650ede09a323/" in f.url for f in st.files)
+    assert [f.name for f in st.files if f.role == "main"] == ["onnx/vector_estimator.onnx"]
+    assert (st.precision, st.precision_source) == ("fp32", "header")
+    assert len(st.languages["speech"]) == 31 and "ja" in st.languages["speech"]
+    assert st.license_url.endswith("/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE")
 
 
 def test_merge_manual_replaces_and_keeps_order():
@@ -384,6 +398,8 @@ def test_verify_manual_licenses_takes_the_stricter_on_mismatch():
         "Aratako/Irodori-TTS-v4.1-Small": ("mit", None),
         "Aratako/Semantic-DACVAE-Japanese-32dim": ("mit", None),
         "stabilityai/stable-audio-3-small-music": ("other", "stable-audio-community"),
+        # カードは license_name なし。書いた openrail-m は本文で細かくしたもの(警告しない。#127)
+        "Supertone/supertonic-3": ("openrail", None),
     }  # t5gemma は読めない(gated)ものとして None
     warns = appinfo.verify_manual_licenses(ms, _CardClient(cards))
     assert warns == [
@@ -566,6 +582,14 @@ def test_download_plan_lists_manual_files(tmp_path):
                 "text_encoders/t5gemma_b_b_ul2.safetensors",
             ],
         ),
+        (
+            "manual:supertonic-3",
+            sorted(
+                [f"tts/onnx/{n}" for n in ("duration_predictor.onnx", "text_encoder.onnx", "tts.json")]
+                + [f"tts/onnx/{n}" for n in ("unicode_indexer.json", "vector_estimator.onnx", "vocoder.onnx")]
+                + [f"tts/voice_styles/{g}{i}.json" for g in "FM" for i in range(1, 6)]
+            ),
+        ),
     ],
 )
 def test_download_plan_of_every_manual_model(tmp_path, mid, relpaths):
@@ -594,9 +618,9 @@ def test_fields_only_offline_updates_a_copy(tmp_path):
     out = tmp_path / "new.json"
     assert cli.main(["update", "--fields-only", "--offline", "--db", str(src), "--output", str(out)]) == 0
     new = load(out)
-    assert len(new.models) == len(data["models"]) + 3
-    assert new.sources["manual"]["models"] == 3 and new.sources["counts"]["models"] == len(new.models)
-    assert new.sources["app_fields"]["description"] == 12
+    assert len(new.models) == len(data["models"]) + 4
+    assert new.sources["manual"]["models"] == 4 and new.sources["counts"]["models"] == len(new.models)
+    assert new.sources["app_fields"]["description"] == 13
     old_by = {m["id"]: m for m in data["models"]}
     for m in new.models:  # 既存のモデルの判定に関わる項目は変えない
         if m.source == "manual":
@@ -619,8 +643,8 @@ def test_build_database_includes_manual_and_app_fields():
     )
     ids = {e.id for e in built.models}
     assert {"manual:tsukuyomi-chan-piper-plus", "manual:irodori-tts-v4.1-small"} <= ids
-    assert built.sources["manual"]["models"] == 3
-    assert built.sources["counts"]["source"]["manual"] == 3
+    n = len(appinfo.manual_entries())
+    assert built.sources["manual"]["models"] == n and built.sources["counts"]["source"]["manual"] == n
     assert built.sources["app_fields"]["runtime"] >= 3
     z = built.get("image_z_image_turbo_int8")
     assert z.runtime == "comfyui" and "ja" in z.languages["prompt"]
@@ -862,3 +886,103 @@ def test_components_require_a_unique_https_url(files):
 
 def test_bundled_components_are_valid():
     assert SFX in appinfo.components()
+
+
+def test_verify_keeps_a_license_name_that_refines_the_card():
+    """カードの license が同じで license_name が無ければ、書いた license_name(本文で細かくした名前)は
+    そのまま。警告も書き換えもしない(毎週の照合で openrail-m が消えないこと。#127)。
+    license が違えば今までどおり。"""
+    ms = [e for e in appinfo.manual_entries() if e.id == "manual:supertonic-3"]
+    card = _CardClient({"Supertone/supertonic-3": ("openrail", None)})
+    assert appinfo.verify_manual_licenses(ms, card) == []
+    st = ms[0]
+    assert {(f.license, f.license_name) for f in st.files} == {("openrail", "openrail-m")}
+    assert (st.license, st.license_name) == ("openrail", "openrail-m")
+    assert not any(x.startswith("manual_mismatch") for f in st.files for x in f.license_evidence)
+    # カードに別の名前があれば食い違い(厳しいほうに寄せて警告)
+    ms = [e for e in appinfo.manual_entries() if e.id == "manual:supertonic-3"]
+    nc = _CardClient({"Supertone/supertonic-3": ("cc-by-nc-4.0", None)})
+    warns = appinfo.verify_manual_licenses(ms, nc)
+    assert warns and ms[0].license == "cc-by-nc-4.0"
+
+
+# --- HF の読み上げの動かし方と部品(#142) ------------------------------------------------------------
+
+
+def test_every_hf_speech_model_has_a_runtime_from_the_hand_table():
+    """HF の読み上げは規則で動かし方を決めず、手の表に書く(カードの使い方で確かめたもの)。同梱の一覧の
+    どれにも値があり、手の表の行には根拠(_note)がある。"""
+    table = appinfo.overrides()
+    db = load(None, use_cache=False)
+    speech = [m for m in db.models if m.source == "huggingface" and m.modality == "tts"]
+    assert speech
+    for m in speech:
+        assert m.runtime and m.runtime == table[m.id]["runtime"], m.id
+        assert "#142" in table[m.id]["_note"], m.id
+    # 規則だけでは決めない(手の表を外すと null)
+    one = speech[0]
+    appinfo.apply_app_fields([one], table={})
+    assert one.runtime is None
+
+
+@pytest.mark.parametrize(
+    ("mid", "names", "lic"),
+    [
+        (
+            "hf:OpenMOSS-Team/MOSS-TTS-v1.5",
+            {"model-00001-of-00002.safetensors", "model-00002-of-00002.safetensors"},
+            "apache-2.0",
+        ),
+        ("hf:ResembleAI/chatterbox", {"s3gen.pt", "ve.pt", "conds.pt"}, "mit"),
+        ("hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice", {"speech_tokenizer/model.safetensors"}, "apache-2.0"),
+        ("hf:Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice", {"speech_tokenizer/model.safetensors"}, "apache-2.0"),
+        ("hf:openbmb/VoxCPM2", {"audiovae.pth"}, "apache-2.0"),
+        (
+            "hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+            {"llm.pt", "flow.pt", "hift.pt", "speech_tokenizer_v3.onnx", "campplus.onnx"},
+            "apache-2.0",
+        ),
+        ("hf:k2-fsa/OmniVoice", {"audio_tokenizer/model.safetensors"}, "other"),
+        ("hf:Serveurperso/Qwen3-TTS-GGUF", {"qwen-tokenizer-12hz-Q8_0.gguf"}, "apache-2.0"),
+    ],
+)
+def test_speech_models_carry_the_parts_their_code_loads(mid, names, lic):
+    """公式のコードが読む部品(音声トークナイザ・コーデックなど)を files に足し、ライセンスは部品の
+    出どころの表、見積もりにも数える(#142)。"""
+    from genmodelfit.estimate import select_files
+
+    m = load(None, use_cache=False).get(mid)
+    got = {f.name: f for f in m.files}
+    assert names <= set(got)
+    for n in names:
+        f = got[n]
+        assert f.license == lic and re.fullmatch(r"[0-9a-f]{64}", f.sha256) and f.size_bytes > 0
+        assert any(x.startswith("license_source:") for x in f.license_evidence)
+        assert any(x.startswith("manual_component:") for x in f.license_evidence)
+    counted = {f.name for f in select_files(m)[0]}
+    assert names <= counted, counted
+    # #142 の後から足した部品の URL は版に固定(main だと中身が変わったとき sha256 が合わなくなる)
+    if mid in PINNED_PARTS:
+        assert all(re.search(r"/resolve/[0-9a-f]{40}/", got[n].url) for n in names), mid
+
+
+PINNED_PARTS = {
+    "hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512",
+    "hf:k2-fsa/OmniVoice",
+    "hf:Serveurperso/Qwen3-TTS-GGUF",
+}
+
+
+def test_auk_gguf_takes_the_non_commercial_qwen_license():
+    """AuK の GGUF は audio.cpp で Qwen2.5-Omni-3B(Qwen RESEARCH LICENSE、非商用)が要る。置き場所の
+    カードの mit を一式のライセンスにしない(#143)。"""
+    from genmodelfit.hf import TIER_PERMISSIVE
+
+    m = load(None, use_cache=False).get("hf:audio-cpp/AuK-Base-and-Flash-GGUF")
+    qwen = next(f for f in m.files if f.name == "qwen2.5-omni-3b-q8_0.gguf")
+    assert (qwen.license, qwen.license_name) == ("other", "qwen-research")
+    assert qwen.license_from == "Qwen/Qwen2.5-Omni-3B"
+    assert (m.license, m.license_name) == ("other", "qwen-research")
+    assert m.license_url == "https://huggingface.co/Qwen/Qwen2.5-Omni-3B/blob/main/LICENSE"
+    assert license_tier(m.license, m.license_name) > TIER_PERMISSIVE
+    assert m.total_size_bytes >= 4_253_964_480

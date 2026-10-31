@@ -303,7 +303,10 @@ Finally, the **source table** (`license_sources.SOURCES`; see "Source table" bel
 - Override rows are only for these cases:
   - Cases where the automatic rules look only at a permissive cardData notation and miss the terms in the body.
     Example: the ChronoEdit LoRA. cardData says apache-2.0, but the body says "Governing Terms: … NVIDIA Open Model License", and its sha256 equals the lora/ of nvidia/ChronoEdit-14B-Diffusers.
-  - Cases where the automatic rules follow a different origin: InfiniteTalk → MeiGen-AI/InfiniteTalk, Wan 2.1 I2V 480P → Wan-AI/Wan2.1-I2V-14B-480P.
+  - Cases where the automatic rules follow a different origin: InfiniteTalk → MeiGen-AI/InfiniteTalk, Wan 2.1 I2V 480P → Wan-AI/Wan2.1-I2V-14B-480P, Wan Fun Control, InP and Camera 1.3B, and Qwen-Image, Qwen-Image-Edit (2509), ERNIE-Image, LongCat-Image and Wan ATI (0.14.0, #144).
+    For Wan Fun, the origin candidates in the repackager's README (`hf.choose_bases`) tie on name overlap (size words are not counted, so `Fun-A14B-Control` ties with `Fun-A14B-Control-Camera`, and `Fun-V1.1-1.3B-Control-Camera` with `-14B-`), and the last one by name among the tie (`_worst`) was followed.
+    The license is apache-2.0 for all of them and does not change, but `license_from`, `license_url` and the template's `base_model` pointed at another variant.
+    Changing the tie-break for everything changed the origin of about 50 files, some of them wrongly (Hunyuan3D mv became the original 2, A14B Control became 5B, and so on), so table rows fix them instead.
 - A file decided earlier by the table (mark `license_source:<row>`) is re-applied when the row is corrected.
 - Files of families whose origin license cannot be read (`hf.LINEAGES`, such as VOID) are reverted to unknown even if decided automatically
   (`license_sources.enforce_lineage`. Same decision as gate, so the list data and gate's answer agree).
@@ -472,6 +475,12 @@ For the bundled list, `license_sources.apply_license_sources(db)` applies it wit
 | circlestone-labs/Anima | `qwen_3_06b_base` | apache-2.0 | [Qwen/Qwen3-0.6B-Base](https://huggingface.co/Qwen/Qwen3-0.6B-Base) | same sha256 |
 | Comfy-Org/Wan_2.2_ComfyUI_Repackaged | `chrono_edit_14B_*`, `chronoedit_distill_lora` | other (nvidia-open-model-license) (override row) | [nvidia/ChronoEdit-14B-Diffusers](https://huggingface.co/nvidia/ChronoEdit-14B-Diffusers) (body: "Governing Terms: … NVIDIA Open Model License Agreement") | the main file: origin in the repackager's README. The LoRA has the same sha256 as the origin's lora/chronoedit_distill_lora.safetensors |
 | Comfy-Org/Wan_2.1_ComfyUI_repackaged | `wan2.1_infiniteTalk_{multi,single}_fp16` | apache-2.0 (override row) | [MeiGen-AI/InfiniteTalk](https://huggingface.co/MeiGen-AI/InfiniteTalk) ("The models in this repository are licensed under the Apache 2.0 License") | origin in the repackager's README (the automatic rules followed a different origin) |
+| Comfy-Org/Wan_2.2_ComfyUI_Repackaged | `wan2.2_fun_control_{high,low}_noise_14B_*`, `wan2.2_fun_control_5B_bf16` | apache-2.0 (override row) | [alibaba-pai/Wan2.2-Fun-A14B-Control](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control), [alibaba-pai/Wan2.2-Fun-5B-Control](https://huggingface.co/alibaba-pai/Wan2.2-Fun-5B-Control) (both `license: apache-2.0`) | origin in the repackager's README (the automatic rules followed Control-Camera; 0.14.0, #144) |
+| Comfy-Org/Wan_2.2_ComfyUI_Repackaged | `wan2.2_fun_inpaint_{high,low}_noise_14B_*`, `wan2.2_fun_inpaint_5B_bf16` | apache-2.0 (override row) | [alibaba-pai/Wan2.2-Fun-A14B-InP](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-InP), [alibaba-pai/Wan2.2-Fun-5B-InP](https://huggingface.co/alibaba-pai/Wan2.2-Fun-5B-InP) (both `license: apache-2.0`) | origin in the repackager's README (the automatic rules followed VACE-Fun; #144) |
+| Comfy-Org/Wan_2.1_ComfyUI_repackaged | `wan2.1_fun_control_1.3B_bf16`, `wan2.1_fun_camera_v1.1_1.3B_bf16` | apache-2.0 (override row) | [alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control](https://huggingface.co/alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control), [alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera](https://huggingface.co/alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera) (both `license: apache-2.0`) | origin in the repackager's README (the automatic rules followed the 14B Control-Camera; #144) |
+| Comfy-Org/Qwen-Image_ComfyUI, Qwen-Image-Edit_ComfyUI | `qwen_image_{bf16,fp8_e4m3fn}`, `qwen_image_edit_*`, `qwen_image_edit_2509_*` | apache-2.0 (override row) | [Qwen/Qwen-Image](https://huggingface.co/Qwen/Qwen-Image), [Qwen/Qwen-Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit), [Qwen/Qwen-Image-Edit-2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) | base_model in the repackager's cardData (the automatic rules followed 2512 / Edit-2511; #144) |
+| Comfy-Org/ERNIE-Image, Comfy-Org/LongCat-Image | `ernie-image`, `longcat_image_bf16` | apache-2.0 (override row) | [baidu/ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image), [meituan-longcat/LongCat-Image](https://huggingface.co/meituan-longcat/LongCat-Image) | base_model in the repackager's cardData (the automatic rules followed Turbo / Edit-Turbo; #144) |
+| Kijai/WanVideo_comfy | `Wan2_1-I2V-ATI-14B_fp8_e4m3fn` | apache-2.0 (override row) | [bytedance-research/ATI](https://huggingface.co/bytedance-research/ATI) | Kijai's README: "ATI: https://huggingface.co/bytedance-research/ATI" (the automatic rules followed Wan2.1-VACE-14B; #144) |
 | Comfy-Org/Wan_2.1_ComfyUI_repackaged, Kijai/WanVideo_comfy_fp8_scaled | `wan2.1_i2v_480p_14B_*`, `Wan2_1-I2V-14B-480p_fp8_e4m3fn_scaled_KJ` | apache-2.0 (override row) | [Wan-AI/Wan2.1-I2V-14B-480P](https://huggingface.co/Wan-AI/Wan2.1-I2V-14B-480P) (LICENSE.txt: "licensed under the Apache 2.0 License") | origin in the repackager's README. Kijai's header has img_emb and no VACE layers (the automatic rules followed 720P and VACE) |
 | Comfy-Org/ERNIE-Image | `ministral-3-3b` | apache-2.0 | text_encoder of [baidu/ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) (Ministral 3 3B; mistralai's Ministral-3-3B are all apache-2.0) | origin in the repackager's README, text_encoder/config.json |
 | ByteZSzn/Flux.2-Turbo-ComfyUI, Comfy-Org/flux2-dev | `Flux_2-Turbo-LoRA_comfyui` | other (flux-dev-non-commercial-license) | [fal/FLUX.2-dev-Turbo](https://huggingface.co/fal/FLUX.2-dev-Turbo) | same sha256 as the file in fal's comfy/ |
@@ -481,6 +490,14 @@ For the bundled list, `license_sources.apply_license_sources(db)` applies it wit
 | Comfy-Org/MOSS-Image | `qwen3.5_9b_*` | apache-2.0 | text_encoder of [OpenMOSS-Team/MOSS-Image-Base](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) (Qwen3.5-9B; Qwen/Qwen3.5-9B is also apache-2.0) | base_model of the repackager, text_encoder/config.json |
 | Kijai/SUPIR_pruned | `SUPIR-v0[QF]_*` | other (supir-non-commercial) | "Non-Commercial Use Only Declaration" of https://github.com/Fanghua-Yu/SUPIR | the official weight names |
 | Comfy-Org/stable-audio-3 | `t5gemma_b_b_ul2` | gemma (the origin requires an application) | [google/t5gemma-b-b-ul2](https://huggingface.co/google/t5gemma-b-b-ul2) | docs/conditioning.md of the official Stability-AI/stable-audio-tools |
+| OpenMOSS-Team/MOSS-Audio-Tokenizer | `model-0000[12]-of-00002` | apache-2.0 | the host's own card (`license: apache-2.0`) | MOSS-TTS v1.5's processor loads it by default (0.14.0, #142) |
+| ResembleAI/chatterbox | `ve.pt`, `s3gen.pt`, `conds.pt` | mit | the host's own card (`license: mit`) | the official src/chatterbox/mtl_tts.py loads them (0.14.0, #142) |
+| Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice, -0.6B-CustomVoice | `speech_tokenizer/model.safetensors` | apache-2.0 | [Qwen/Qwen3-TTS-Tokenizer-12Hz](https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz) (`license: apache-2.0`) | same sha256 (0.14.0, #142) |
+| openbmb/VoxCPM2 | `audiovae.pth` | apache-2.0 | the host's own card (`license: apache-2.0`) | the official src/voxcpm/model/voxcpm2.py loads it (0.14.0, #142) |
+| FunAudioLLM/Fun-CosyVoice3-0.5B-2512 | `llm.pt`, `flow.pt`, `hift.pt`, `campplus.onnx`, `speech_tokenizer_v3.onnx` | apache-2.0 | the host's own card (`license: apache-2.0`) | the official cosyvoice/cli/cosyvoice.py loads them (0.14.0, #142) |
+| k2-fsa/OmniVoice | `audio_tokenizer/model.safetensors` (matched on the whole path) | other (boson-higgs-audio-2-community-license) | [bosonai/higgs-audio-v2-tokenizer](https://huggingface.co/bosonai/higgs-audio-v2-tokenizer) (LICENSE in the same folder: "BOSON HIGGS AUDIO 2 COMMUNITY LICENSE AGREEMENT", based on the Llama 3 license; over 100,000 annual users needs another license) | same sha256 (0.14.0, #142) |
+| Serveurperso/Qwen3-TTS-GGUF | `qwen-tokenizer-12hz-*.gguf` | apache-2.0 | [Qwen/Qwen3-TTS-Tokenizer-12Hz](https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz) (`license: apache-2.0`) | the host's card: "Audio codec : Qwen3-TTS-Tokenizer-12Hz (Qwen team), Apache 2.0" (0.14.0, #142) |
+| audio-cpp/AuK-Base-and-Flash-GGUF | `qwen2.5-omni-3b-(bf16\|q8_0).gguf` | other (qwen-research; non-commercial) | [Qwen/Qwen2.5-Omni-3B](https://huggingface.co/Qwen/Qwen2.5-Omni-3B) (`license: other`, `license_name: qwen-research`; LICENSE 2.a "FOR NON-COMMERCIAL PURPOSES ONLY") | the host's card: "The Qwen component is Qwen2.5-Omni-3B". The host's `license: mit` covers only the AuK part (0.14.0, #143) |
 | Comfy-Org/void-model | `cogvideox_vae` | apache-2.0 | [zai-org/CogVideoX-2b](https://huggingface.co/zai-org/CogVideoX-2b): "including its corresponding Transformers module and VAE module … Apache 2.0" | same sha256 as the VAE of alibaba-pai/CogVideoX-Fun-V1.5-5b-InP. The 2b and 5b VAEs are the same |
 | Comfy-Org/HuMo_ComfyUI | `whisper_large_v3_fp16` | apache-2.0 | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) | same sha256 |
 | Comfy-Org/PixelDiT | `gemma_2_2b_it_elm_*` | gemma (the origin requires an application) | [google/gemma-2-2b-it](https://huggingface.co/google/gemma-2-2b-it) | card of the original nvidia/PixelDiT-1300M-1024px: "Text encoder: Gemma-2-2B-IT" |
@@ -535,7 +552,7 @@ Applying the table to the list built on 2026-10-20 (the bundled one at that time
 
 It is the strictest among **all files** (main file, text encoder, VAE, LoRA, clip_vision, upscaler, ControlNet and so on, everything the template uses).
 If no file is written at all, it is unknown.
-`license_name` is that of the strictest file, and `license_url` is where that file's license entry is.
+`license_name` is that of the strictest file, and `license_url` is where that file's license entry is. But if a main file (`role: main`; the largest if several) has the same license, its entry is used (0.14.0, #144: with several files at the same tier the choice went by name, so a component's place showed, such as the VAE's Wan2.1-T2V-14B as the `license_url` of Wan 2.2 Fun Control; 80 entries changed to the main file's place).
 `license_evidence` collects the reasons from the files' `license_unverified` (up to 10).
 
 ## Language, runtime, description, and manually added models
@@ -601,7 +618,7 @@ When there are several components:
 - If all are English-only components, the result is English only.
 - If a component not in the table is mixed in (Gemma, Mistral, Llama, Qwen3-VL, gpt-oss and so on; the card has no language description, or it was not checked), it is left undecided (the card is used as is, if there is one).
 
-The hand table `src/genmodelfit/data/overrides.json` has 16 rows.
+The hand table `src/genmodelfit/data/overrides.json` has 35 rows (16 for languages and descriptions, and 19 that only set the runtime of HF speech models; see "Runtime". MeloTTS-English has a runtime added to its language row). Of the 16 for languages and descriptions:
 
 9 were checked by the app on a real machine (matched to `notes` of AI生成キット's catalog.json and the real-machine checks):
 
@@ -640,11 +657,12 @@ The other 4 rows are Qwen-Image 2.1 (0.12.0, #81):
 - `zh` is not added: the Qwen-Image 2.1 card (https://huggingface.co/Qwen/Qwen-Image-2.1 , checked on 2026-10-28) has no
   language description.
 
-The manual models `src/genmodelfit/data/manual.json` (3 rows):
+The manual models `src/genmodelfit/data/manual.json` (4 rows):
 
 - Tsukuyomi-chan: `speech` is `ja` `en`. The card (https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan) `language` lists 6 languages (ja en zh es fr pt), but the app confirmed only Japanese and English on a real machine, so only those.
 - Irodori-TTS: `ja` (`language: ja` on the card).
 - Stable Audio 3 Small music: `prompt` is `en`, `speech` is `[]`.
+- Supertonic 3: `speech` is the 31 languages of the card (the card's `language` and the "Supported Languages" table in its body agree).
 
 ### Runtime
 
@@ -652,8 +670,10 @@ Field `runtime`.
 
 - From an official template: `comfyui`.
 - From HF: only items that match a ComfyUI family (`comfy_family`) and are not speech get `comfyui`.
-  Speech is not decided because each model works differently (= null).
-- Manual models use the value written (`piper`, `irodori-tts`, `comfyui`).
+- Speech from HF works differently for each model, so no rule decides it; only what the hand table says (`runtime` in
+  `overrides.json`; 0.14.0, #142; checked against the card's usage, `library_name` and the official README, with the basis
+  in the row's `_note`; all 20 in the list on 2026-10-31): `cosyvoice` `audio-cpp` `transformers` `qwen-tts` `chatterbox` `qwentts-cpp` `parler-tts` `sglang-omni` `higgs-audio-v3-studio` `kokoro` `omnivoice` `vibevoice` `melotts` `voxcpm` `vieneu` `speechbrain`. Speech not in the hand table is null.
+- Manual models use the value written (`piper`, `irodori-tts`, `supertonic`, `comfyui`).
 - For a model whose value is neither `comfyui` nor null, the estimate also counts files in formats ComfyUI does not use, such as `.onnx` (`estimate.select_files`; Tsukuyomi-chan's weights are onnx).
 - The way other models are counted is unchanged.
 
@@ -682,6 +702,7 @@ update puts them through the same path as other models:
 - It also fetches the card of `license_from`. If it disagrees with the written value, the **stricter** is used and a warning is issued
   (`appinfo.verify_manual_licenses`; if the card cannot be read, the written value is kept and a warning is issued).
 - If the written value is a stricter tier than the card, no warning is issued, because it was made stricter by reading the restrictions in the body (Irodori-TTS).
+- If `license` equals the card's and the card has no `license_name`, the written `license_name` is taken as a refinement from the body (LICENSE): no warning and no rewrite (0.14.0, #127. Supertonic 3's card says only `openrail` and its LICENSE body is Open RAIL-M, so `openrail` / `openrail-m`; AI生成キット's allow-list checks the name too). The LICENSE URL goes in `license_evidence`.
 
 About paths:
 
@@ -696,7 +717,7 @@ Merging with HF collection:
 
 Gate:
 
-- Manual models whose `runtime` is not `comfyui` (piper, irodori-tts) are put on hold by gate with `app_runtime`, instead of `official_workflow`, `custom_nodes` and `comfyui_version`
+- Manual models whose `runtime` is not `comfyui` (piper, irodori-tts, supertonic) are put on hold by gate with `app_runtime`, instead of `official_workflow`, `custom_nodes` and `comfyui_version`
   (this list cannot verify how they run. See [gate.md](gate.md)).
 
 Sources of the first 3 (checked on 2026-10-21 with the HF API and the card text. sha256 and size match `lfs` in the Hub API.
@@ -707,6 +728,7 @@ For small non-LFS files, the file was actually downloaded and its sha256 compute
 | `manual:tsukuyomi-chan-piper-plus` | `other` / `tsukuyomi-chan-corpus` (Tsukuyomi-chan corpus terms of use; not in SPDX) | the card https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan: `license: other`, `license_name: tsukuyomi-chan-corpus`, `license_link: https://tyc.rei-yumesaki.net/material/corpus/#terms3`. It has a credit requirement and prohibited uses of the output audio (the app's `credit` / `conditions`; not held in the schema) |
 | `manual:irodori-tts-v4.1-small` | `other` / `mit-with-ethical-restrictions` (the tier with use restrictions. The voice codec is `mit`) | The cardData of https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small is `license: mit` and the body says "released under MIT". But the same card's "Ethical Restrictions" (https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small#ethical-restrictions: do not imitate a real person's voice without consent, do not make audio for deepfakes or disinformation) restricts use, so it does not go in the permissive tier (it also does not match `mit` in gate's allow-list). The voice codec https://huggingface.co/Aratako/Semantic-DACVAE-Japanese-32dim is also `license: mit` (the original facebook/dacvae-watermarked is `apache-2.0`) |
 | `manual:stable-audio-3-small-music` | `other` / `stable-audio-community`; the text-reading component `t5gemma_b_b_ul2` is `gemma` | the card https://huggingface.co/stabilityai/stable-audio-3-small-music (`license: other`, `license_name: stable-audio-community`, `gated: auto`). The same repository has `LICENSE_GEMMA.md`. The URL is a copy at the non-gated https://huggingface.co/Comfy-Org/stable-audio-3 (`stable_audio_3_small_music.safetensors`, `t5gemma_b_b_ul2.safetensors`). The T5Gemma entry is the same as `audio_stable_audio_3_medium`, which uses the same file (`stable-audio-3-t5gemma` in `license_sources`) |
+| `manual:supertonic-3` (0.14.0, #127; checked on 2026-10-31) | `openrail` / `openrail-m` (BigScience Open RAIL-M; the tier with use restrictions; the name from the LICENSE body) | the card of https://huggingface.co/Supertone/supertonic-3 at revision `3cadd1ee6394` (`license: openrail`; the body says "The accompanying model is released under the OpenRAIL-M License"; the sample code is MIT) and `LICENSE` at the same revision (Attachment A use restrictions: no impersonation or deepfakes without consent, and others). The file URLs are pinned to the revision, `resolve/<revision>/…` (with main, the sha256 would stop matching when the content changes). 16 files, 401,276,744 bytes in total. For the 4 `.onnx` files the first 8 MB were read with Range and every weight was float32, so the header precision `fp32` is written (the card's "about 99M parameters" and the total size also match at 4 bytes each). `config.json` only exists to count downloads and the SDK does not use it, so it is left out. The developer's GitHub (supertone-inc/supertonic) is archived ("This repository is archived. Development and support have ended."), so no updates or fixes will come. The weights are also at supertone-oss-archive/supertonic-3 with the same LFS oids (also written in `license_evidence`) |
 
 Manual models with a Hugging Face repository join the Hugging Face pool of the popularity rank (`popularity`), but they have no all-time download count (`downloads_all_time`), so their rank is 0 (the bottom; [scoring.md](scoring.md) "Popularity").
 
@@ -717,7 +739,7 @@ Manual models with a Hugging Face repository join the Hugging Face pool of the p
 The HF collection picks up only the repository's main model (and components in the same repository), so components in a different repository can be missing.
 `components` is a table "model ID → files to add". update (rebuild, `--heads-only`, `--fields-only`) applies it every time inside `appinfo.merge_manual`
 (a file with the same URL is not added twice; applying it any number of times gives the same result).
-**The license is not written in the table. It is decided by a row of the component source table (`license_sources.py`, the "Source table" above)**
+**The license is not written in the table. It is decided by a row of the component source table (`license_sources.py`, the "Source table" above)** (A row whose name pattern contains `/` is matched against the whole path in the repository, to tell `model.safetensors` from `audio_tokenizer/model.safetensors` in the same repository; 0.14.0, #142. URLs of parts added from then on are pinned to a revision.)
 (no row means unknown, so it never errs on the permissive side).
 The reason the model uses that component goes in `evidence`, and it is left at the end of the file's `license_evidence` as `manual_component: <reason>`.
 The ID is not changed (this keeps the ID on the user side).
@@ -725,6 +747,14 @@ The ID is not changed (this keeps the ID on the user side).
 | ID | File added | License | Where checked (2026-10-21) |
 |---|---|---|---|
 | `hf:stabilityai/stable-audio-3-small-sfx` | `text_encoders/t5gemma_b_b_ul2.safetensors` of https://huggingface.co/Comfy-Org/stable-audio-3 (sha256 `1e1eba25…`, 1,187,264,003 bytes. T5Gemma for ComfyUI) | `gemma` (`stable-audio-3-t5gemma` in `license_sources`) | Hub API of https://huggingface.co/stabilityai/stable-audio-3-small-sfx: it has the files `t5gemma-b-b-ul2/model.safetensors` (sha256 `9b05ea5a…` = same as `model.safetensors` of https://huggingface.co/google/t5gemma-b-b-ul2; google/t5gemma-b-b-ul2 is `license: gemma`) and `LICENSE_GEMMA.md`, and the application text (`extra_gated_prompt`) says "This model also includes components redistributed under the Gemma Terms of Use (https://ai.google.dev/gemma/terms)". Stability AI's https://github.com/Stability-AI/stable-audio-tools/blob/main/docs/conditioning.md: "This uses a T5Gemma (https://huggingface.co/google/t5gemma-b-b-ul2) encoder" |
+| `hf:OpenMOSS-Team/MOSS-TTS-v1.5` (0.14.0, #142; this and below checked on 2026-10-31) | `model-00001-of-00002.safetensors` and `model-00002-of-00002.safetensors` of https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer (7,098,461,728 bytes in total; the audio tokenizer) | `apache-2.0` (`moss-audio-tokenizer`) | `from_pretrained` in MOSS-TTS v1.5's `processing_moss_tts.py` (revision cdd3b911) loads `OpenMOSS-Team/MOSS-Audio-Tokenizer` unless told otherwise |
+| `hf:ResembleAI/chatterbox` | `s3gen.pt` (1,057,165,844 bytes), `ve.pt` and `conds.pt` in the same repository | `mit` (`chatterbox-parts`) | `from_pretrained` / `from_local` in `src/chatterbox/mtl_tts.py` of https://github.com/resemble-ai/chatterbox (commit 5de7a54a) load them. Using the listed main file `t3_mtl23ls_v3.safetensors` needs `t3_model="v3"` (without it, v2) |
+| `hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice`, `-0.6B-CustomVoice` | `speech_tokenizer/model.safetensors` in the same repository (682,293,092 bytes) | `apache-2.0` (`qwen3-tts-speech-tokenizer`) | `from_pretrained` in `modeling_qwen3_tts.py` of https://github.com/QwenLM/Qwen3-TTS (commit 022e286b) downloads and loads `speech_tokenizer/` (and stops without it) |
+| `hf:openbmb/VoxCPM2` | `audiovae.pth` in the same repository (376,951,122 bytes) | `apache-2.0` (`voxcpm2-audiovae`) | `src/voxcpm/model/voxcpm2.py` of https://github.com/OpenBMB/VoxCPM (commit cce58a5b) loads it (and stops without it). The ZipEnhancer denoiser is on ModelScope and the card's example uses `load_denoiser=False`, so it is not added |
+| `hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512` | `llm.pt`, `flow.pt`, `hift.pt`, `speech_tokenizer_v3.onnx`, `campplus.onnx` in the same repository (4,434,743,215 bytes in total; URLs pinned to revision 29e01c4e) | `apache-2.0` (`cosyvoice3-parts`) | `CosyVoice3` in `cosyvoice/cli/cosyvoice.py` of https://github.com/FunAudioLLM/CosyVoice (commit 074ca6dc) loads them. `CosyVoice-BlankEN` is Qwen's config and tokenizer and `llm.pt` overwrites its weights, so the estimate may count the LLM twice and come out high |
+| `hf:k2-fsa/OmniVoice` | `audio_tokenizer/model.safetensors` in the same repository (805,665,628 bytes; pinned to revision c5fdb5cc) | `other` / `boson-higgs-audio-2-community-license` (`omnivoice-audio-tokenizer`); the file set stays at the main file's `cc-by-nc` | `omnivoice/models/omnivoice.py` of https://github.com/k2-fsa/OmniVoice (commit 08be0b4c) loads `audio_tokenizer/` |
+| `hf:Serveurperso/Qwen3-TTS-GGUF` | `qwen-tokenizer-12hz-Q8_0.gguf` in the same repository (291,150,624 bytes; pinned to revision b7ee2e8c) | `apache-2.0` (`qwentts-cpp-tokenizer`) | the card: "The tokenizer is shared across every talker". The listed talker is Q8_0, so Q8_0 |
+| `hf:audio-cpp/AuK-Base-and-Flash-GGUF` (0.14.0, #143) | `qwen2.5-omni-3b-q8_0.gguf` in the same repository (4,253,964,480 bytes; Qwen2.5-Omni-3B) | `other` / `qwen-research` (`auk-qwen2.5-omni-3b`). The file-set license takes this strictest one, so it becomes non-commercial | the card (revision 2814a16a): "The default components are `auk-base-f32.gguf`, `qwen2.5-omni-3b-bf16.gguf`, and `auk-vae-f32.gguf`. … The Qwen component is Qwen2.5-Omni-3B". The listed main file is `auk-base-q8_0.gguf`, so the Q8_0 Qwen that the card's validation table pairs with it is added. The README of the developer's https://github.com/Tencent-Hunyuan/AuK (commit 0d40366b) also passes Qwen/Qwen2.5-Omni-3B as `--qwen_path` |
 
 The other Stable Audio 3 items (`audio_stable_audio_3_medium`, `_medium_base`, `manual:stable-audio-3-small-music`) already have the same component
 (tests/test_appinfo.py checks that every Stable Audio 3 item has a `gemma` T5Gemma).

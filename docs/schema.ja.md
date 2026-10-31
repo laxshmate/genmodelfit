@@ -436,7 +436,7 @@ Python の `Fit.to_dict()` は、まさにこの dict を返す(`gmf.recommend()
 | `name`、`modality`、`tasks` | | modality は `image` `video` `music` `sfx` `tts` `3d` のどれか。`tasks` はリスト(`t2i`、`i2v` など) |
 | `content` | str | `sfw` または `uncensored`([README](../README.ja.md) を参照) |
 | `source` | str | `comfyui-template` / `huggingface` / `manual` |
-| `runtime` | str \| null | モデルの動かし方: `comfyui` / `piper` / `irodori-tts` など(`ModelEntry.runtime`、0.5.0)。null は不明 |
+| `runtime` | str \| null | モデルの動かし方: `comfyui` / `piper` / `irodori-tts` / `supertonic` など(`ModelEntry.runtime`、0.5.0)。null は不明 |
 | `languages` | object | `{"prompt": [...], "speech": [...]}`。ISO 639-1(`ModelEntry.languages`、0.5.0)。キーが無ければ不明、`[]` は無し(画像から 3D のモデルはプロンプトを取らない。歌声の無い音楽のモデルに speech は無い) |
 | `description` | object | `{"ja": "...", "en": "..."}`。手書きで、一部のモデルだけ(`ModelEntry.description`、0.5.0)。`{}` は無し |
 | `fit_level` | str | `perfect` / `good` / `marginal` / `too_tight`(= `estimate.fit`)。大きさが不明で何も判定していないときは `unknown`(0.1.1。0.1.0 まではこれらは `too_tight` だった) |
@@ -889,7 +889,7 @@ Python の `gmf.info(model_id)` は、id の完全一致だけで探し、無け
 
 ### ModelEntry
 
-`id`、`name`、`modality`、`tasks`、`source`、`files`(ModelFile[])、`template`(Template \| null)、`params_b`、`precision`、`license`、`license_url`、`base_model`、`content`、`content_evidence`(str[]: 無検閲とした理由)、`discovered_from`(str[]: 見つけた場所)、`updated`、`homepage`、`downloads` / `likes`(int \| null: Hugging Face の数。`source: huggingface` に入る。`downloads` は直近 30 日)、`downloads_all_time`(int \| null: 通算のダウンロード数。入れる下限に使う)、`total_size_bytes`、`license_name`(`other` のライセンスの名前。最も厳しいファイルから)、`license_evidence`(str[]: ライセンスが不明な理由。項目は `license_unverified:` で始まる)、`files_complete`、`size_floor_bytes`(下)、`workflow_precision`(str \| null: テンプレートの主なローダのノードから推した精度。上の「Models」を参照。任意、0.2.0)、`precision_source`(str \| null: `header` / `filename` / `hf_api` / `config` / `workflow`。`precision` の出どころ。null は不明または古いデータ。任意、0.2.0)。
+`id`、`name`、`modality`、`tasks`、`source`、`files`(ModelFile[])、`template`(Template \| null)、`params_b`、`precision`、`license`、`license_url`、`base_model`(genmodelfit では「再配布されたファイルの元のリポジトリ」: 公式テンプレートは本体のファイルの `license_from`、HF 由来はそのリポジトリのカードの `base_model` の最初のもの、手のモデルは書いた値。テンプレートでは HF のカードの `base_model`(元の元)ではない。0.14.0、#144)、`content`、`content_evidence`(str[]: 無検閲とした理由)、`discovered_from`(str[]: 見つけた場所)、`updated`、`homepage`、`downloads` / `likes`(int \| null: Hugging Face の数。`source: huggingface` に入る。`downloads` は直近 30 日)、`downloads_all_time`(int \| null: 通算のダウンロード数。入れる下限に使う)、`total_size_bytes`、`license_name`(`other` のライセンスの名前。最も厳しいファイルから。手のモデルでは、カードと同じ `license` を本文で細かくした名前のこともある: `openrail` / `openrail-m`。0.14.0)、`license_evidence`(str[]: ライセンスが不明な理由。項目は `license_unverified:` で始まる)、`files_complete`、`size_floor_bytes`(下)、`workflow_precision`(str \| null: テンプレートの主なローダのノードから推した精度。上の「Models」を参照。任意、0.2.0)、`precision_source`(str \| null: `header` / `filename` / `hf_api` / `config` / `workflow`。`precision` の出どころ。null は不明または古いデータ。任意、0.2.0)。
 
 **一覧だけで画面を作るアプリのために**(0.5.0、#36。すべて任意で、`schema_version` は 1 のまま。古い読み手は知らないキーを捨てる。「Database file」を参照):
 
@@ -901,7 +901,7 @@ Python の `gmf.info(model_id)` は、id の完全一致だけで探し、無け
   - カードが無ければ、既知のテキストエンコーダから `["en"]` になる(多言語のエンコーダだけで `ja` を足すことはない)。
   - 何も決まらなければ、キーを出さない(推測しない)。必要な言語が入っているかを調べること。
 - `card_languages`(str[] \| null): `update` / `update --fields-only` が保存した、Hugging Face のカードの `language`(`languages` の材料。だからオフラインでの適用し直しでも同じ結果になる)。`[]` はカードを読んだが言語が無い、null は読んでいない。
-- `runtime`(str \| null): 公式テンプレート、およびファイルが ComfyUI の系統に合う Hugging Face の image / video / music / sfx / 3D のエントリでは `comfyui`。手で足した読み上げのモデルでは `piper`、`irodori-tts`。null は未決定。`comfyui` 以外(と null 以外)の runtime では、推定器が `.onnx` などの ComfyUI 以外の重みのファイルも数える。
+- `runtime`(str \| null): 公式テンプレート、およびファイルが ComfyUI の系統に合う Hugging Face の image / video / music / sfx / 3D のエントリでは `comfyui`。手で足した読み上げのモデルでは `piper`、`irodori-tts`、`supertonic`。Hugging Face の読み上げは手の表(`overrides.json`)に書いた値(`transformers`・`qwen-tts`・`chatterbox` など。0.14.0、#142)。null は未決定。`comfyui` 以外(と null 以外)の runtime では、推定器が `.onnx` などの ComfyUI 以外の重みのファイルも数える。
 - `description`(`{"ja": str, "en": str}`): 手書きの短い説明。あるモデルだけ。
 - `source: "manual"`(id は `manual:<slug>`): `src/genmodelfit/data/manual.json` に手で足したモデル(`template` は null)。ファイルごとのライセンスは、足した人が上流のカードから読んだもの(`license_evidence` が `manual:` で始まる)。`update` はそれを `license_from` のカードと比べ、食い違えば厳しいほうを取る(警告つき)。
 - 手で足した部品(0.6.0、#40): `src/genmodelfit/data/manual.json` の `components` が、Hugging Face のコレクションが拾わないファイルを、別の出どころのエントリに足す(最初の例: `hf:stabilityai/stable-audio-3-small-sfx` の T5Gemma テキストエンコーダ。Gemma 利用規約)。ライセンスは手で書かない。ファイルごとの出どころの表(`license_sources.py`。行が無ければ不明)から来る。`license_evidence` は `manual_component: <このモデルがそのファイルを使う理由>` で終わる。`update` は(どのモードでも)毎回これを適用する。

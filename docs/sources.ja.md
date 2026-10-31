@@ -262,7 +262,8 @@ Wan VACE 14B の 1.3B の枝・HunyuanVideo 1.5 720p の 1080p の仕上げ・FL
 表の行のうち**上書きの行**(`override=True`)は、自動で決まっていても当てる(0.1.1 のレビュー)。自動の決め方が
 cardData の寛容な表記だけを見て本文の規約を見落とすもの(ChronoEdit の LoRA: cardData は apache-2.0、本文は
 「Governing Terms: … NVIDIA Open Model License」。nvidia/ChronoEdit-14B-Diffusers の lora/ と sha256 が同じ)と、
-違う元をたどるもの(InfiniteTalk → MeiGen-AI/InfiniteTalk、Wan 2.1 I2V 480P → Wan-AI/Wan2.1-I2V-14B-480P)だけ。
+違う元をたどるもの(InfiniteTalk → MeiGen-AI/InfiniteTalk、Wan 2.1 I2V 480P → Wan-AI/Wan2.1-I2V-14B-480P、Wan の Fun の Control・InP・Camera 1.3B、Qwen-Image・Qwen-Image-Edit(2509)・ERNIE-Image・LongCat-Image・Wan ATI。0.14.0、#144)だけ。
+Wan の Fun は、再配布の README の元の候補(`hf.choose_bases`)が名前の重なりで同点になり(大きさの語は数えないので `Fun-A14B-Control` と `Fun-A14B-Control-Camera`、`Fun-V1.1-1.3B-Control-Camera` と `-14B-` が同点)、同点のうち名前の順で後のもの(`_worst`)をたどっていた。ライセンスはどれも apache-2.0 で変わらないが、`license_from`・`license_url`・テンプレートの `base_model` が別の版になっていた。同点の決め方を全体で変えると 50 件ほどのファイルの元が変わり、そのうち誤るものもあった(Hunyuan3D の mv が元の 2 になる・A14B の Control が 5B になる など)ので、表の行で直した。
 前に表で決めたファイル(`license_source:<行>` の印)は、表の行を直したら当て直す。
 元のライセンスを読めない系統(`hf.LINEAGES`。VOID など)のファイルは、自動で決まっていても不明に戻す
 (`license_sources.enforce_lineage`。gate と同じ判定なので、一覧のデータと gate の答えがそろう)。
@@ -417,6 +418,12 @@ NewBie の `gemma_3_4b_it_bf16`、FLUX.2 klein 9B の `qwen_3_8b*`、Krea-2・Ma
 | circlestone-labs/Anima | `qwen_3_06b_base` | apache-2.0 | [Qwen/Qwen3-0.6B-Base](https://huggingface.co/Qwen/Qwen3-0.6B-Base) | sha256 が同じ |
 | Comfy-Org/Wan_2.2_ComfyUI_Repackaged | `chrono_edit_14B_*`・`chronoedit_distill_lora` | other(nvidia-open-model-license)(上書きの行) | [nvidia/ChronoEdit-14B-Diffusers](https://huggingface.co/nvidia/ChronoEdit-14B-Diffusers)(本文「Governing Terms: … NVIDIA Open Model License Agreement」) | 本体は再配布の README の元。LoRA は sha256 が元の lora/chronoedit_distill_lora.safetensors と同じ |
 | Comfy-Org/Wan_2.1_ComfyUI_repackaged | `wan2.1_infiniteTalk_{multi,single}_fp16` | apache-2.0(上書きの行) | [MeiGen-AI/InfiniteTalk](https://huggingface.co/MeiGen-AI/InfiniteTalk)(「The models in this repository are licensed under the Apache 2.0 License」) | 再配布の README の元(自動の決め方は別の元をたどっていた) |
+| Comfy-Org/Wan_2.2_ComfyUI_Repackaged | `wan2.2_fun_control_{high,low}_noise_14B_*`・`wan2.2_fun_control_5B_bf16` | apache-2.0(上書きの行) | [alibaba-pai/Wan2.2-Fun-A14B-Control](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control)・[alibaba-pai/Wan2.2-Fun-5B-Control](https://huggingface.co/alibaba-pai/Wan2.2-Fun-5B-Control)(どちらも `license: apache-2.0`) | 再配布の README の元(自動の決め方は Control-Camera をたどっていた。0.14.0、#144) |
+| Comfy-Org/Wan_2.2_ComfyUI_Repackaged | `wan2.2_fun_inpaint_{high,low}_noise_14B_*`・`wan2.2_fun_inpaint_5B_bf16` | apache-2.0(上書きの行) | [alibaba-pai/Wan2.2-Fun-A14B-InP](https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-InP)・[alibaba-pai/Wan2.2-Fun-5B-InP](https://huggingface.co/alibaba-pai/Wan2.2-Fun-5B-InP)(どちらも `license: apache-2.0`) | 再配布の README の元(自動の決め方は VACE-Fun をたどっていた。#144) |
+| Comfy-Org/Wan_2.1_ComfyUI_repackaged | `wan2.1_fun_control_1.3B_bf16`・`wan2.1_fun_camera_v1.1_1.3B_bf16` | apache-2.0(上書きの行) | [alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control](https://huggingface.co/alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control)・[alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera](https://huggingface.co/alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera)(どちらも `license: apache-2.0`) | 再配布の README の元(自動の決め方は 14B の Control-Camera をたどっていた。#144) |
+| Comfy-Org/Qwen-Image_ComfyUI・Qwen-Image-Edit_ComfyUI | `qwen_image_{bf16,fp8_e4m3fn}`・`qwen_image_edit_*`・`qwen_image_edit_2509_*` | apache-2.0(上書きの行) | [Qwen/Qwen-Image](https://huggingface.co/Qwen/Qwen-Image)・[Qwen/Qwen-Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit)・[Qwen/Qwen-Image-Edit-2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) | 再配布の cardData の base_model(自動の決め方は 2512・Edit-2511 をたどっていた。#144) |
+| Comfy-Org/ERNIE-Image・Comfy-Org/LongCat-Image | `ernie-image`・`longcat_image_bf16` | apache-2.0(上書きの行) | [baidu/ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image)・[meituan-longcat/LongCat-Image](https://huggingface.co/meituan-longcat/LongCat-Image) | 再配布の cardData の base_model(自動の決め方は Turbo・Edit-Turbo をたどっていた。#144) |
+| Kijai/WanVideo_comfy | `Wan2_1-I2V-ATI-14B_fp8_e4m3fn` | apache-2.0(上書きの行) | [bytedance-research/ATI](https://huggingface.co/bytedance-research/ATI) | Kijai の README「ATI: https://huggingface.co/bytedance-research/ATI」(自動の決め方は Wan2.1-VACE-14B をたどっていた。#144) |
 | Comfy-Org/Wan_2.1_ComfyUI_repackaged・Kijai/WanVideo_comfy_fp8_scaled | `wan2.1_i2v_480p_14B_*`・`Wan2_1-I2V-14B-480p_fp8_e4m3fn_scaled_KJ` | apache-2.0(上書きの行) | [Wan-AI/Wan2.1-I2V-14B-480P](https://huggingface.co/Wan-AI/Wan2.1-I2V-14B-480P)(LICENSE.txt。「licensed under the Apache 2.0 License」) | 再配布の README の元。Kijai のものはヘッダに img_emb があり VACE の層が無い(自動の決め方は 720P・VACE をたどっていた) |
 | Comfy-Org/ERNIE-Image | `ministral-3-3b` | apache-2.0 | [baidu/ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) の text_encoder(Ministral 3 3B。mistralai の Ministral-3-3B は全部 apache-2.0) | 再配布の README の元・text_encoder/config.json |
 | ByteZSzn/Flux.2-Turbo-ComfyUI・Comfy-Org/flux2-dev | `Flux_2-Turbo-LoRA_comfyui` | other(flux-dev-non-commercial-license) | [fal/FLUX.2-dev-Turbo](https://huggingface.co/fal/FLUX.2-dev-Turbo) | sha256 が fal の comfy/ のファイルと同じ |
@@ -426,6 +433,14 @@ NewBie の `gemma_3_4b_it_bf16`、FLUX.2 klein 9B の `qwen_3_8b*`、Krea-2・Ma
 | Comfy-Org/MOSS-Image | `qwen3.5_9b_*` | apache-2.0 | [OpenMOSS-Team/MOSS-Image-Base](https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base) の text_encoder(Qwen3.5-9B。Qwen/Qwen3.5-9B も apache-2.0) | 再配布の base_model・text_encoder/config.json |
 | Kijai/SUPIR_pruned | `SUPIR-v0[QF]_*` | other(supir-non-commercial) | https://github.com/Fanghua-Yu/SUPIR の「Non-Commercial Use Only Declaration」 | 公式の重みの名前 |
 | Comfy-Org/stable-audio-3 | `t5gemma_b_b_ul2` | gemma(元は申請が要る) | [google/t5gemma-b-b-ul2](https://huggingface.co/google/t5gemma-b-b-ul2) | 公式 Stability-AI/stable-audio-tools の docs/conditioning.md |
+| OpenMOSS-Team/MOSS-Audio-Tokenizer | `model-0000[12]-of-00002` | apache-2.0 | 置き場所自身のカード(`license: apache-2.0`) | MOSS-TTS v1.5 の processor が既定で読む(0.14.0、#142) |
+| ResembleAI/chatterbox | `ve.pt`・`s3gen.pt`・`conds.pt` | mit | 置き場所自身のカード(`license: mit`) | 公式の src/chatterbox/mtl_tts.py が読む(0.14.0、#142) |
+| Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice・-0.6B-CustomVoice | `speech_tokenizer/model.safetensors` | apache-2.0 | [Qwen/Qwen3-TTS-Tokenizer-12Hz](https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz)(`license: apache-2.0`) | sha256 が同じ(0.14.0、#142) |
+| openbmb/VoxCPM2 | `audiovae.pth` | apache-2.0 | 置き場所自身のカード(`license: apache-2.0`) | 公式の src/voxcpm/model/voxcpm2.py が読む(0.14.0、#142) |
+| FunAudioLLM/Fun-CosyVoice3-0.5B-2512 | `llm.pt`・`flow.pt`・`hift.pt`・`campplus.onnx`・`speech_tokenizer_v3.onnx` | apache-2.0 | 置き場所自身のカード(`license: apache-2.0`) | 公式の cosyvoice/cli/cosyvoice.py が読む(0.14.0、#142) |
+| k2-fsa/OmniVoice | `audio_tokenizer/model.safetensors`(パス全体で当てる) | other(boson-higgs-audio-2-community-license) | [bosonai/higgs-audio-v2-tokenizer](https://huggingface.co/bosonai/higgs-audio-v2-tokenizer)(同じフォルダの LICENSE「BOSON HIGGS AUDIO 2 COMMUNITY LICENSE AGREEMENT」。Llama 3 の規約が元で、年間 100,000 人を超えると別の許諾) | sha256 が同じ(0.14.0、#142) |
+| Serveurperso/Qwen3-TTS-GGUF | `qwen-tokenizer-12hz-*.gguf` | apache-2.0 | [Qwen/Qwen3-TTS-Tokenizer-12Hz](https://huggingface.co/Qwen/Qwen3-TTS-Tokenizer-12Hz)(`license: apache-2.0`) | 置き場所のカード「Audio codec : Qwen3-TTS-Tokenizer-12Hz (Qwen team), Apache 2.0」(0.14.0、#142) |
+| audio-cpp/AuK-Base-and-Flash-GGUF | `qwen2.5-omni-3b-(bf16\|q8_0).gguf` | other(qwen-research。非商用) | [Qwen/Qwen2.5-Omni-3B](https://huggingface.co/Qwen/Qwen2.5-Omni-3B)(`license: other`・`license_name: qwen-research`。LICENSE 2.a「FOR NON-COMMERCIAL PURPOSES ONLY」) | 置き場所のカード「The Qwen component is Qwen2.5-Omni-3B」。置き場所の `license: mit` は AuK の部分だけ(0.14.0、#143) |
 | Comfy-Org/void-model | `cogvideox_vae` | apache-2.0 | [zai-org/CogVideoX-2b](https://huggingface.co/zai-org/CogVideoX-2b)「including its corresponding Transformers module and VAE module … Apache 2.0」 | sha256 が alibaba-pai/CogVideoX-Fun-V1.5-5b-InP の VAE と同じ。2b と 5b の VAE は同じ |
 | Comfy-Org/HuMo_ComfyUI | `whisper_large_v3_fp16` | apache-2.0 | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) | sha256 が同じ |
 | Comfy-Org/PixelDiT | `gemma_2_2b_it_elm_*` | gemma(元は申請が要る) | [google/gemma-2-2b-it](https://huggingface.co/google/gemma-2-2b-it) | 元の nvidia/PixelDiT-1300M-1024px のカード「Text encoder: Gemma-2-2B-IT」 |
@@ -465,7 +480,7 @@ auto(HEAD の期限を見ないとき)は 83 → 99。新しく auto になる 1
 
 **すべてのファイル**(本体・テキストエンコーダ・VAE・LoRA・clip_vision・アップスケーラ・コントロールネットなど、
 テンプレートが使うもの全部)の中で一番厳しいもの。ファイルが 1 つも書かれていなければ不明。`license_name` は
-一番厳しいファイルのもの、`license_url` はそのファイルのライセンスの記載の場所。`license_evidence` には、ファイルの
+一番厳しいファイルのもの、`license_url` はそのファイルのライセンスの記載の場所。ただし同じライセンスの本体のファイル(`role: main`。複数なら大きいもの)があれば、その記載の場所(0.14.0、#144。同じ段階のファイルが複数あると名前の順で選ぶので、Wan 2.2 Fun Control の `license_url` が VAE の Wan2.1-T2V-14B になるなど、部品の場所が出ていた。80 件が本体の場所に変わった)。`license_evidence` には、ファイルの
 `license_unverified` の理由をまとめる(10 件まで)。
 
 ## 言語・動かし方・説明と、手で足すモデル
@@ -522,7 +537,7 @@ auto(HEAD の期限を見ないとき)は 83 → 99。新しく auto になる 1
 部品が複数あるとき: 多言語が 1 つでもあれば多言語、すべて英語の部品なら英語だけ、表に無い部品(Gemma・Mistral・Llama・
 Qwen3-VL・gpt-oss など。カードに言語の記述が無い、または確かめていない)が混じれば決めない(カードがあればカードのまま)。
 
-手の表 `src/genmodelfit/data/overrides.json` は 16 件。アプリが実機で確かめた 9 件(AI生成キットの catalog.json の `notes` と実機の確認に合わせた):
+手の表 `src/genmodelfit/data/overrides.json` は 35 件(言語・説明の 16 件と、HF の読み上げの動かし方だけの 19 件。動かし方は「動かし方」の節。MeloTTS-English は言語の行に動かし方を足した)。言語・説明の 16 件のうち、アプリが実機で確かめた 9 件(AI生成キットの catalog.json の `notes` と実機の確認に合わせた):
 Z-Image Turbo 2 件・Wan 2.1/2.2 は `prompt` が `en` `ja` `zh`(「日本語の指示もある程度理解しますが、英語で書くとより正確」
 「日本語・英語・中国語の指示を理解します」。Z-Image のカードは `en` だけだが、部品の Qwen3 で日本語の指示も通ることを実機で確かめた)、
 SDXL は `en` のみ(「日本語はほとんど理解しません」)、ACE-Step 1.5 は `prompt` が `en`(「曲の雰囲気は英語で書くとより正確」)・
@@ -544,16 +559,19 @@ including: English, Chinese, Russian, Spanish, Japanese, German, French, Portugu
 渡して正しく編集できた(Issue #81 の 2026-10-26 の追記)。Turbo の編集と文章から画像は日本語で試していないので付けない。
 `zh` は Qwen-Image 2.1 のカード(https://huggingface.co/Qwen/Qwen-Image-2.1 、2026-10-28 に確認)に言語の記述が無いので付けない。
 
-手のモデル `src/genmodelfit/data/manual.json` の 3 件: つくよみちゃんの `speech` は `ja` `en`: カード(https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan)の
+手のモデル `src/genmodelfit/data/manual.json` の 4 件: つくよみちゃんの `speech` は `ja` `en`: カード(https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan)の
 `language` は 6 言語(ja en zh es fr pt)だが、アプリが実機で確かめたのは日本語と英語だけなのでそれだけにした。
 Irodori-TTS は `ja`(カードの `language: ja`)。Stable Audio 3 Small の音楽は `prompt` が `en`・`speech` が `[]`。
+Supertonic 3 は `speech` がカードの 31 言語(カードの `language` と本文の「Supported Languages」の表が同じ)。
 
 ### 動かし方
 
 項目 `runtime`。
 
-公式テンプレート由来は `comfyui`。HF 由来は、読み上げ以外で ComfyUI の系統(`comfy_family`)に当たったものだけ `comfyui`
-(読み上げは仕組みがモデルごとに違うので決めない = null)。手のモデルは書いた値(`piper` `irodori-tts` `comfyui`)。
+公式テンプレート由来は `comfyui`。HF 由来は、読み上げ以外で ComfyUI の系統(`comfy_family`)に当たったものだけ `comfyui`。
+HF 由来の読み上げは仕組みがモデルごとに違うので、規則では決めず、手の表(`overrides.json` の `runtime`)に書いたものだけ
+(0.14.0、#142。カードの使い方・`library_name`・公式の README で確かめ、行の `_note` に根拠。2026-10-31 に一覧の 20 件すべて):
+`cosyvoice` `audio-cpp` `transformers` `qwen-tts` `chatterbox` `qwentts-cpp` `parler-tts` `sglang-omni` `higgs-audio-v3-studio` `kokoro` `omnivoice` `vibevoice` `melotts` `voxcpm` `vieneu` `speechbrain`。手の表に無い読み上げは null。手のモデルは書いた値(`piper` `irodori-tts` `supertonic` `comfyui`)。
 `comfyui` でも null でもない値のモデルは、見積もりが `.onnx` などの ComfyUI で使わない形式のファイルも数える
 (`estimate.select_files`。つくよみちゃんの重みは onnx)。それ以外のモデルの数え方は変えていない。
 
@@ -581,9 +599,10 @@ update は、ほかのモデルと同じ道に乗せる: 一式のライセン�
 `directory` に `/` を許さないので、そこには書かない)。
 HF の収集が手のモデルと同じリポジトリ(本体のファイルの `license_from` と `homepage`)を拾ったら、その `hf:` の項目は
 一覧に入れない(`appinfo.merge_manual`。部品の T5Gemma や、元のモデルの Irodori-TTS v4 は除かない)。
-`runtime` が `comfyui` 以外の手のモデル(piper・irodori-tts)は、判定(gate)の `official_workflow`・`custom_nodes`・
+`runtime` が `comfyui` 以外の手のモデル(piper・irodori-tts・supertonic)は、判定(gate)の `official_workflow`・`custom_nodes`・
 `comfyui_version` の代わりに `app_runtime` で保留にする(この一覧では動かし方を確かめられない。[gate.ja.md](gate.ja.md))。
 書いた値がカードより厳しい段階なら、本文の制限を読んで厳しくしたものとして警告しない(Irodori-TTS)。
+`license` がカードと同じで、カードに `license_name` が無ければ、書いた `license_name` は本文(LICENSE)で細かくしたものとして、警告も書き換えもしない(0.14.0、#127。Supertonic 3 はカードが `openrail` だけで、LICENSE の本文が Open RAIL-M なので `openrail` / `openrail-m`。AI生成キットの許可リストは名前まで見る)。根拠の LICENSE の URL は `license_evidence` に書く。
 
 最初の 3 件の出典(2026-10-21 に HF の API とカードの原文で確かめた。sha256 と大きさは Hub API の `lfs` と一致。
 LFS でない小さいファイルは実際に落として sha256 を計算した):
@@ -593,6 +612,7 @@ LFS でない小さいファイルは実際に落として sha256 を計算し�
 | `manual:tsukuyomi-chan-piper-plus` | `other` / `tsukuyomi-chan-corpus`(つくよみちゃんコーパス利用規約。SPDX に無い) | https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan のカードの `license: other`・`license_name: tsukuyomi-chan-corpus`・`license_link: https://tyc.rei-yumesaki.net/material/corpus/#terms3`。クレジット表記と出力音声の用途の禁止事項がある(アプリの `credit` / `conditions`。スキーマには持たない) |
 | `manual:irodori-tts-v4.1-small` | `other` / `mit-with-ethical-restrictions`(用途の制限付きの段。声のコーデックは `mit`) | https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small のカードの cardData は `license: mit`・本文「released under MIT」だが、同じカードの「Ethical Restrictions」(https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small#ethical-restrictions。実在の人の声を同意なくまねない・ディープフェイクや偽情報の音声をつくらない)が用途を制限するので、寛容の段に入れない(gate の許可リストの `mit` にも当たらない)。声のコーデック https://huggingface.co/Aratako/Semantic-DACVAE-Japanese-32dim も `license: mit`(元の facebook/dacvae-watermarked は `apache-2.0`) |
 | `manual:stable-audio-3-small-music` | `other` / `stable-audio-community`、文字を読む部品 `t5gemma_b_b_ul2` は `gemma` | https://huggingface.co/stabilityai/stable-audio-3-small-music のカード(`license: other`・`license_name: stable-audio-community`、`gated: auto`)。同じリポジトリに `LICENSE_GEMMA.md` がある。URL は gated でない https://huggingface.co/Comfy-Org/stable-audio-3 の複製(`stable_audio_3_small_music.safetensors`・`t5gemma_b_b_ul2.safetensors`)。T5Gemma の記載は、同じファイルを使う `audio_stable_audio_3_medium` と同じ(`license_sources` の `stable-audio-3-t5gemma`) |
+| `manual:supertonic-3`(0.14.0、#127。2026-10-31 に確かめた) | `openrail` / `openrail-m`(BigScience Open RAIL-M。用途の制限付きの段。名前は LICENSE の本文から) | https://huggingface.co/Supertone/supertonic-3 の版 `3cadd1ee6394` のカード(`license: openrail`、本文「The accompanying model is released under the OpenRAIL-M License」。サンプルのコードは MIT)と、同じ版の `LICENSE`(Attachment A の使用制限: 同意のないなりすまし・ディープフェイクの禁止など)。ファイルの URL は版を固定した `resolve/<版>/…`(main だと中身が変わったときに sha256 が合わなくなる)。16 個・合計 401,276,744 バイト。`.onnx` の 4 個は Range で先頭 8 MB を読み、重みがすべて float32 だったので見出しの精度 `fp32` を書いた(カードの「about 99M parameters」と合計の大きさも 1 個 4 バイトで合う)。`config.json` はダウンロード数を数えるための飾りで、SDK が使わないので入れない。開発元の GitHub(supertone-inc/supertonic)はアーカイブ済み(「This repository is archived. Development and support have ended.」)で、更新・修正は出ない。重みは supertone-oss-archive/supertonic-3 にも同じ LFS の oid で置かれている(`license_evidence` にも書いた) |
 
 手のモデルは、HF のリポジトリがあれば人気の順位(`popularity`)の Hugging Face の仲間に入るが、全期間のダウンロード数(`downloads_all_time`)を持たないので順位は 0(一番下。[scoring.ja.md](scoring.ja.md)「人気」)。
 
@@ -603,13 +623,21 @@ LFS でない小さいファイルは実際に落として sha256 を計算し�
 HF の収集はリポジトリの本体(と同じリポジトリの部品)だけを拾うので、別のリポジトリにある部品が抜けることがある。
 `components` は「モデルの ID → 足すファイル」の表で、update(作り直し・`--heads-only`・`--fields-only`)が
 `appinfo.merge_manual` の中で毎回当てる(同じ URL のファイルがあれば足さない。何度当てても同じ)。
-**ライセンスは表に書かず、部品の出どころの表(`license_sources.py`、上の「出どころの表」)の行で決める**
+**ライセンスは表に書かず、部品の出どころの表(`license_sources.py`、上の「出どころの表」)の行で決める**(行の名前の型に `/` があれば、リポジトリの中のパス全体に当てる。同じリポジトリの `model.safetensors` と `audio_tokenizer/model.safetensors` を分けるため。0.14.0、#142。後から足す部品の URL は版に固定する)
 (行が無ければ不明。寛容な側に誤らない)。そのモデルがその部品を使う根拠は `evidence` に書き、
 ファイルの `license_evidence` の最後に `manual_component: <根拠>` として残す。ID は変えない(使う側の ID を保つ)。
 
 | ID | 足すファイル | ライセンス | 確かめた場所(2026-10-21) |
 |---|---|---|---|
 | `hf:stabilityai/stable-audio-3-small-sfx` | https://huggingface.co/Comfy-Org/stable-audio-3 の `text_encoders/t5gemma_b_b_ul2.safetensors`(sha256 `1e1eba25…`、1,187,264,003 バイト。ComfyUI 用の T5Gemma) | `gemma`(`license_sources` の `stable-audio-3-t5gemma`) | https://huggingface.co/stabilityai/stable-audio-3-small-sfx の Hub API: ファイルに `t5gemma-b-b-ul2/model.safetensors`(sha256 `9b05ea5a…` = https://huggingface.co/google/t5gemma-b-b-ul2 の `model.safetensors` と同じ。google/t5gemma-b-b-ul2 は `license: gemma`)と `LICENSE_GEMMA.md` があり、利用申請の文(`extra_gated_prompt`)に「This model also includes components redistributed under the Gemma Terms of Use (https://ai.google.dev/gemma/terms)」。Stability AI の https://github.com/Stability-AI/stable-audio-tools/blob/main/docs/conditioning.md「This uses a T5Gemma (https://huggingface.co/google/t5gemma-b-b-ul2) encoder」 |
+| `hf:OpenMOSS-Team/MOSS-TTS-v1.5`(0.14.0、#142。以下 2026-10-31) | https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer の `model-00001-of-00002.safetensors`・`model-00002-of-00002.safetensors`(合計 7,098,461,728 バイト。音声トークナイザ) | `apache-2.0`(`moss-audio-tokenizer`) | MOSS-TTS v1.5 の `processing_moss_tts.py`(版 cdd3b911)の `from_pretrained` は、指定が無ければ `OpenMOSS-Team/MOSS-Audio-Tokenizer` を読む |
+| `hf:ResembleAI/chatterbox` | 同じリポジトリの `s3gen.pt`(1,057,165,844 バイト)・`ve.pt`・`conds.pt` | `mit`(`chatterbox-parts`) | https://github.com/resemble-ai/chatterbox の `src/chatterbox/mtl_tts.py`(コミット 5de7a54a)の `from_pretrained` / `from_local` が読む。一覧の本体 `t3_mtl23ls_v3.safetensors` を使うには `t3_model="v3"` が要る(省くと v2) |
+| `hf:Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice`・`-0.6B-CustomVoice` | 同じリポジトリの `speech_tokenizer/model.safetensors`(682,293,092 バイト) | `apache-2.0`(`qwen3-tts-speech-tokenizer`) | https://github.com/QwenLM/Qwen3-TTS の `modeling_qwen3_tts.py`(コミット 022e286b)の `from_pretrained` が `speech_tokenizer/` を落として読む(無ければ止まる) |
+| `hf:openbmb/VoxCPM2` | 同じリポジトリの `audiovae.pth`(376,951,122 バイト) | `apache-2.0`(`voxcpm2-audiovae`) | https://github.com/OpenBMB/VoxCPM の `src/voxcpm/model/voxcpm2.py`(コミット cce58a5b)が読む(無ければ止まる)。雑音除去の ZipEnhancer は ModelScope にあり、カードの例は `load_denoiser=False` なので足さない |
+| `hf:FunAudioLLM/Fun-CosyVoice3-0.5B-2512` | 同じリポジトリの `llm.pt`・`flow.pt`・`hift.pt`・`speech_tokenizer_v3.onnx`・`campplus.onnx`(合計 4,434,743,215 バイト。URL は版 29e01c4e に固定) | `apache-2.0`(`cosyvoice3-parts`) | https://github.com/FunAudioLLM/CosyVoice の `cosyvoice/cli/cosyvoice.py`(コミット 074ca6dc)の `CosyVoice3` が読む。`CosyVoice-BlankEN` は Qwen の設定とトークナイザで、`llm.pt` がその重みを上書きするので、見積もりは LLM を二重に数えて多めに出ることがある |
+| `hf:k2-fsa/OmniVoice` | 同じリポジトリの `audio_tokenizer/model.safetensors`(805,665,628 バイト。版 c5fdb5cc に固定) | `other` / `boson-higgs-audio-2-community-license`(`omnivoice-audio-tokenizer`)。一式は本体の `cc-by-nc` のまま | https://github.com/k2-fsa/OmniVoice の `omnivoice/models/omnivoice.py`(コミット 08be0b4c)が `audio_tokenizer/` を読む |
+| `hf:Serveurperso/Qwen3-TTS-GGUF` | 同じリポジトリの `qwen-tokenizer-12hz-Q8_0.gguf`(291,150,624 バイト。版 b7ee2e8c に固定) | `apache-2.0`(`qwentts-cpp-tokenizer`) | カード「The tokenizer is shared across every talker」。一覧の talker が Q8_0 なので Q8_0 |
+| `hf:audio-cpp/AuK-Base-and-Flash-GGUF`(0.14.0、#143) | 同じリポジトリの `qwen2.5-omni-3b-q8_0.gguf`(4,253,964,480 バイト。Qwen2.5-Omni-3B) | `other` / `qwen-research`(`auk-qwen2.5-omni-3b`)。一式のライセンスはいちばん厳しいこれになり、非商用になる | カード(版 2814a16a)「The default components are `auk-base-f32.gguf`, `qwen2.5-omni-3b-bf16.gguf`, and `auk-vae-f32.gguf`. … The Qwen component is Qwen2.5-Omni-3B」。一覧の本体は `auk-base-q8_0.gguf` なので、カードの検証の表で組み合わせた Q8_0 の Qwen を足す。開発元 https://github.com/Tencent-Hunyuan/AuK の README(コミット 0d40366b)も Qwen/Qwen2.5-Omni-3B を `--qwen_path` に渡す |
 
 ほかの Stable Audio 3 の項目(`audio_stable_audio_3_medium`・`_medium_base`・`manual:stable-audio-3-small-music`)は
 もとから同じ部品を持つ(tests/test_appinfo.py がすべての Stable Audio 3 の項目に `gemma` の T5Gemma があることを検査する)。
