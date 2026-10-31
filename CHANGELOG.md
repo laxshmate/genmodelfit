@@ -19,6 +19,14 @@ All notable changes to this project are documented here. The format is based on
   without asking. An error is printed before the question. The library records what a download put in place with
   `download(..., record=DownloadRecord())` (nothing is printed).
   (測るために落としたものを、終わったあとで消すかを尋ねる。前から入っていたものは消さない)
+- `measure` and `share` suggest measuring again what this PC already measured when the ComfyUI version changed
+  (#147): a model or setting whose runs on this GPU were all made with another ComfyUI version comes back after the
+  ones never measured, with "ComfyUI 0.19 → 0.20 で測り直し" ("remeasure: ComfyUI 0.19 → 0.20") on its line and
+  `remeasure: {from, to}` in JSON. With the same version nothing changes (one account counts once). The current
+  version comes from the running ComfyUI's `/system_stats`, or, before starting one, from the text of its
+  `comfyui_version.py` / `pyproject.toml` (not imported); JSON `comfyui.version`. genmodelfit has no separate version of
+  its measuring method, so only the ComfyUI version is compared.
+  (ComfyUI の版が変わったら、前に測ったものも測り直しを提案する)
 
 ### Changed
 

@@ -47,7 +47,8 @@ repository's Contributors. With issues, the bot makes the commits, so you are no
 issue and in the commit's `Submitted-by`).
 
 If you have more time, run `genmodelfit share` again later: each time it measures the next models or settings that
-are not yet measured on this PC.
+are not yet measured on this PC. After you update ComfyUI, the ones measured before come back as "remeasure" (after
+the ones never measured; an update can change the memory and time used; with the same version they do not).
 
 While it runs, `share` prints numbered steps ("== Step 2/6: Start ComfyUI =="), and in a terminal a line that is
 redrawn in place: the ComfyUI start (seconds against the guide and the limit, and the last line of its log), each
@@ -131,6 +132,7 @@ it is checked again.
 
 1. `genmodelfit measure` lists models worth measuring: they fit this PC's GPU (good or better on the GPU) and have not been measured on this PC yet (they are listed even if someone else measured the same GPU: two agreeing people let the measurement decide the level). Models already in your ComfyUI come first, then the shorter time, then the smaller download. Choose one by number (`q` quits).
    - Once a model is measured on this PC at the template's settings, the list also has runs at other settings, which help check the estimate's formula: image resolution (512 / 768 / 1024 / 1536 px, text-to-image), video frames (17 / 33 / 49 / 81 at the template's size) and music / sound length (10 / 30 / 60 / 120 s). They are shown with `--resolution`, `--frames` or `--length`, only when they fit this GPU at that setting and this PC has not measured them at that setting, at most 2 per model. Runs over about 300 s are not listed. If the template cannot take a setting, measure stops before generating.
+   - A model or setting already measured on this PC comes back after the others when the ComfyUI version differs from the one it was measured with (the line says "remeasure: ComfyUI 0.19 → 0.20"). For a ComfyUI that is not running yet, the version is read from the text of its `comfyui_version.py` (or `pyproject.toml`). With the same version it is not listed: one account counts once however often it sends the same thing.
    - To pick the model yourself: `genmodelfit measure "Z-Image-Turbo"` (a name, a workflow id or a part of either, chosen like `download`). Add `--resolution 1536x1536`, `--frames 81` or `--length 120` to change the settings, like `bench`.
    - It finds and, if needed, starts ComfyUI like `share` (above); for another one, add `--url http://<host>:<port>`.
 2. Before measuring, one screen shows the model and precision, the settings (as in the official template), which ComfyUI and how it was found, whether the model files are installed, a rough time and that nothing is sent. Answer `Y` (Enter) to measure.

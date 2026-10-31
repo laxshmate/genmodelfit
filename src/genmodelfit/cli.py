@@ -4773,6 +4773,7 @@ def _cmd_share(args: argparse.Namespace) -> int:
     skipped: list[dict[str, Any]] = []
     checker = None
     comfy_stop = False  # 測れない理由が ComfyUI のこと(起動のしかたを案内する)か
+    comfy_version = None  # 今の ComfyUI の版(#147)
     start_why = None
     db_ = None
     if not args.no_measure:
@@ -4784,7 +4785,13 @@ def _cmd_share(args: argparse.Namespace) -> int:
             stop = [gpu_stop]
         else:
             roots = _measure_roots(args, running)
-            # もう測って保存したもの(送る前・送ったが取り込まれる前)は、測り直さない(#124)
+            start, start_why = _comfyui_start_plan(args, url)
+            if url is not None and not args.dry_run:
+                # 起動中の ComfyUI があれば、足りないノードの要るものを先に外す(#124)
+                checker = _node_check(url)
+            comfy_version = _current_comfyui_version(args, url, start, checker)
+            # もう測って保存したもの(送る前・送ったが取り込まれる前)は、測り直さない(#124)。
+            # ComfyUI の版が変わったものだけ、測り直しとして出す(#147)
             sugg = suggestions(
                 db,
                 s,
@@ -4792,14 +4799,11 @@ def _cmd_share(args: argparse.Namespace) -> int:
                 policy=_policy(args),
                 extra=_saved_measurements(),
                 include_unknown_license=bool(getattr(args, "include_unknown_license", False)),
+                comfyui_version=comfy_version,
             )
-            if url is not None and not args.dry_run:
-                # 起動中の ComfyUI があれば、足りないノードの要るものを先に外す(#124)
-                checker = _node_check(url)
             plan, total, dl_plan = _share_replan(sugg, budget, checker, skipped)
             _note_unchecked(args, checker)
             unknown = sum(1 for x in sugg if x.installed is not None and x.installed.state == "unknown")
-            start, start_why = _comfyui_start_plan(args, url)
             if url is None and start is None:
                 stop = _not_running_lines("", None, start_why)
                 comfy_stop = True
@@ -4808,7 +4812,7 @@ def _cmd_share(args: argparse.Namespace) -> int:
         args._download_dir = str(start.comfyui_dir)  # 落とす場所は起動する ComfyUI(尋ねない)
     report: dict[str, Any] = {
         "no_measure": bool(args.no_measure),
-        "comfyui": _comfy_json(url, found_by, start),
+        "comfyui": _comfy_json(url, found_by, start, comfy_version),
         "budget_seconds": budget,
         "plan": [x.to_dict() for x in plan],
         "download_plan": [x.to_dict() for x in dl_plan],
@@ -7096,10 +7100,12 @@ def _comfyui_stop(args: argparse.Namespace, started) -> None:
         )
 
 
-def _comfy_json(url: str | None, found_by: str | None, start) -> dict[str, Any]:
+def _comfy_json(url: str | None, found_by: str | None, start, version: str | None = None) -> dict[str, Any]:
     d: dict[str, Any] = {"url": url, "found_by": found_by}
     if start is not None:
         d["start"] = start.to_dict()
+    if version:
+        d["version"] = version  # 今の ComfyUI の版(#147。分かったときだけ)
     return d
 
 
@@ -7172,15 +7178,22 @@ def _not_running_lines(model_id: str, inst, why: str | None = None) -> list[str]
 
 
 def _suggestion_row(i: int, x) -> str:
-    """提案の 1 行(measure の一覧と share の計画で同じもの)。"""
+    """提案の 1 行(measure の一覧と share の計画で同じもの)。測り直しなら理由を足す(#147)。"""
     kind = tr(_MODALITY_JA.get(x.modality, x.modality), x.modality)
     prec = f"、{x.precision}" if x.precision else ""
     prec_en = f", {x.precision}" if x.precision else ""
     what = " ".join([x.model_id, *x.args])  # [ ] の中をそのまま measure に渡せる(#116)
+    again = getattr(x, "remeasure", None)
+    why = (
+        tr(f"  ComfyUI {again[0]} → {again[1]} で測り直し", f"  remeasure: ComfyUI {again[0]} → {again[1]}")
+        if again
+        else ""
+    )
     return tr(
-        f"  {i:>2}. {x.model_name} [{what}]({kind}{prec})  {_installed_text(x.installed)}  約 {x.seconds} 秒",
+        f"  {i:>2}. {x.model_name} [{what}]({kind}{prec})  {_installed_text(x.installed)}  約 {x.seconds} 秒"
+        + why,
         f"  {i:>2}. {x.model_name} [{what}] ({kind}{prec_en})  {_installed_text(x.installed)}"
-        f"  about {x.seconds} s",
+        f"  about {x.seconds} s" + why,
     )
 
 
@@ -7195,6 +7208,15 @@ def _suggestion_lines(sugg: list) -> list[str]:
         )
     ]
     out += [_suggestion_row(i, x) for i, x in enumerate(sugg, 1)]
+    if any(getattr(x, "remeasure", None) for x in sugg):
+        out.append(
+            tr(
+                "「測り直し」の行は、この PC で測ったが、そのときと今で ComfyUI の版が違うもの"
+                "(ComfyUI の更新で、使うメモリや時間が変わることがあるため。同じ版なら出しません)。",
+                'Rows marked "remeasure" were measured on this PC with another ComfyUI version (an update can'
+                " change the memory and time used; with the same version they are not listed).",
+            )
+        )
     out.append(
         tr(
             "時間は目安(同じモデルの実測、無ければ種類ごとのおおよその値。"
@@ -7571,6 +7593,32 @@ def _failure_from_error(e: Exception, entry, settings, files_fp: str | None) -> 
     )
 
 
+def _current_comfyui_version(args: argparse.Namespace, url: str | None, start, checker=None) -> str | None:
+    """今の ComfyUI の版(#147。measure・share の「測り直し」の提案に使う)。起動中なら /system_stats
+    (checker があればそれで。--dry-run でほかの PC の ComfyUI には尋ねない)。起動する前(start)なら、
+    起動する ComfyUI のフォルダの comfyui_version.py・pyproject.toml を文字として読む
+    (comfystart.installed_version。起動するまで待たずに提案を決めるため。import しない)。分からなければ None
+    (測り直しは出さない)。"""
+    from .bench import is_local
+
+    if url is not None:
+        get = getattr(checker, "comfyui_version", None)
+        if callable(get):
+            try:
+                return get()
+            except Exception:
+                return None
+        if getattr(args, "dry_run", False) and not is_local(url):
+            return None
+        return _comfyui_version_of(url)
+    main = getattr(start, "main", None)
+    if main is not None:
+        from .comfystart import installed_version
+
+        return installed_version(Path(main).parent)
+    return None
+
+
 def _comfyui_version_of(url: str) -> str | None:
     """ComfyUI の版(/system_stats。失敗の記録に書く。#132)。取れなければ None(通信の誤りでも止めない)。"""
     try:
@@ -7727,9 +7775,13 @@ def _cmd_measure(args: argparse.Namespace) -> int:
             return 1
         raise CliError(gpu_stop)
     if not args.model:
-        sugg = suggestions(db, s, roots=roots, policy=_policy(args), extra=_saved_measurements())[
-            : args.limit or MEASURE_LIMIT
-        ]
+        # ComfyUI の版が変わったものは、この PC で測ってあっても測り直しとして出す(#147)
+        version = _current_comfyui_version(args, url, start)
+        if version:
+            comfy["version"] = version
+        sugg = suggestions(
+            db, s, roots=roots, policy=_policy(args), extra=_saved_measurements(), comfyui_version=version
+        )[: args.limit or MEASURE_LIMIT]
         if args.json:
             _out(
                 _envelope(
@@ -8528,7 +8580,10 @@ image), video frames 17/33/49/81 at the template's size (text or image to video)
 length 10/30/60/120 s (text to audio); each only when it fits the GPU at that setting (good or
 better) and this PC has not measured it at that setting, at most 2 per model. Runs over about
 300 s are not listed. Each run is one generation (a few minutes); running measure again picks
-the next one.
+the next one. A model or setting already measured on this PC comes back, after the others, when
+the ComfyUI version differs from the one it was measured with (the line says "remeasure: ComfyUI
+0.19 → 0.20"; the version of a ComfyUI that is not running yet is read from its folder); with the
+same version it is not listed.
 MODEL is a model name, a workflow id or a part of either, chosen like download (only workflows
 with a ComfyUI template); --resolution, --frames and --length change the settings like bench.
 Before measuring one screen shows the model and precision, the settings (as in the template, or
@@ -8594,7 +8649,8 @@ AGENT USAGE:
 Without FILE it finds ComfyUI like measure (--url, else one running on this PC, else it starts
 the one it finds and stops it afterwards), picks the suggestions of measure whose files are
 installed and that are not yet measured on this PC (results saved on this PC count, sent or not;
-other people's measurements do not) and whose nodes the ComfyUI has, until their rough times
+other people's measurements do not; ones measured with another ComfyUI version come back after
+the others, as in measure) and whose nodes the ComfyUI has, until their rough times
 add up to --budget (300 s), and shows the plan with the unsent measurements and the total time
 (starting ComfyUI about 45 s, measuring, and downloading as an example at 100 Mbps). It asks
 once [Y/n], then measures one by one, freeing the ComfyUI before each run (a failure does not
@@ -9059,7 +9115,9 @@ MODEL を省くと、測ると役に立つモデルを出す: この PC の GPU 
 動画のコマ数 17・33・49・81(大きさはテンプレートのまま。文章・画像から動画)、音楽・効果音の長さ
 10・30・60・120 秒(文章から音声)。その設定で GPU に載り(good 以上)、この PC でその設定をまだ
 測っていないものだけで、1 つのモデルに 2 件まで。時間の目安が約 300 秒を超えるものは出さない。
-1 回は生成 1 回(数分)で、もう一度 measure を実行すると次のものを選べる。
+1 回は生成 1 回(数分)で、もう一度 measure を実行すると次のものを選べる。この PC でもう測ったモデル・
+設定でも、測ったときと今で ComfyUI の版が違えば、ほかのものの後に出す(行に「ComfyUI 0.19 → 0.20 で
+測り直し」と出す。起動していない ComfyUI の版はフォルダから読む)。同じ版なら出さない。
 MODEL はモデルの名前・ワークフローの ID・その一部で、download と同じ選び方で決める(ComfyUI の
 テンプレートのあるワークフローだけ)。--resolution・--frames・--length で bench と同じく設定を変える。
 測る前に 1 画面で、モデルと精度、設定(テンプレートのまま、または変えた設定)、どの ComfyUI か・
@@ -9119,7 +9177,8 @@ ComfyUI は、測る前に空ける(/free。モデルを外し、前の結果を
 FILE を省くと、measure と同じく ComfyUI を見つけ(--url、無ければこの PC で起動中のもの、無ければ
 見つけたものを起動し、終わったら止める)、measure の提案のうち、ファイルが入っていて、この PC で
 まだ測っていないもの(この PC に保存したものは、送ったかどうかによらず測ったと数える。ほかの人の
-実測は数えない)で、その ComfyUI にノードがそろうものを、時間の目安の合計が --budget(300 秒)に
+実測は数えない。ComfyUI の版が違うときに測ったものは、measure と同じくほかのものの後に出す)で、
+その ComfyUI にノードがそろうものを、時間の目安の合計が --budget(300 秒)に
 収まるまで選び、送っていない実測と合計の時間(ComfyUI の起動 約 45 秒・測る
 時間・落とす時間を 100 Mbps の例で)を添えて計画を見せる。1 回だけ [Y/n] で尋ね、1 つずつ測る(失敗
 しても残りは続け、Ctrl+C ならそこまでのものを送るかに進む)。測る前には毎回 ComfyUI を空ける。

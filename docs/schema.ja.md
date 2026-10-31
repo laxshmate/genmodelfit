@@ -1002,9 +1002,10 @@ bench が Measurement を埋める方法(測り方):
 
 - MODEL を省くと `action: "suggest"`: `comfyui` `{url, found_by, start?}`(`found_by` は `--url` なら `option`、127.0.0.1 の
   8188・8000 で見つけた ComfyUI なら `running`、見つからなければ null。`start`(0.13.0)は、起動中のものが無く、入って
-  いるものを起動するときの `{kind, comfyui_dir}`。`kind` は `portable`・`venv`・`desktop`)と `suggestions`
+  いるものを起動するときの `{kind, comfyui_dir}`。`kind` は `portable`・`venv`・`desktop`。`version`(0.14.0、#147)は
+  分かったときの今の ComfyUI の版。下の「測り直し」)と `suggestions`
   [{model_id, model_name, name, modality, precision, fit_level, installed, download_bytes, total_bytes, seconds,
-  seconds_basis, settings, args}]。ここの `installed` は状態の文字列だけ(`yes` / `no` / `unknown`。下の「入っているか」)。
+  seconds_basis, settings, args, remeasure}]。ここの `installed` は状態の文字列だけ(`yes` / `no` / `unknown`。下の「入っているか」)。
   MODEL を付けたときはオブジェクト。`settings`(0.12.0、#116)はテンプレートのままなら null、設定を変えた測定なら
   変えた設定(`{width, height}`・`{frames}`・`{seconds}`)。`args` は同じものを `measure`・`bench` の引数にしたもの
   (`["--resolution", "1536x1536"]`。テンプレートのままなら空)。測らない。
@@ -1025,6 +1026,16 @@ bench が Measurement を埋める方法(測り方):
   `estimate.same_gpu` で同じ GPU、`files_match` で同じファイル、標準の条件、結果が `ok` か `oom`、`settings_override`
   が無い(0.12.0。キーの無い行は数える)。作業用メモリだけの実測も数える。同じ GPU で測り直しても材料が増えないため)。同じモデル(`groups` の鍵)は 1 件: 入っているワークフロー、無ければ `recommend` が
   選ぶもの。並びは 入っているもの → `seconds` → `download_bytes` → 名前。既定 10 件(`--limit`)。
+- **測り直し**(0.14.0、#147。`measure.stale_version`): この PC でこの GPU にもう測ったワークフロー(設定を変えた測定も)でも、
+  その実測がどれも今の ComfyUI の版と違う版で、いちばん新しい実測に版の記録があれば、もう一度出す(ComfyUI の更新で、
+  使うメモリや時間が変わることがあるため)。そのときの `remeasure` は `{from, to}`(いちばん新しい実測の版と今の版。ほかの
+  行は null)、行には「ComfyUI 0.19 → 0.20 で測り直し」と出し、まだ測っていない行のすべての後に並べる(その中の並びは同じ。
+  同じモデルの中でも)。同じ版・今の版が分からない・実測に版の記録が無いときは出さない(同じアカウントは、同じものを
+  何回送っても 1 回分にしか数えないため)。今の版は、起動中の ComfyUI の `/system_stats`(`system.comfyui_version`。
+  `--dry-run` ではこの PC のものだけ)から、起動する前は、その `main.py` の横の `comfyui_version.py`
+  (`__version__ = "x.y.z"`)、無ければ `pyproject.toml` の `[project]` の `version` を文字として読む
+  (`comfystart.installed_version`。import しない。起動する前に計画を決めるため)。genmodelfit には測り方の版が別に無い
+  (この PC の結果の `vram_metric` はどれも `torch_reserved`)ので、比べるのは ComfyUI の版だけ。
 - **設定を変えた測定**(0.12.0、#116。`measure.variants`): 予測式の段ごとの作業用メモリを確かめるため、同じ一覧・
   同じ並びに混ぜる。文章から画像(`t2i`。`estimate.NO_SIZE_INPUT` に無いもの)は 512・768・1024・1536 px の正方形
   (`VARIANT_PIXELS`)、文章・画像から動画(`t2v`・`i2v`)は 17・33・49・81 コマ(`VARIANT_FRAMES`。大きさはテンプレート
@@ -1096,7 +1107,7 @@ bench が Measurement を埋める方法(測り方):
 |---|---|---|
 | `action` | str | `send`(`--logout` は `logout` で、`removed` を付ける) |
 | `no_measure` | bool | `--no-measure` か FILE |
-| `comfyui` | object | `measure` と同じ(`url`・`found_by`・`start?`・`started?`) |
+| `comfyui` | object | `measure` と同じ(`url`・`found_by`・`start?`・`started?`・`version?`) |
 | `budget_seconds` | float | `--budget`(既定 300。`measure.SHARE_BUDGET_SECONDS`) |
 | `plan` | Suggestion[] | 測る、入っている提案(`measure` の `suggestions` の項目) |
 | `download_plan` | Suggestion[] | 入っていない提案のうち、残りの時間に収まるもの |
@@ -1122,7 +1133,9 @@ bench が Measurement を埋める方法(測り方):
 - **ComfyUI** は `measure`(上)と同じく見つけ・起動し・確かめる。無ければ(送っていない実測も無ければ)計画と ComfyUI の
   起動のしかたを出し、尋ねず・ログインせずに 1 で終える。送っていない実測があれば、それを送るかに進む。
 - **計画**: `measure.suggestions` のうち `installed.state == "yes"` のものを、その順に、`seconds` の合計が上限に収まる
-  あいだ取る(`measure.share_plan`。収まらない行は飛ばして次を見る)。ComfyUI に届けば、その ComfyUI に無いノードを
+  あいだ取る(`measure.share_plan`。収まらない行は飛ばして次を見る)。測り直しの行(0.14.0、#147。measure を見る)は
+  まだ測っていない行の後なので、入っているものの中では時間が残ったときだけ取る(落とすものは、入っているものの残りの
+  時間で決めるので、入っている測り直しの行が先)。ComfyUI に届けば、その ComfyUI に無いノードを
   使う提案を外し(`skipped`)、次の提案で埋める(`download_plan` も)。起動する ComfyUI なら起動したあとで行い、新しい
   計画を見せる。
 - **順**: 合計の時間を付けた計画 → 1 回の `[Y/n]`(測ることと ComfyUI の起動を兼ねる。`--yes` で省く)→ もうある

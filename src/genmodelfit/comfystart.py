@@ -67,6 +67,30 @@ class StartError(RuntimeError):
         self.tail = tail or []
 
 
+# 入っている ComfyUI の版(#147。起動する前に、measure・share の「測り直し」の提案に使う)。ComfyUI のコードは
+# import せず、文字として読むだけ: comfyui_version.py:3@102773c の `__version__ = "x.y.z"`(pyproject.toml の
+# 版から作られる)、無ければ pyproject.toml:3@102773c の [project] の `version = "x.y.z"`
+_VERSION_PY = re.compile(r"""^__version__\s*=\s*["']([0-9]+(?:\.[0-9]+){1,3})["']""", re.M)
+_VERSION_TOML = re.compile(r"""^version\s*=\s*["']([0-9]+(?:\.[0-9]+){1,3})["']""", re.M)
+
+
+def installed_version(code_dir: Path) -> str | None:
+    """ComfyUI の main.py のあるフォルダ(code_dir)の版。読めない・形が違えば None。通信しない。"""
+    for name, pattern in (("comfyui_version.py", _VERSION_PY), ("pyproject.toml", _VERSION_TOML)):
+        try:
+            text = (Path(code_dir) / name).read_text(encoding="utf-8", errors="replace")[:20000]
+        except OSError:
+            continue
+        if name == "pyproject.toml":
+            # [project] の節の中だけを見る(ほかの節の version を拾わない)
+            m = re.search(r"^\[project\]\s*$(.*?)(?=^\[|\Z)", text, re.M | re.S)
+            text = m.group(1) if m else ""
+        found = pattern.search(text)
+        if found:
+            return found.group(1)
+    return None
+
+
 def start_disabled() -> bool:
     return os.environ.get(START_ENV, "").strip().lower() in ("0", "off", "no", "false")
 
