@@ -3,7 +3,7 @@
  "source": "community",
  "contrib_schema": 3,
  "date": "2026-10-29",
- "method": "data/contrib の提出を、同じモデル・GPU・測り方・設定(ステップ数は除く)・測ったときの一覧のファイル(files_fp)ごとにまとめる。error の提出は数えるだけ(n_error)。最後まで動いた(ok)ものの最大 VRAM を出どころ(送った人。git の履歴から読む。無ければ提出ごと)ごとの中央値にし、|x - 中央値| / (1.4826 × MAD) > 3.5 を外れ値として除き(出どころが 3 つ以上のとき。MAD は中央値の 2% を下限)、残りの中央値を値にする。ok の行は 1 件から見積もりに使う(件数は n_used、出どころは n_sources、同じ構成の OOM は n_oom。OOM の出どころが ok の出どころ以上なら runs_evidence が false)。出どころが 2 以上で、幅が中央値の 15% 以内で、OOM が無ければ consistent(係数の合わせ直しに入れる)。GPU 名が汎用の名前・名前の代わりの値の行は gpu_known が false で、判定に使わない。GPU の総量を超えた(共有メモリへ逃げた。spilled)提出と失敗の記録は使わない",
+ "method": "data/contrib の提出を、同じモデル・GPU・測り方・設定(ステップ数は除く)・測ったときの一覧のファイル(files_fp)ごとにまとめる。error の提出は数えるだけ(n_error)。最後まで動いた(ok)ものの最大 VRAM を出どころ(送った人。git の履歴から読む。無ければ提出ごと)ごとの中央値にし、|x - 中央値| / (1.4826 × MAD) > 3.5 を外れ値として除き(出どころが 3 つ以上のとき。MAD は中央値の 2% を下限)、残りの中央値を値にする。ok の行は 1 件から見積もりに使う(件数は n_used、出どころは n_sources、同じ構成の OOM は n_oom。OOM の出どころが ok の出どころ以上なら runs_evidence が false)。出どころが 2 以上で、幅が中央値の 15% 以内で、OOM が無ければ consistent(係数の合わせ直しに入れる)。GPU 名が汎用の名前・名前の代わりの値の行は gpu_known が false で、判定に使わない。GPU の総量を超えた(共有メモリへ逃げた。spilled)提出と失敗の記録、contrib_nonstandard.json の提出(標準でないとみなすもの)は使わない",
  "submissions": [
   {
    "sha256": "3776482bbd7e88d9c5f75d050e6b121cd6c03c1e681f102973745e0af621c9e5",
@@ -118,55 +118,6 @@
    "outlier_submissions": [],
    "submissions": [
     "896ed018"
-   ]
-  },
-  {
-   "model_id": "image_sdxl_simple",
-   "gpu_name": "NVIDIA GeForce RTX 3070",
-   "gpu_vram_gb": 8.0,
-   "gpu_backend": "cuda",
-   "gpu_pci_id": null,
-   "gpu_known": true,
-   "files_fp": "af6acceb87f297232758ab46ccc09c1e816c3ce614f544f4e02aaa92a640d3c1",
-   "settings_override": true,
-   "peak_vram_gb": 0.31,
-   "settings": {
-    "width": 512,
-    "height": 512,
-    "precision": "fp16",
-    "batch": 1,
-    "steps": 25
-   },
-   "peak_ram_gb": 8.74,
-   "seconds": 10.2,
-   "driver": "610.88",
-   "comfyui_version": "0.19.3",
-   "offload": "dynamic",
-   "source": "community(data/contrib を genmodelfit contrib aggregate でまとめたもの)",
-   "date": "2026-10-29",
-   "note": "ほかの利用者の実測 1 件(使った 1 件・出どころ 1・外れ値 0 件・OOM 0 件)の中央値",
-   "outcome": "ok",
-   "standard": true,
-   "vram_metric": "torch_reserved",
-   "origin": "community",
-   "n_submissions": 1,
-   "consistent": false,
-   "n_used": 1,
-   "n_sources": 1,
-   "source_ids": [
-    "4bd446bfbe06"
-   ],
-   "n_outliers": 0,
-   "n_oom": 0,
-   "n_error": 0,
-   "runs_evidence": true,
-   "spread_mad_gb": 0.0,
-   "spread_rel_pct": 0.0,
-   "peak_vram_min_gb": 0.31,
-   "peak_vram_max_gb": 0.31,
-   "outlier_submissions": [],
-   "submissions": [
-    "ead34d42"
    ]
   },
   {

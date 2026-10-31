@@ -78,6 +78,21 @@ LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
 START_DELAY_S = 10.0
 # --set で変えても「標準」のままとみなす入力(大きさ・長さ・ステップ数と、メモリに効かない seed)
 STANDARD_SET_KEYS = {"width", "height", "steps", "seed", "noise_seed", *FRAME_KEYS, *SECONDS_KEYS}
+# torch の確保量(/system_stats)を読む間隔(秒)。#131: 作業用メモリの山は短い(SDXL 1024px の VAE の復号の山は
+# 約 0.19 秒、ACE-Step 10 秒の山は 0.02〜0.05 秒。RTX 3070)。山は実行の終わりに ComfyUI が torch の空きを
+# 返すので消える。0.2 秒ごとでは山を飛ばす回があり、SDXL 1024px で 2.28 GB と 1.28 GB に揺れた。
+# 読んでから次まで 0.015 秒待つ。答えを待つ時間を足すと、実際は約 0.03 秒ごと
+# (RTX 3070・Windows で 1 秒に 30〜36 回)。
+# この速さで読んでも、ステップの時間・復号の時間は変わらなかった(docs/accuracy.md「測り方の揺れ(#131)」)
+POLL_INTERVAL = 0.015
+# 常駐メモリ(プロセスの木をたどる。重い)を読む間隔(秒)。VRAM より遅くてよい
+RAM_INTERVAL = 0.2
+# 一瞬の山(#131): 最大値に近い値(BRIEF_PEAK_COUNT 回目に大きい値)との差がこれを超えたら、最大値は
+# 読む間隔より短い山で、測るたびに揺れる。標準にしない(照合・段階に使わない)
+BRIEF_PEAK_COUNT = 3  # 3 回見た = 山が読む間隔の 2 倍以上続いた = どの回でも 1 回は読める
+BRIEF_PEAK_MIN_GIB = 0.1  # 差がこれ以下なら、揺れても照合に効かない
+BRIEF_PEAK_SHARE = 0.1  # 最大値に対する差の割合
+BRIEF_PEAK_MIN_SAMPLES = 10  # 読めた回がこれより少なければ決めない
 
 
 class BenchError(RuntimeError):
@@ -347,9 +362,10 @@ class Monitor:
         client: ComfyClient,
         proc: psutil.Process | None,
         gpu_id: str | None,
-        interval: float = 0.2,
+        interval: float = POLL_INTERVAL,
         use_smi: bool = True,
         other_used=None,
+        ram_interval: float = RAM_INTERVAL,
     ):
         self.client = client
         self.proc = proc
@@ -358,23 +374,29 @@ class Monitor:
         self.use_smi = use_smi
         # NVIDIA 以外: GPU 全体の使用中のメモリ(MiB)を 1 回読む関数(gpustat.Probe.used_mib)。約 1 秒ごとに呼ぶ
         self.other_used = other_used
+        self.ram_interval = ram_interval
         self.peaks = Peaks()
+        # 読めた torch の確保量(bytes)を順に(一瞬の山の判定。steady_peak)
+        self.torch_values: list[int] = []
+        self._next_ram = 0.0
         self.last_used_mib: float | None = None  # nvidia-smi が読んだ最後の GPU 全体の使用量(MiB)
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
         self._smi: subprocess.Popen[str] | None = None
         self._lock = threading.Lock()
 
-    def sample_once(self) -> None:
+    def sample_once(self, *, ram: bool = True) -> None:
         with contextlib.suppress(BenchError, ValueError, KeyError, TypeError):
             dev = (self.client.system_stats().get("devices") or [{}])[0]
             with self._lock:
                 p = self.peaks
-                p.torch_vram = max(p.torch_vram, int(dev.get("torch_vram_total") or 0))
+                torch_now = int(dev.get("torch_vram_total") or 0)
+                p.torch_vram = max(p.torch_vram, torch_now)
+                self.torch_values.append(torch_now)
                 used = int(dev.get("vram_total") or 0) - int(dev.get("vram_free") or 0)
                 p.device_used = max(p.device_used, used)
                 p.samples += 1
-        if self.proc is not None:
+        if ram and self.proc is not None:
             with contextlib.suppress(psutil.Error):
                 rss = self.proc.memory_info().rss
                 for c in self.proc.children(recursive=True):
@@ -385,7 +407,11 @@ class Monitor:
 
     def _poll(self) -> None:
         while not self._stop.is_set():
-            self.sample_once()
+            now = time.monotonic()
+            ram = now >= self._next_ram
+            if ram:
+                self._next_ram = now + self.ram_interval
+            self.sample_once(ram=ram)
             self._stop.wait(self.interval)
 
     def _read_smi(self) -> None:
@@ -450,6 +476,27 @@ class Monitor:
             th.join(timeout=10)
         self.sample_once()
         return self.peaks
+
+
+def steady_peak(values: list[int], count: int = BRIEF_PEAK_COUNT) -> int:
+    """count 回目に大きい値(読めた回が count より少なければ一番小さい値。無ければ 0)。#131: これと最大値の差が
+    大きければ、最大値は読む間隔より短い一瞬の山。"""
+    if not values:
+        return 0
+    top = sorted(values, reverse=True)
+    return top[min(count, len(top)) - 1]
+
+
+def brief_peak(values: list[int]) -> tuple[int, int] | None:
+    """一瞬の山なら (最大値, count 回目に大きい値)、そうでなければ None(#131)。
+    読めた回が BRIEF_PEAK_MIN_SAMPLES より少なければ決めない(None。実行が読む間隔の数回分より短く、
+    山の長さを比べられない)。"""
+    if len(values) < BRIEF_PEAK_MIN_SAMPLES:
+        return None
+    peak, steady = max(values), steady_peak(values)
+    if peak - steady > max(BRIEF_PEAK_MIN_GIB * GIB, BRIEF_PEAK_SHARE * peak):
+        return peak, steady
+    return None
 
 
 def _smi_query(args: list[str]) -> str | None:
@@ -1122,7 +1169,7 @@ class BenchOptions:
     sets: dict[str, Any] = field(default_factory=dict)  # 入力の名前 → 値(すべてのノード)
     free_before: bool = False  # True のときだけ開始前に /free で解放する
     timeout: float = 1800
-    interval: float = 0.2
+    interval: float = POLL_INTERVAL
     force: bool = False
     source: str | None = None
     note: str | None = None
@@ -1150,6 +1197,8 @@ class BenchResult:
     # 時間の内訳(#132。timing_breakdown)と、失敗の種類(_history_error_kind。文は入れない)
     timing: dict[str, Any] | None = None
     error_kind: dict[str, Any] | None = None
+    # 最大 VRAM が一瞬だけの山だった(#131。brief_peak)。measure はこれだけで標準でない回を「試した」と覚える
+    brief_peak: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         m = asdict(self.measurement)
@@ -1705,8 +1754,29 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
     vram_total = int(dev0.get("vram_total") or 0)
     torch_peak = peaks.torch_vram if peaks.samples else 0
     dev_delta = max(0, peaks.device_used - base_dev)
+    brief: tuple[int, int] | None = None
     if torch_peak > 0:
         peak_vram = torch_peak / GIB
+        # 最後まで動いた回だけ見る(メモリ不足・失敗の記録は今までどおり残し、送る。#131)
+        brief = brief_peak(mon.torch_values) if outcome == "ok" else None
+        if brief:
+            # #131: 最大値が読む間隔より短い山だった。測るたびに揺れるので標準にしない(値は残す)
+            top, steady = brief[0] / GIB, brief[1] / GIB
+            ns(
+                f"最大 VRAM が一瞬だけの山({top:.2f} GB。"
+                f"{BRIEF_PEAK_COUNT} 回以上読めた最大は {steady:.2f} GB)",
+                f"the peak VRAM was a brief spike ({top:.2f} GB; the highest value read at least"
+                f" {BRIEF_PEAK_COUNT} times is {steady:.2f} GB)",
+            )
+            warnings.append(
+                tr(
+                    f"最大 VRAM {top:.2f} GB は読む間隔より短い山でした。"
+                    "測るたびに値が揺れるので、標準の実測にしません",
+                    f"The peak VRAM {top:.2f} GB was a spike shorter than the polling interval."
+                    " It varies from run to run,"
+                    " so it is not a standard measurement",
+                )
+            )
     else:  # torch の量が出ない版では、GPU 全体の増分で代える
         peak_vram = dev_delta / GIB
         warnings.append(
@@ -1795,6 +1865,7 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
             steps=sampler_steps(wf),
         ),
         error_kind=_history_error_kind(entry, wf) if entry else None,
+        brief_peak=brief is not None,
     )
 
 

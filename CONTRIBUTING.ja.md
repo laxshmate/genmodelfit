@@ -189,7 +189,7 @@ genmodelfit bench 3d_hunyuan3d_image_to_model --url http://127.0.0.1:8188 --step
 
 | 項目 | 測り方 |
 |---|---|
-| `peak_vram_gb` | 生成中に `/system_stats` を 0.2 秒ごとに読み、torch が確保した量(`torch_vram_total`)の最大値。ComfyUI のプロセスの分で、CUDA の文脈(約 0.3〜0.5 GB)は含みません。`torch_vram_total` が取れないときは GPU 全体の増分で代え、警告を残します |
+| `peak_vram_gb` | 生成中に `/system_stats` を約 0.03 秒ごとに読み、torch が確保した量(`torch_vram_total`)の最大値。最大値が読む間隔より短い一瞬の山なら、測るたびに揺れるので標準の実測にしません(#131)。ComfyUI のプロセスの分で、CUDA の文脈(約 0.3〜0.5 GB)は含みません。`torch_vram_total` が取れないときは GPU 全体の増分で代え、警告を残します |
 | `note` の「GPU 全体の増分」 | GPU 全体の使用量(`nvidia-smi`。NVIDIA 以外は上の道具、約 1 秒ごと)の最大値から開始前の値を引いたもの。ほかのアプリの増減も入ります。道具が無ければ書きません |
 | `peak_ram_gb` | ポートで待ち受けている ComfyUI のプロセス(と子プロセス)の常駐メモリの最大値。コマンドラインに `main.py` か `comfy` を含むプロセスだけを数えます。ComfyUI が別の PC のとき・プロセスを特定できないときは空です |
 | `seconds` | ワークフローを送ってから終わるまで(モデルの読み込みを含む)。ComfyUI が数えた実行時間は `note` に入ります |

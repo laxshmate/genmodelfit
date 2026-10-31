@@ -7186,6 +7186,12 @@ def _measure_run(
     try:
         if out_path is not None:
             save(m, out_path)
+        if m.outcome == "ok" and getattr(result, "brief_peak", False) and len(result.nonstandard) == 1:
+            # 一瞬の山だけで標準にならなかった(#131): 保存も送りもしないが、同じものを何度も提案しないよう
+            # 「試した」と覚える(キャッシュの brief_peaks.json。送らない)
+            from .measure import save_brief_peak
+
+            save_brief_peak(m)
         if m.standard and m.outcome in ("ok", "oom"):
             system = detect() if is_local(url) else None
             sub = build_submission(

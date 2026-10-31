@@ -3400,9 +3400,26 @@ def source_id(source: str) -> str:
     return source[:12]
 
 
+NONSTANDARD_FILE = "contrib_nonstandard.json"
+
+
+def nonstandard_submissions() -> dict[str, str]:
+    """標準でないとみなす提出(内容の sha256 → 理由。同梱の contrib_nonstandard.json。#131)。
+    0.2 秒おきの読み取りで最大 VRAM の山を飛ばした提出など。提出のファイルは書き換えない(sha256 が変わる)。"""
+    from .db import bundled_text
+
+    try:
+        data = json.loads(bundled_text(NONSTANDARD_FILE))
+    except (OSError, ValueError):
+        return {}
+    subs = data.get("submissions") if isinstance(data, dict) else None
+    return {str(k): str(v) for k, v in subs.items()} if isinstance(subs, dict) else {}
+
+
 def aggregate(subs: list[Submission], sources: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """同じモデル・設定・GPU(と測り方・測ったときの一覧のファイル)ごとにまとめる。標準でない提出・
-    VRAM を超えた(spilled)提出・失敗の記録は使わない(#132)。
+    VRAM を超えた(spilled)提出・失敗の記録は使わない(#132)。標準でないとみなす提出(nonstandard_submissions。
+    #131)も使わない。
     sources は提出の内容の sha256 → 出どころ(submission_sources)。無い提出はそれぞれ 1 つの出どころ。
 
     - error で終わった提出は値に使わず、数だけ数える(n_error)。
@@ -3411,6 +3428,7 @@ def aggregate(subs: list[Submission], sources: dict[str, str] | None = None) -> 
     - OOM だけのまとまりは outcome: oom の 1 行にする(見積もりには使わない)。
     結果は決まった順(モデル ID → GPU → 設定)で、同じ入力からは同じ出力になる。"""
     sources = sources or {}
+    excluded = nonstandard_submissions()
 
     def src(sub: Submission) -> str:
         return sources.get(sub.sha256) or f"file:{sub.sha256}"
@@ -3420,7 +3438,7 @@ def aggregate(subs: list[Submission], sources: dict[str, str] | None = None) -> 
         if is_failures(sub.data) or (sub.data.get("measurement") or {}).get("spilled") is True:
             continue  # 失敗の記録・共有メモリへ逃げた実測は、まとめにも見積もりにも使わない(#132)
         m = sub.measurement
-        if not m.standard:
+        if not m.standard or sub.sha256 in excluded:
             continue
         # GPU 名は書き方の違い(NVIDIA / GeForce の有無・大文字小文字・空白)をそろえる
         # VRAM(1 GB に丸める)も鍵に入れる(RTX 4060 Ti の 8 GB と 16 GB を混ぜない)
@@ -3567,7 +3585,8 @@ def community_document(
             "OOM の出どころが ok の出どころ以上なら runs_evidence が false)。出どころが "
             f"{MIN_CONSISTENT} 以上で、幅が中央値の {CONSISTENT_REL:.0%} 以内で、OOM が無ければ consistent"
             "(係数の合わせ直しに入れる)。GPU 名が汎用の名前・名前の代わりの値の行は gpu_known が false で、"
-            "判定に使わない。GPU の総量を超えた(共有メモリへ逃げた。spilled)提出と失敗の記録は使わない"
+            "判定に使わない。GPU の総量を超えた(共有メモリへ逃げた。spilled)提出と失敗の記録、"
+            f"{NONSTANDARD_FILE} の提出(標準でないとみなすもの)は使わない"
         ),
         "submissions": [
             {"sha256": h, "source": sources.get(h) or f"file:{h}"}
