@@ -1124,6 +1124,55 @@ class DownloadResult:
         }
 
 
+@dataclass
+class DownloadRecord:
+    """この実行で新しく置いたもの(#145。share・measure が測るために落としたものを、あとで消せるように)。
+
+    download(record=...) に渡すと、落とし終えたファイルと、この実行で作った .part・.lock を足していく
+    (中断・失敗で例外が上がっても、それまでの分は残る)。もとからあったファイル(既にあって飛ばしたもの・
+    前の実行の .part)は入れない。同じパスは 1 回だけ。消すのは置き場所(root)の中の、今もあるファイルだけ。
+    何も表示しない。"""
+
+    entries: list[tuple[str, str]] = field(default_factory=list)  # (絶対パス, 置き場所)
+
+    def add(self, path: str | os.PathLike[str], root: str | os.PathLike[str]) -> None:
+        item = (str(path), str(root))
+        if all(os.path.normcase(p) != os.path.normcase(item[0]) for p, _ in self.entries):
+            self.entries.append(item)
+
+    def __bool__(self) -> bool:
+        return bool(self.entries)
+
+    def existing(self) -> list[tuple[Path, int]]:
+        """今もある、置き場所の中のふつうのファイル(リンクでない)と大きさ。記録した順。"""
+        out: list[tuple[Path, int]] = []
+        for p, root in self.entries:
+            path = Path(p)
+            try:
+                if path.is_symlink() or not path.is_file() or not _inside(path, Path(root)):
+                    continue
+                out.append((path, path.stat().st_size))
+            except OSError:
+                continue
+        return out
+
+    def delete(self) -> tuple[list[Path], list[tuple[Path, str]]]:
+        """existing() のファイルを消す。(消したもの, [(消せなかったもの, 理由)])。"""
+        removed: list[Path] = []
+        failed: list[tuple[Path, str]] = []
+        for path, _size in self.existing():
+            try:
+                path.unlink()
+                removed.append(path)
+            except FileNotFoundError:
+                continue
+            except OSError as e:
+                failed.append((path, str(e.strerror or e)))
+        if removed:
+            log.info("deleted %d downloaded file(s)", len(removed))
+        return removed, failed
+
+
 def _retry_after(resp: requests.Response, n: int) -> float:
     try:
         return min(MAX_RETRY_AFTER, max(0.0, float(resp.headers.get("Retry-After", ""))))
@@ -1285,6 +1334,7 @@ def _fetch_one(
     timeout,
     report: Callable[[str, int, str | None], None],
     result: DownloadResult,
+    record: DownloadRecord | None = None,
 ) -> None:
     dest = Path(pf.dest)
     part = dest.with_name(dest.name + ".part")
@@ -1314,10 +1364,14 @@ def _fetch_one(
     import requests
 
     with _file_lock(lock, pf.relpath):
+        if record is not None:  # この実行で作った印(ふつうは終わると消える。残ったときに消せるように)
+            record.add(lock, root)
         if os.path.lexists(dest):  # 鍵を待つ間に、別の download が同じファイルを置き終えた
             _existing_ok(dest, pf, report)
             result.skipped.append(pf.relpath)
             return
+        if record is not None and not os.path.lexists(part):  # 前の実行の .part は入れない
+            record.add(part, root)
         try:
             _transfer(
                 pf,
@@ -1330,6 +1384,8 @@ def _fetch_one(
                 report=report,
                 result=result,
             )
+            if record is not None:
+                record.add(dest, root)
         except DownloadError:
             raise
         except requests.RequestException as e:
@@ -1606,6 +1662,7 @@ def download(
     yes: bool = False,
     sleep: Callable[[float], None] = time.sleep,
     timeout=TIMEOUT,
+    record: DownloadRecord | None = None,
     **plan_kwargs: Any,
 ) -> DownloadResult:
     """計画どおりに落とす(何も表示しない)。plan_or_model が文字列なら
@@ -1618,6 +1675,8 @@ def download(
     download が落としているなら DownloadError。既に置いてあるファイルは、計画の状態によらずその場で sha256 を
     計り、合うときだけ飛ばす(違えば上書きせず DownloadRefused)。中断(KeyboardInterrupt)は .part を残して
     そのまま上げる(もう一度呼ぶと続きから)。
+    record(DownloadRecord)を渡すと、この呼び出しで新しく置いたファイルと、作った .part・.lock を足す
+    (#145。例外で止まっても、それまでの分が残る。もとからあったファイルは入れない)。
     """
     if isinstance(plan_or_model, DownloadPlan):
         if plan_kwargs:
@@ -1710,6 +1769,7 @@ def download(
                     timeout=timeout,
                     report=report,
                     result=result,
+                    record=record,
                 )
             base[0] += f.size_bytes or 0
             emit(i, f, "done", 0, None)

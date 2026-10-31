@@ -828,9 +828,9 @@ pick a model worth measuring and measure it on ComfyUI (started if needed; nothi
 
 ```text
 genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--url URL]
-                    [--comfyui-dir DIR] [--no-start] [--start-timeout SEC] [--yes] [--free]
-                    [--resolution WxH] [--frames N] [--length SEC] [--limit N] [--timeout SEC]
-                    [model]
+                    [--comfyui-dir DIR] [--no-start] [--start-timeout SEC] [--yes]
+                    [--delete-downloaded] [--free] [--resolution WxH] [--frames N] [--length SEC]
+                    [--limit N] [--timeout SEC] [model]
 ```
 
 - Measure a model on ComfyUI (started if needed) and save the result on this PC (nothing is sent).
@@ -844,6 +844,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 - The time is a rough guide: the median of measurements of the same model, else a rough value per type, scaled by the ratio of pixels, frames or length when the settings are changed.
 - When the template cannot take a requested setting, or the ComfyUI lacks nodes it needs, it stops before downloading or generating.
 - A model that is not installed is downloaded first, with the same questions and consent rules as download.
+- At the end (also after a failure or Ctrl+C) it lists what it downloaded with the total size and asks [y/N] whether to delete it: only files this run newly downloaded, never ones that were already there; `--yes` or no terminal keeps them, `--delete-downloaded` deletes without asking.
 - A ComfyUI started by genmodelfit is freed (/free: models unloaded, cached results dropped) before the run; yours only with `--free`.
 - Afterwards it shows the result and where it saved it, and one line pointing to `genmodelfit share`, which sends it (it never asks whether to send).
 - A run that could not be measured is saved as a failure record that share sends.
@@ -858,6 +859,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 | `--no-start` |  |  | do not start the ComfyUI that was found when none is running (like GENMODELFIT_COMFYUI_START=0) |
 | `--start-timeout` | `SEC` | `300` | the most time to wait for a started ComfyUI to be ready (seconds; default 300) |
 | `--yes`, `-y` |  |  | do not ask before measuring (a model that is not installed is downloaded under the same rules as download `--yes`) |
+| `--delete-downloaded` |  |  | after measuring, delete without asking the files this run downloaded to measure (only new ones) |
 | `--free` |  |  | free the ComfyUI's models and cached results with /free before measuring (for your own running ComfyUI; a ComfyUI started by genmodelfit is always freed) |
 | `--resolution` | `WxH` |  | measure at this width and height (e.g. 1536x1536; like bench; omitted: as in the template) |
 | `--frames` | `N` |  | measure at this number of video frames (like bench; omitted: as in the template) |
@@ -881,6 +883,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 - Nothing about this PC is sent anywhere else.
 - Writes the result to `<cache>/measurements/` (used when this PC is judged) and a submission draft (or a failure record) to `<cache>/submissions/` (what `genmodelfit share` sends).
 - A started ComfyUI writes its output to `<cache>/comfyui-<date>.log`; `<cache>/measure.lock` while measuring.
+- Deletes the model files this run downloaded only on y or `--delete-downloaded` (only inside the destination).
 
 **Exit codes**
 
@@ -917,10 +920,10 @@ measure installed models for a few minutes and send them, with your unsent measu
 **Usage**
 
 ```text
-genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--any-license] [--no-measure]
-                  [--budget SEC] [--dry-run] [--issue] [--print-url] [--logout] [--all]
-                  [--mark-sent] [--url URL] [--comfyui-dir DIR] [--no-start] [--start-timeout SEC]
-                  [--timeout SEC] [--db PATH] [--no-cache] [file]
+genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--delete-downloaded]
+                  [--any-license] [--no-measure] [--budget SEC] [--dry-run] [--issue] [--print-url]
+                  [--logout] [--all] [--mark-sent] [--url URL] [--comfyui-dir DIR] [--no-start]
+                  [--start-timeout SEC] [--timeout SEC] [--db PATH] [--no-cache] [file]
 ```
 
 - Measure for a few minutes and send the measurements as a GitHub pull request.
@@ -936,6 +939,7 @@ genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--any-lic
 - If the pull request cannot be made, a terminal offers issues for the same files.
 - Results are saved before sending and are never measured again: `genmodelfit share --no-measure` (or `--issue`) sends them later.
 - Sent files are marked on this PC (`--all` includes them).
+- At the end (also after a failure or Ctrl+C) it lists the model files it downloaded with the total size and asks [y/N] whether to delete them: only files this run newly downloaded and its leftover .part files, never ones that were already there; `--yes` or no terminal keeps them, and the flag `--delete-downloaded` deletes without asking.
 - What could not be measured goes into one failure record file per run (names and numbers only, never error text).
 - Without any ComfyUI it sends only the unsent measurements; with none it says how to start ComfyUI and exits 1 without asking.
 - FILE sends that file only.
@@ -948,6 +952,7 @@ genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--any-lic
 | `file` |  |  | the submission JSON to send (omitted: measure, then send all unsent measurements) |
 | `--yes`, `-y` |  |  | do not ask before measuring and sending (does not agree to downloading models) |
 | `--download` |  |  | if time is left, also download and measure suggestions that are not installed (same rules as download; no question) |
+| `--delete-downloaded` |  |  | at the end, delete without asking the files this run downloaded to measure (only new ones) |
 | `--any-license` |  |  | with `--download` or without a terminal, also download models whose license is unknown (as in download; cannot be abbreviated) |
 | `--no-measure` |  |  | do not measure; send only the unsent measurements |
 | `--budget` | `SEC` | `300` | the most time to spend measuring (sum of the rough time guides; seconds) |
@@ -977,6 +982,7 @@ genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--any-lic
 - GitHub (github.com and api.github.com): before measuring only a check of a token you already have (GET /user); the sign-in, fork, branch, files and pull request only after you agree to send.
 - `--dry-run` only asks 127.0.0.1 whether ComfyUI runs; `--issue` makes no network access to GitHub.
 - Writes measurements and failure records like measure, the sent marks to `<cache>/submissions_shared.json` and the sign-in token to `<config>/github_token` (readable only by you).
+- Deletes the model files this run downloaded only on y or `--delete-downloaded` (only inside the destination).
 
 **Exit codes**
 

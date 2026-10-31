@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.14.0] - Unreleased
+
+### Added
+
+- `share` and `measure` offer to delete what they downloaded to measure (#145): at the end (also after a failure or
+  Ctrl+C) they list the files this run newly downloaded (finished files and leftover `.part` / `.lock`), with the
+  total size, and ask `[y/N]` (Enter keeps them). Files that were already there are never listed or deleted; a file
+  several of the run's models use is listed once; only files inside the destination folder are deleted. `--yes` or
+  no terminal keeps them; the new flag `--delete-downloaded` deletes them without asking. The library records what a
+  download put in place with `download(..., record=DownloadRecord())` (nothing is printed).
+  (測るために落としたものを、終わったあとで消すかを尋ねる。前から入っていたものは消さない)
+
 ## [0.13.2] - 2026-10-29
 
 ### Changed

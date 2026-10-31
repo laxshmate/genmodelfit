@@ -74,7 +74,11 @@ Step by step, in detail:
 3. If no installed model can be measured, or time is left after measuring, it asks once whether to download the
    others (`[y/N]`, with the models, the total size and the time; `--download` skips the question). Downloading uses
    the same questions and consent rules as `genmodelfit download`. With `--yes` or without a terminal it never
-   downloads and says that `--download` would.
+   downloads and says that `--download` would. At the very end (also after a failure or Ctrl+C) it lists the files
+   this run downloaded, with the total size, and asks whether to delete them (`[y/N]`; Enter keeps them). Only files
+   this run newly downloaded (and its leftover `.part` files) are listed; files that were already there are never
+   listed or deleted, and a file that several of the models use is listed once. With `--yes` or without a terminal
+   it keeps them; `--delete-downloaded` deletes them without asking.
 4. Before measuring it only checks a token it already has (`GITHUB_TOKEN` or `GH_TOKEN`, which needs the
    `public_repo` scope, else the saved sign-in) and stops at once if it does not work. With `--yes` and no terminal it
    needs one for a pull request (or use `share --issue --yes`).
@@ -124,7 +128,7 @@ it is checked again.
    - It finds and, if needed, starts ComfyUI like `share` (above); for another one, add `--url http://<host>:<port>`.
 2. Before measuring, one screen shows the model and precision, the settings (as in the official template), which ComfyUI and how it was found, whether the model files are installed, a rough time and that nothing is sent. Answer `Y` (Enter) to measure.
    - The time is a rough guide: the median of measurements of the same model, else a rough value per type, scaled by the ratio of pixels, frames or length when the settings are changed. Downloading is not included.
-   - A model that is not installed is downloaded first, with the same questions and consent rules as `genmodelfit download`.
+   - A model that is not installed is downloaded first, with the same questions and consent rules as `genmodelfit download`. At the end (also after a failure or Ctrl+C) it asks whether to delete what it downloaded, like `share` (`[y/N]`; `--delete-downloaded` deletes without asking).
    - When other programs use the GPU (more than 1.5 GiB or 20% of its memory), it does not measure. On AMD / Intel / Apple GPUs, where nvidia-smi is missing, this is read from ComfyUI where possible, and the result's note says what could not be checked.
    - A ComfyUI that `measure` started is freed before the run (models unloaded, cached results dropped) and stopped afterwards; your own running ComfyUI is freed only with `--free`. Models that need nodes your ComfyUI lacks are left out of the list, and a named one stops before downloading. Only one `measure` or `share` measures at a time.
 3. It shows the result and where it saved it (`<cache>/submissions/<GPU>/<date>-<sha8>.json`), and one line pointing to `genmodelfit share`. It never asks whether to send. A run that could not be measured is saved as a failure record, which the next `share` sends.

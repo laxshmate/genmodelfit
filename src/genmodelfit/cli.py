@@ -4501,6 +4501,11 @@ def _share_checks(args: argparse.Namespace) -> None:
 
 
 def cmd_share(args: argparse.Namespace) -> int:
+    """share。測るために落としたものは、終わったら(Ctrl+C・失敗でも)消すかを尋ねる(#145)。"""
+    return _with_delete_offer(args, _cmd_share)
+
+
+def _cmd_share(args: argparse.Namespace) -> int:
     """share(#124): 入っているモデルを時間の上限まで測り、送っていない実測といっしょに GitHub の PR で送る。
     ComfyUI の見つけ方・入っているかの確かめ・測り方・落とし方は measure と同じ関数を使う。
     --issue は今までの Issue のフォームの形(#113。ログインしない)。share <file> はそのファイルだけを送る。"""
@@ -4833,6 +4838,80 @@ def cmd_share(args: argparse.Namespace) -> int:
             print(tr("送るものはありません", "Nothing to send"))
         return base_code
     return _share_send(args, [p.path for p in pending], creds, session, report, base_code)
+
+
+def _with_delete_offer(args: argparse.Namespace, run) -> int:
+    """run(args) を動かし、その中で測るために新しく落としたもの(downloader.DownloadRecord)があれば、
+    終わったあとに消すかを扱う(#145)。例外(Ctrl+C・誤り)で止まっても扱う。"""
+    from .downloader import DownloadRecord
+
+    record = DownloadRecord()
+    args._dl_record = record
+    try:
+        return run(args)
+    finally:
+        if record:
+            _offer_delete_downloaded(args, record)
+
+
+def _offer_delete_downloaded(args: argparse.Namespace, record) -> None:
+    """この実行で新しく落としたファイル(落とし終えたものと、残った .part・.lock)を消すか(#145)。
+    もとからあったファイルは記録に入らない。--delete-downloaded なら尋ねずに消す。端末で --yes・--json が
+    無ければ一覧と合計の量を見せて [y/N](既定は消さない)。それ以外(--yes だけ・端末でない)は消さずに
+    残したことと消し方を出す。表示は stderr(stdout の結果・JSON に混ぜない)。"""
+    files = record.existing()
+    if not files:
+        return
+    total = sum(size for _, size in files)
+    size = f"{total / GIB:.2f} GB"
+    err = sys.stderr
+    if getattr(args, "delete_downloaded", False):
+        delete = True
+    elif args.yes or getattr(args, "json", False) or not _interactive():
+        print(
+            tr(
+                f"この実行で落としたファイル {len(files)} 件({size})は残しました"
+                "(消すなら、次から --delete-downloaded を付ける)",
+                f"Kept the {len(files)} file(s) this run downloaded ({size}); add --delete-downloaded next"
+                " time to delete them",
+            ),
+            file=err,
+        )
+        return
+    else:
+        sys.stdout.flush()
+        print(file=err)
+        print(
+            tr(
+                f"測るためにこの実行で落としたファイル {len(files)} 件(合わせて {size})。"
+                "前から入っていたファイルは入れていません:",
+                f"Files this run downloaded to measure: {len(files)} ({size} in all). Files that were"
+                " already there are not included:",
+            ),
+            file=err,
+        )
+        for path, n in files:
+            print(f"  - {path}  ({n / GIB:.2f} GB)", file=err)
+        err.flush()
+        try:
+            delete = _ask_yes_no(tr("消しますか? [y/N] ", "Delete them? [y/N] "), False)
+        except KeyboardInterrupt:
+            print(file=err)
+            delete = False
+    if not delete:
+        print(tr("消さずに残しました", "Kept them"), file=err)
+        return
+    removed, failed = record.delete()
+    freed = sum(size for path, size in files if path in removed)
+    print(
+        tr(
+            f"消しました: {len(removed)} 件({freed / GIB:.2f} GB)",
+            f"Deleted: {len(removed)} file(s) ({freed / GIB:.2f} GB)",
+        ),
+        file=err,
+    )
+    for path, why in failed:
+        print(tr(f"消せませんでした: {path}({why})", f"Could not delete: {path} ({why})"), file=err)
 
 
 def _str_or_none(p) -> str | None:
@@ -6514,7 +6593,7 @@ def cmd_download(args: argparse.Namespace) -> int:
         break
     show = None if args.json else _DownloadView()
     try:
-        result = download(plan, progress=show, yes=True)
+        result = download(plan, progress=show, yes=True, record=getattr(args, "_dl_record", None))
     except KeyboardInterrupt:
         if show:
             show.close()
@@ -7120,6 +7199,7 @@ def _measure_download(args: argparse.Namespace, model_id: str, consented: bool =
     ns = build_parser().parse_args(argv)
     # _main を通らないので、内容の区分の既定(sfw)をここで入れる。無検閲の同意は足さない
     ns.content = getattr(args, "content", None) or DEFAULT_CONTENT
+    ns._dl_record = getattr(args, "_dl_record", None)  # この実行で落としたもの(#145。あとで消すか尋ねる)
     code = cmd_download(ns)
     args._download_declined = bool(getattr(ns, "_declined", False))
     return code
@@ -7353,6 +7433,11 @@ def _submission_refusal(sub: dict[str, Any], args: argparse.Namespace) -> list[s
 
 
 def cmd_measure(args: argparse.Namespace) -> int:
+    """measure。測るために落としたものは、終わったら(Ctrl+C・失敗でも)消すかを尋ねる(#145。share と同じ)。"""
+    return _with_delete_offer(args, _cmd_measure)
+
+
+def _cmd_measure(args: argparse.Namespace) -> int:
     from .downloader import DownloadError, directory_refs
     from .measure import (
         installed_state,
@@ -8220,7 +8305,10 @@ pixels, frames or length when the settings are changed. When the template cannot
 requested setting, or the ComfyUI lacks nodes it needs, it stops before downloading or
 generating.
 A model that is not installed is downloaded first, with the same questions and consent rules as
-download. A ComfyUI started by genmodelfit is freed (/free: models unloaded, cached results
+download. At the end (also after a failure or Ctrl+C) it lists what it downloaded with the total
+size and asks [y/N] whether to delete it: only files this run newly downloaded, never ones that
+were already there; --yes or no terminal keeps them, --delete-downloaded deletes without asking.
+A ComfyUI started by genmodelfit is freed (/free: models unloaded, cached results
 dropped) before the run; yours only with --free. Afterwards it shows the result and where it
 saved it, and one line pointing to genmodelfit share, which sends it (it never asks whether to
 send). A run that could not be measured is saved as a failure record that share sends.
@@ -8246,6 +8334,8 @@ SIDE EFFECTS:
   Writes the result to <cache>/measurements/ (used when this PC is judged) and a submission draft
   (or a failure record) to <cache>/submissions/ (what genmodelfit share sends). A started ComfyUI
   writes its output to <cache>/comfyui-<date>.log; <cache>/measure.lock while measuring.
+  Deletes the model files this run downloaded only on y or --delete-downloaded (only inside the
+  destination).
 
 EXIT CODES:
   0  Success (also: nothing chosen, nothing to suggest, answered n to "Measure it?" or to the
@@ -8293,7 +8383,12 @@ data/contrib/<GPU>/ (titled "measurements: <GPU> (<count>)"), or your open share
 for that GPU; files already there are skipped. If the pull request cannot be made, a terminal
 offers issues for the same files. Results are saved before sending and are never measured again:
 genmodelfit share --no-measure (or --issue) sends them later. Sent files are marked on this PC
-(--all includes them). What could not be measured goes into one failure record file per run
+(--all includes them).
+At the end (also after a failure or Ctrl+C) it lists the model files it downloaded with the total
+size and asks [y/N] whether to delete them: only files this run newly downloaded and its leftover
+.part files, never ones that were already there; --yes or no terminal keeps them, and
+the flag --delete-downloaded deletes without asking.
+What could not be measured goes into one failure record file per run
 (names and numbers only, never error text). Without any ComfyUI it sends only the unsent
 measurements; with none it says how to start ComfyUI and exits 1 without asking. FILE sends
 that file only. share --issue without --yes is the older way: choose an unsent measurement and
@@ -8308,7 +8403,8 @@ SIDE EFFECTS:
   branch, files and pull request only after you agree to send. --dry-run only asks 127.0.0.1
   whether ComfyUI runs; --issue makes no network access to GitHub. Writes measurements and
   failure records like measure, the sent marks to <cache>/submissions_shared.json and the
-  sign-in token to <config>/github_token (readable only by you).
+  sign-in token to <config>/github_token (readable only by you). Deletes the model files this run
+  downloaded only on y or --delete-downloaded (only inside the destination).
 
 EXIT CODES:
   0  Success (also: answered n, nothing to measure or send, results that only cannot be sent)
@@ -8737,7 +8833,10 @@ MODEL はモデルの名前・ワークフローの ID・その一部で、downl
 (--yes で尋ねない)。時間は目安: 同じモデルの実測の中央値、無ければ種類ごとのおおよその値。
 設定を変えたときは画素数・コマ数・長さの比で伸び縮みさせる。テンプレートが頼んだ設定を受け付け
 ないとき・ComfyUI に要るノードが無いときは、落とす前・生成の前に止める。
-入っていないモデルは、download と同じ確かめ・同意の決まりで先に落とす。genmodelfit が起動した
+入っていないモデルは、download と同じ確かめ・同意の決まりで先に落とす。落としたものは、終わると
+(失敗・Ctrl+C でも)一覧と合計の量を見せて消すかを [y/N] で尋ねる(この実行で新しく落としたファイル
+だけ。前から入っていたものは消さない。--yes・端末でないときは残す。--delete-downloaded で尋ねずに
+消す)。genmodelfit が起動した
 ComfyUI は、測る前に空ける(/free。モデルを外し、前の結果を消す)。自分の ComfyUI は --free の
 ときだけ。終わると結果と保存した場所を出し、最後に genmodelfit share(送るコマンド)を 1 行だけ
 案内する(送るかどうかは尋ねない)。測れなかったときは、失敗の記録を保存する(share が送る)。
@@ -8760,7 +8859,8 @@ ComfyUI は、測る前に空ける(/free。モデルを外し、前の結果を
   テンプレートと入力の画像、落とすときはモデルのファイル。この PC のことはほかへ送らない。
   結果を <cache>/measurements/(この PC の判定に使う)に、送るための下書き(か失敗の記録)を
   <cache>/submissions/(genmodelfit share が送るもの)に書く。起動した ComfyUI の出力は
-  <cache>/comfyui-<日付>.log。測るあいだは <cache>/measure.lock。
+  <cache>/comfyui-<日付>.log。測るあいだは <cache>/measure.lock。この実行で落としたモデルの
+  ファイルを消すのは、y と答えたか --delete-downloaded のときだけ(置き場所の中だけ)。
 
 終了コード:
   0  成功(選ばなかった・出す提案が無い・「測りますか?」や落とす質問に n と答えた・送れない
@@ -8804,7 +8904,10 @@ q 同じファイルを Issue で送る。コードの期限が切れたら、�
 置いて開く(題は「measurements: <GPU> (<件数>)」)。その GPU の share の PR が開いていれば、そこに足す。もうある
 ファイルは飛ばす。PR を作れなければ、端末なら同じファイルを Issue で送るかを尋ねる。結果は送る前に
 保存し、測り直さない: あとで genmodelfit share --no-measure(か --issue)で送れる。送ったものは
-この PC で印を付ける(--all で含める)。測れなかったものは、1 回に 1 つの失敗の記録のファイルに
+この PC で印を付ける(--all で含める)。測るために落としたモデルのファイルは、最後に
+(失敗・Ctrl+C でも)一覧と合計の量を見せて消すかを [y/N] で尋ねる(この実行で新しく落としたファイルと
+残った .part だけ。前から入っていたものは消さない。--yes・端末でないときは残す。--delete-downloaded で
+尋ねずに消す)。測れなかったものは、1 回に 1 つの失敗の記録のファイルに
 まとめる(名前と数だけ。エラーの本文は入れない)。ComfyUI が無ければ送っていない実測だけを送り、それも無ければ
 尋ねずに ComfyUI の起動の仕方を出して 1 で終える。FILE はそのファイルだけを送る。--yes の無い
 share --issue は前からの送り方で、送っていない実測を選んで Issue のフォームを開く。
@@ -8818,7 +8921,8 @@ share --issue は前からの送り方で、送っていない実測を選んで
   送ることに同意したあとだけ。--dry-run は ComfyUI が起動しているかを 127.0.0.1 に尋ねるだけ、
   --issue は GitHub に通信しない。実測と失敗の記録を measure と同じく書き、送った印を
   <cache>/submissions_shared.json に、ログインのトークンを <config>/github_token(本人だけが
-  読める)に書く。
+  読める)に書く。この実行で落としたモデルのファイルを消すのは、y と答えたか
+  --delete-downloaded のときだけ(置き場所の中だけ)。
 
 終了コード:
   0  成功(n と答えた・測るものも送るものも無い・送れないだけの結果のときも)
@@ -10014,6 +10118,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     sp.add_argument(
+        "--delete-downloaded",
+        action="store_true",
+        help=tr(
+            "測るために落としたファイル(この実行で新しく落としたものだけ)を、終わったら尋ねずに消す",
+            "after measuring, delete without asking the files this run downloaded to measure (only new ones)",
+        ),
+    )
+    sp.add_argument(
         "--free",
         action="store_true",
         help=tr(
@@ -10105,6 +10217,14 @@ def build_parser() -> argparse.ArgumentParser:
             "時間が残れば、入っていない提案も落として測る(download と同じ決まり。尋ねない)",
             "if time is left, also download and measure suggestions that are not installed (same rules as"
             " download; no question)",
+        ),
+    )
+    sp.add_argument(
+        "--delete-downloaded",
+        action="store_true",
+        help=tr(
+            "測るために落としたファイル(この実行で新しく落としたものだけ)を、終わったら尋ねずに消す",
+            "at the end, delete without asking the files this run downloaded to measure (only new ones)",
         ),
     )
     sp.add_argument(
