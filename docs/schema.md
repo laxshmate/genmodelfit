@@ -1072,12 +1072,12 @@ Rules:
   installed workflow, else the one `recommend` would pick. Order: installed first, then `seconds`, then
   `download_bytes`, then the name. Default 10 (`--limit`).
 - **Remeasure** (0.14.0, #147; `measure.stale_version`): a workflow (or a run at other settings) that this PC has
-  already measured on this GPU is offered again when none of those runs used the current ComfyUI version and the
-  newest one recorded a version (an update can change the memory and time used). `remeasure` is then
+  already measured on this GPU is offered again when every one of those runs recorded a ComfyUI version and none
+  of them is the current one (an update can change the memory and time used). `remeasure` is then
   `{from, to}` (the version of the newest run, the current one; null for the others), the line says "ComfyUI 0.19 →
   0.20 で測り直し" ("remeasure: ComfyUI 0.19 → 0.20"), and these rows come after every row never measured (the same
-  order inside), also within one model. With the same version, an unknown current version, or runs without a recorded
-  version, nothing is offered again (one account counts once however often it sends the same thing). The current
+  order inside), also within one model. With the same version, an unknown current version, or any run without a recorded
+  version (it may have been the same version), nothing is offered again (one account counts once however often it sends the same thing). The current
   version comes from the running ComfyUI's `/system_stats` (`system.comfyui_version`; with `--dry-run` only from one
   on this PC), or, before an install is started, from the text of `comfyui_version.py` (`__version__ = "x.y.z"`), else
   the `[project]` `version` of `pyproject.toml`, next to its `main.py` (`comfystart.installed_version`; read as text,

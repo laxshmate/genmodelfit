@@ -196,18 +196,18 @@ def stale_version(
     settings: Settings | None = None,
 ) -> str | None:
     """この GPU のその設定の実測(has_measurement_here が数えるもの)があり、どれも今の ComfyUI の版(current)と
-    違う版で測ったものなら、いちばん新しい実測の版(測り直しを提案する。#147)。同じ版の実測が 1 件でもある・
-    今の版が分からない・実測に版の記録が無いときは None(同じ人が同じものを何回送っても 1 回分にしか
+    違う版で測ったものなら、いちばん新しい実測の版(測り直しを提案する。#147)。同じ版の実測か版の記録の無い
+    実測が 1 件でもある・今の版が分からないときは None(同じ人が同じものを何回送っても 1 回分にしか
     数えないので、同じ版では測り直さない)。"""
     cur = comfyui_version_text(current)
     if cur is None:
         return None
     rows = _rows_here(entry, measurements, gpu, settings)
     versions = [(m.date or "", comfyui_version_text(m.comfyui_version)) for m in rows]
-    if not rows or any(v == cur for _, v in versions):
+    # 版の記録の無い実測が 1 件でもあれば出さない(同じ版で測ったかもしれない)
+    if not rows or any(v is None or v == cur for _, v in versions):
         return None
-    known = [(d, v) for d, v in versions if v]
-    return max(known)[1] if known else None
+    return max(versions)[1]
 
 
 def measured_here_count(db: Database, system: SystemInfo, *, extra: Any = ()) -> int:

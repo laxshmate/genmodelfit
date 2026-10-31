@@ -56,6 +56,8 @@ def test_stale_version_only_when_every_run_was_on_another_version():
     # 分からないときは出さない: 今の版・実測の版が無い、実測が無い
     assert measure.stale_version(ENTRY, [_m("0.19.0")], GPU, None) is None
     assert measure.stale_version(ENTRY, [_m(None)], GPU, "0.20.0") is None
+    # 版の記録の無い実測が混ざれば出さない(同じ版で測ったかもしれない)
+    assert measure.stale_version(ENTRY, [_m("0.19.0"), _m(None, "2026-09-01")], GPU, "0.20.0") is None
     assert measure.stale_version(ENTRY, [], GPU, "0.20.0") is None
     # ほかの GPU の実測は数えない
     other = Gpu(name="NVIDIA GeForce RTX 4090", vendor="nvidia", vram_total_gb=24.0, backend="cuda")
