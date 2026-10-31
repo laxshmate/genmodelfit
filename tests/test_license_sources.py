@@ -177,6 +177,7 @@ CASES = [
         "boson-higgs-audio-2-community-license",
     ),
     ("Serveurperso/Qwen3-TTS-GGUF", "qwen-tokenizer-12hz-Q8_0.gguf", "apache-2.0", None),
+    ("audio-cpp/AuK-Base-and-Flash-GGUF", "qwen2.5-omni-3b-q8_0.gguf", "other", "qwen-research"),
     ("Comfy-Org/void-model", "vae/cogvideox_vae.safetensors", "apache-2.0", None),
     ("Comfy-Org/HuMo_ComfyUI", "whisper_large_v3_fp16.safetensors", "apache-2.0", None),
     ("Comfy-Org/PixelDiT", "gemma_2_2b_it_elm_bf16.safetensors", "gemma", None),

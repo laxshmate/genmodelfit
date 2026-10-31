@@ -179,7 +179,7 @@
    "ok": 330,
    "pending": 0,
    "marked": {
-    "files_changed": 3
+    "files_changed": 1
    },
    "rejected_skipped": 0
   },
@@ -209,16 +209,16 @@
     "creativeml-openrail-m": 1,
     "gemma": 1,
     "llama3.1": 5,
-    "mit": 19,
+    "mit": 18,
     "null": 58,
     "openrail": 1,
     "openrail++": 4,
-    "other": 118
+    "other": 119
    },
    "license_tier": {
-    "non_commercial": 53,
+    "non_commercial": 54,
     "other": 74,
-    "permissive": 132,
+    "permissive": 131,
     "unknown": 58,
     "use_restricted": 13
    },
@@ -54551,13 +54551,45 @@
      "repo_precision_source": null,
      "optional": null,
      "optional_replaces": null
+    },
+    {
+     "name": "qwen2.5-omni-3b-q8_0.gguf",
+     "url": "https://huggingface.co/audio-cpp/AuK-Base-and-Flash-GGUF/resolve/main/qwen2.5-omni-3b-q8_0.gguf",
+     "sha256": "732861a7d938d08770f98d4732ee32982ee042c6c7161eed48db5569a8a620c3",
+     "size_bytes": 4253964480,
+     "directory": null,
+     "repo_id": "audio-cpp/AuK-Base-and-Flash-GGUF",
+     "license": "other",
+     "license_name": "qwen-research",
+     "gated": false,
+     "role": "text_encoder",
+     "license_from": "Qwen/Qwen2.5-Omni-3B",
+     "license_url": "https://huggingface.co/Qwen/Qwen2.5-Omni-3B/blob/main/LICENSE",
+     "repo_license": null,
+     "license_path": [
+      "audio-cpp/AuK-Base-and-Flash-GGUF",
+      "Qwen/Qwen2.5-Omni-3B"
+     ],
+     "license_evidence": [
+      "license_source:auk-qwen2.5-omni-3b",
+      "https://huggingface.co/audio-cpp/AuK-Base-and-Flash-GGUF のカード「The Qwen component is Qwen2.5-Omni-3B」。https://huggingface.co/Qwen/Qwen2.5-Omni-3B は license: other / license_name: qwen-research、LICENSE の 2.a「FOR NON-COMMERCIAL PURPOSES ONLY」・1.i「\"Non-Commercial\" shall mean for research or evaluation purposes only」(置き場所のカードの license: mit は AuK の部分だけ。tencent の LICENSE は MIT が「training code, inference code, parameters, and weights made publicly available by Tencent」に限ると書く)(2026-10-31 に確認)",
+      "manual_component: https://huggingface.co/audio-cpp/AuK-Base-and-Flash-GGUF のカード(版 2814a16a)「The default components are auk-base-f32.gguf, qwen2.5-omni-3b-bf16.gguf, and auk-vae-f32.gguf. … The Qwen component is Qwen2.5-Omni-3B」「To use the Qwen Q8_0 component, select auk.qwen_gguf=qwen2.5-omni-3b-q8_0.gguf」。一覧の本体は auk-base-q8_0.gguf なので、カードの検証の表で組み合わせた Q8_0 の Qwen(「Base F32 or Q8_0 | Q8_0 | Zero-shot TTS」)を足す。開発元 https://github.com/Tencent-Hunyuan/AuK の README(コミット 0d40366b)も Qwen/Qwen2.5-Omni-3B を落として --qwen_path に渡す(2026-10-31 に確認)"
+     ],
+     "head_status": null,
+     "head_checked_at": null,
+     "header_precision": null,
+     "header_params": null,
+     "repo_precision": null,
+     "repo_precision_source": null,
+     "optional": null,
+     "optional_replaces": null
     }
    ],
    "template": null,
    "params_b": null,
    "precision": "gguf-q8_0",
-   "license": "mit",
-   "license_url": "https://huggingface.co/audio-cpp/AuK-Base-and-Flash-GGUF",
+   "license": "other",
+   "license_url": "https://huggingface.co/Qwen/Qwen2.5-Omni-3B/blob/main/LICENSE",
    "base_model": "tencent/AuK",
    "content": "sfw",
    "content_evidence": [],
@@ -54569,7 +54601,7 @@
    "downloads": 225997,
    "likes": 7,
    "downloads_all_time": 226309,
-   "license_name": null,
+   "license_name": "qwen-research",
    "license_evidence": [],
    "files_complete": true,
    "size_floor_bytes": null,
@@ -54584,13 +54616,18 @@
    "card_languages": [],
    "review": {
     "status": "ok",
-    "reasons": [],
-    "decided_by": "baseline-2026-10-21",
-    "decided_at": "2026-10-21",
-    "evidence": [],
-    "note": "確認の印を入れたとき(0.6.0、#42)の同梱の一覧。すべて確認済みとして始めた"
+    "reasons": [
+     "files_changed"
+    ],
+    "decided_by": "claude-maker-143",
+    "decided_at": "2026-10-31",
+    "evidence": [
+     "https://huggingface.co/audio-cpp/AuK-Base-and-Flash-GGUF/blob/2814a16a49b822a5709e11a78cfd7c1662f19b61/README.md",
+     "https://huggingface.co/Qwen/Qwen2.5-Omni-3B/blob/main/LICENSE"
+    ],
+    "note": "#143: 一次資料で確かめた(PR の説明を参照)"
    },
-   "total_size_bytes": 2276722304
+   "total_size_bytes": 6530686784
   },
   {
    "id": "hf:bosonai/higgs-tts-3-4b",

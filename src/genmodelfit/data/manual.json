@@ -844,6 +844,19 @@
      "role": "vae"
     }
    ]
+  },
+  "hf:audio-cpp/AuK-Base-and-Flash-GGUF": {
+   "evidence": "https://huggingface.co/audio-cpp/AuK-Base-and-Flash-GGUF のカード(版 2814a16a)「The default components are auk-base-f32.gguf, qwen2.5-omni-3b-bf16.gguf, and auk-vae-f32.gguf. … The Qwen component is Qwen2.5-Omni-3B」「To use the Qwen Q8_0 component, select auk.qwen_gguf=qwen2.5-omni-3b-q8_0.gguf」。一覧の本体は auk-base-q8_0.gguf なので、カードの検証の表で組み合わせた Q8_0 の Qwen(「Base F32 or Q8_0 | Q8_0 | Zero-shot TTS」)を足す。開発元 https://github.com/Tencent-Hunyuan/AuK の README(コミット 0d40366b)も Qwen/Qwen2.5-Omni-3B を落として --qwen_path に渡す(2026-10-31 に確認)",
+   "files": [
+    {
+     "name": "qwen2.5-omni-3b-q8_0.gguf",
+     "url": "https://huggingface.co/audio-cpp/AuK-Base-and-Flash-GGUF/resolve/main/qwen2.5-omni-3b-q8_0.gguf",
+     "sha256": "732861a7d938d08770f98d4732ee32982ee042c6c7161eed48db5569a8a620c3",
+     "size_bytes": 4253964480,
+     "gated": false,
+     "role": "text_encoder"
+    }
+   ]
   }
  }
 }

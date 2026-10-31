@@ -47,6 +47,11 @@ All notable changes to this project are documented here. The format is based on
   CPU-only PC Chatterbox, Qwen3-TTS 0.6B and Fun-CosyVoice3 are now over the 2 GB small-model limit and judged as
   needing a GPU. The 8 changed models are marked reviewed (`claude-maker-142`, with the code as evidence).
   (読み上げの部品を足した。見積もりが大きくなる)
+- **AuK GGUF is non-commercial** (#143): `hf:audio-cpp/AuK-Base-and-Flash-GGUF` was listed as MIT, but audio.cpp needs
+  its Qwen2.5-Omni-3B component, which is under the Qwen RESEARCH LICENSE (non-commercial only). The Q8_0 Qwen GGUF of
+  the same repository (4.25 GB) is now in `files` with `other` / `qwen-research` (component source table row
+  `auk-qwen2.5-omni-3b`), so the model's license is the strictest one and the size and VRAM estimates include it. Marked reviewed (`claude-maker-143`).
+  (AuK を非商用にした。Qwen の部品を足した)
 
 ## [0.13.2] - 2026-10-29
 

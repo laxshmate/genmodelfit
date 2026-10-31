@@ -556,6 +556,22 @@ SOURCES: tuple[LicenseSource, ...] = (
         checked="2026-10-31",
     ),
     _s(
+        "auk-qwen2.5-omni-3b",
+        "audio-cpp/AuK-Base-and-Flash-GGUF",
+        r"qwen2\.5-omni-3b-(bf16|q8_0)\.gguf",
+        "other",
+        "qwen-research",
+        "Qwen/Qwen2.5-Omni-3B",
+        f"{HF}/audio-cpp/AuK-Base-and-Flash-GGUF のカード「The Qwen component is Qwen2.5-Omni-3B」。"
+        f"{HF}/Qwen/Qwen2.5-Omni-3B は license: other / license_name: qwen-research、LICENSE の 2.a"
+        '「FOR NON-COMMERCIAL PURPOSES ONLY」・1.i「"Non-Commercial" shall mean for research or evaluation'
+        " purposes only」(置き場所のカードの license: mit は AuK の部分だけ。tencent の LICENSE は MIT が"
+        "「training code, inference code, parameters, and weights made publicly available by Tencent」"
+        "に限ると書く)",
+        url=f"{HF}/Qwen/Qwen2.5-Omni-3B/blob/main/LICENSE",
+        checked="2026-10-31",
+    ),
+    _s(
         "cogvideox-vae",
         "Comfy-Org/void-model",
         r"cogvideox_vae\.safetensors",

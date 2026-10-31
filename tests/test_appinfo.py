@@ -971,3 +971,18 @@ PINNED_PARTS = {
     "hf:k2-fsa/OmniVoice",
     "hf:Serveurperso/Qwen3-TTS-GGUF",
 }
+
+
+def test_auk_gguf_takes_the_non_commercial_qwen_license():
+    """AuK の GGUF は audio.cpp で Qwen2.5-Omni-3B(Qwen RESEARCH LICENSE、非商用)が要る。置き場所の
+    カードの mit を一式のライセンスにしない(#143)。"""
+    from genmodelfit.hf import TIER_PERMISSIVE
+
+    m = load(None, use_cache=False).get("hf:audio-cpp/AuK-Base-and-Flash-GGUF")
+    qwen = next(f for f in m.files if f.name == "qwen2.5-omni-3b-q8_0.gguf")
+    assert (qwen.license, qwen.license_name) == ("other", "qwen-research")
+    assert qwen.license_from == "Qwen/Qwen2.5-Omni-3B"
+    assert (m.license, m.license_name) == ("other", "qwen-research")
+    assert m.license_url == "https://huggingface.co/Qwen/Qwen2.5-Omni-3B/blob/main/LICENSE"
+    assert license_tier(m.license, m.license_name) > TIER_PERMISSIVE
+    assert m.total_size_bytes >= 4_253_964_480
