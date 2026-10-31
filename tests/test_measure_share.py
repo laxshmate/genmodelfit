@@ -1023,7 +1023,8 @@ def test_variants_come_after_the_template_run(db):
     assert [x.settings for x in rows] == [None]  # まだテンプレートのまま
     done = _rows(measure.suggestions(defaults_measured(), s, variants_per_model=None), "image_sdxl_simple")
     assert done and all(x.settings is not None for x in done)
-    # テンプレートの値(1024x1024)は、テンプレートのままの実測があるので出さない(重ならない)
+    # テンプレートの値(1024x1024)は、テンプレートのままの実測があるので出さない(重ならない)。
+    # 試験の実測 5.0 GB は下限より小さいので、作者の実測でずらす(#151)
     assert {x.settings.width for x in done} == {512, 768, 1536}
 
 
@@ -1042,7 +1043,13 @@ def test_suggestions_mix_variants_and_cap_per_model():
     assert max(per_model.values()) <= measure.VARIANTS_PER_MODEL
     # 上限を外すと、同じモデルの設定がもっと出る(上限は並べたあとで切る: 残るのは先に並ぶもの)
     every = measure.suggestions(db, s, variants_per_model=None)
-    assert len(every) > len(sugg)
+    one = measure.suggestions(db, s, variants_per_model=1)
+    assert len(every) > len(sugg) > len(one)  # 上限 1 でも確かめる
+    for key in per_model:
+        all_of = [x for x in every if x.group_key == key and x.settings is not None]
+        assert [x.args for x in one if x.group_key == key and x.settings is not None] == [
+            x.args for x in all_of[:1]
+        ]  # 上限で残るのは先に並ぶもの
     for key in per_model:
         all_of = [x for x in every if x.group_key == key and x.settings is not None]
         kept = [x for x in var if x.group_key == key]

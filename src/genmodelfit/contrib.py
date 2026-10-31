@@ -2759,16 +2759,18 @@ def _check_against_estimate(
             ),
         )
     # 動的 VRAM・partial で下限より小さいのは普通(一部の重みをメインメモリに置く)。全部載せ(none)と言うのに
-    # 小さいものだけ知らせる。見積もりはどちらも下限(重み + 固定分)で切り詰める(estimate._prepare)
+    # 小さいものだけ知らせる。見積もりはどちらも、下限(重み + 固定分)より小さい実測では作業用メモリを
+    # ずらさない(estimate._prepare。#151、docs/accuracy.md「実測の使い方」)
     floor = parts.total * c.weight_factor + c.overhead_gb
     if mm.get("offload") == "none" and peak < floor:
         r.notice(
             "below_weights",
             tr(
                 f"全部 GPU に載せた(offload: none)のに、最大 VRAM {peak} GB が全部載せの下限"
-                f"(重み + 固定分 {floor:.2f} GB)より小さい。見積もりでは下限の値にする",
+                f"(重み + 固定分 {floor:.2f} GB)より小さい。見積もりでは作業用メモリをずらさず、式の値にする",
                 f"Everything was on the GPU (offload: none), yet peak VRAM {peak} GB is below the full-load"
-                f" floor (weights + fixed part {floor:.2f} GB). Estimates use the floor",
+                f" floor (weights + fixed part {floor:.2f} GB). Estimates do not shift"
+                " the working memory and use the formula value",
             ),
         )
 
