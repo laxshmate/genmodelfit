@@ -14,7 +14,9 @@ All notable changes to this project are documented here. The format is based on
   main memory and carries no working-memory information, so the value is the formula at every setting, `basis` and
   `basis_detail` are `estimated`, and the reasons say so. This reverses the #100 rule (raise to the floor and keep
   `measured` within 0.1 GB; `MEASURED_FLOOR_TOLERANCE` is removed) and the 2026-10-22 rule that lowered other users'
-  measurements to the floor. Pinned, lower-bound-only and over-the-GPU-total measurements are unchanged. Only
+  measurements to the floor. Such a measurement does not push out one that carries the information: when the chosen
+  measurement is below the floor the next candidate is used, and the value is the formula only when every candidate
+  is below the floor (the main-memory peak at the same settings is still used). Pinned, lower-bound-only and over-the-GPU-total measurements are unchanged. Only
   `audio_ace_step_1_5_checkpoint` changes in the bundled data: its author measurement (20 s, 10.80 GB against a
   10.82 GB floor) took 1.91 GB off every length, so its level was better than the split version with the same
   contents; now the two agree (e.g. the default 30 s: 4 to 5 GB Good → Marginal, 20 to 22.5 GB Perfect → Good;

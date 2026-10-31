@@ -604,7 +604,7 @@ def test_one_pr_split_into_two_rows_is_one_source(db, kind):
 
 def test_peak_below_the_floor_does_not_set_the_level(db):
     """そろった実測(出どころ 2 つ)でも、ピーク + 文脈の分が重み + 固定分より小さければ、重みの一部を逃がして
-    動いた記録なので段階を決めない(値をずらすのには使う)。"""
+    動いた記録なので段階を決めない(作業用メモリの情報も持たないので値もずらさない。#151)。"""
     entry = db.get("image_sdxl_simple")
     system = nvidia(RTX_3070, 8.0)
     s = Settings(width=1024, height=1024)

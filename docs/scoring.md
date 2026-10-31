@@ -247,8 +247,9 @@ The four checks:
 - Since #151 (2026-10-31) a measurement below the full-load floor (weights + fixed part), the author's or other users', does not shift the working memory (the value is the formula, `basis` is estimated). It is a record of running with part of the weights offloaded and carries no working-memory information. For measurements below the floor this reverses #100's "raise to the floor, keep measured within 0.1 GB" and 2026-10-22's "other users' measurements are lowered down to the floor".
   - Basis: from the working-memory-only measurements (tests/test_issue_148.py), a full load of ACE-Step 1.5 at 20 s should be 12.3 to 12.7 GB. The author's 10.80 GB is a record with part offloaded. llmfit corrects speed with measurements but does not shift memory values with them.
   - Fairness: one author measurement (the ACE-Step 1.5 checkpoint's 20 s, 10.80 GB) lowered everyone's value by 1.91 GB at every length, and its level differed from the split version with the same contents. That is gone.
-  - Tests: `tests/test_working.py::test_measurement_below_the_floor_does_not_shift`, `test_ace_step_checkpoint_and_split_agree`.
-- Evidence: llmfit also corrects estimates with measurements (one ratio from a machine's measurements for every model; genmodelfit shifts per model, by about −1 to +2 GB with the per-stage formula of #100).
+  - A measurement without that information does not push out one with it: if the chosen measurement is below the floor the next candidate is used, and the value is the formula only when every candidate is below the floor.
+  - Tests: `tests/test_working.py::test_measurement_below_the_floor_does_not_shift`, `test_ace_step_checkpoint_and_split_agree`, `test_below_the_floor_row_does_not_push_out_a_row_with_information`.
+- Evidence: llmfit also corrects estimates (speed) with measurements (one ratio from a machine's measurements for every model; genmodelfit shifts per model, by about −1 to +2 GB with the per-stage formula of #100).
 - Test: `tests/test_scoring.py::test_d_values_shift_by_at_most_the_delta` (the difference with and without measurements is within the shift).
 
 ## Measurements of templates without a size input

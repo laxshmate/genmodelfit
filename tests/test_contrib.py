@@ -683,10 +683,14 @@ def test_basis_ordering(db):
     assert e.measured_on.startswith("NVIDIA GeForce RTX 3070")
     assert any(f"ほかの利用者の実測(出どころ 3。中央値 {high.peak_vram_gb:.2f} GB)" in r for r in e.reasons)
     assert e.to_dict()["sample_count"] == 3
-    # 重み + 固定分(物理的な下限)より小さい値: 作業用メモリの情報を持たないので、ずらさない(値は式。#151)
+    # 重み + 固定分(物理的な下限)より小さい値: 作業用メモリの情報を持たないので、情報を持つ作者の実測を
+    # 押しのけない(#151)。作者の実測が無ければ、ずらさない(値は式)
     floor = _floor(entry, s1536)
     low = _community(high, peak_vram_gb=floor - 1.0)
     e = est([*maint, low])
+    assert (e.vram_gb, e.basis, e.basis_detail) == (base.vram_gb, base.basis, base.basis_detail)
+    assert any("作業用メモリの情報を持たないので" in r for r in e.reasons)
+    e = est([low])
     assert e.vram_gb == est([]).vram_gb and e.vram_gb > floor
     assert (e.basis, e.basis_detail, e.sample_count) == ("estimated", "estimated", None)
     assert any("作業用メモリの情報を持たず" in r for r in e.reasons)

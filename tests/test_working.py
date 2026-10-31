@@ -575,6 +575,70 @@ def test_working_only_community_rows_never_set_the_level(db):
 # --- 下限より小さい実測の扱いは作者・ほかの利用者で同じ(#151)。当てられないモデルも正のずらしは全部載せ ---
 
 
+def _rtx4090(vram=24.0):
+    g = Gpu(name="NVIDIA GeForce RTX 4090", vendor="nvidia", vram_total_gb=vram, backend="cuda")
+    return SystemInfo(os="t", cpu="t", cpu_cores=8, ram_total_gb=32, ram_available_gb=32, gpus=[g])
+
+
+@pytest.mark.parametrize("origin", ["community", None])
+def test_below_the_floor_row_does_not_push_out_a_row_with_information(db, origin):
+    """作業用メモリの情報を持たない実測(下限より小さい)は、情報を持つ実測を押しのけない(#151)。
+    RTX 4090 の PC で、4090 の下限より小さい実測(ほかの利用者・作者のどちらでも)があっても、
+    作者の RTX 5080 の +1.96 GB の実測でずらす。"""
+    e = db.get("text_to_video_wan")
+    c = E.load_coefficients()
+    author = next(
+        x for x in db.measurements if x.model_id == e.id and not E.is_community(x) and not E.working_only(x)
+    )
+    at = E.settings_for(e, author.settings)
+    fl = E.formula_need(e, at, c, E.components(e))
+    floor = fl.full - fl.act
+    extra = {"origin": "community", "n_sources": 1} if origin else {}
+    # 作者の別の行: 同じ設定・大きい GPU なので、ふだんなら 5080 の行より先に選ばれる
+    below = Measurement(
+        **{
+            **vars(author),
+            "gpu_name": "NVIDIA GeForce RTX 4090",
+            "gpu_vram_gb": 24.0,
+            "peak_vram_gb": round(floor - 0.3, 2),
+            **extra,
+        }
+    )
+    base = [x for x in db.measurements if x.model_id == e.id and not E.is_community(x)]
+    system = _rtx4090()
+    assert E.pick_measurement([*base, below], e, at, system.best_gpu) is below
+    for s in (author.settings, None):
+        a = E.estimate(e, system, s, base)
+        with i18n.forced("ja"):
+            b = E.estimate(e, system, s, [*base, below])
+        assert (b.vram_gb, b.basis_detail, b.fit) == (a.vram_gb, a.basis_detail, a.fit), s
+        assert b.vram_gb > E.estimate(e, system, s, []).vram_gb  # +1.96 のずらしが効いている
+        assert any("作業用メモリの情報を持たないので" in r and "RTX 5080" in r for r in b.reasons)
+    # 候補が全部下限より小さいときだけ、値は式(below_floor の枝)
+    only = E.estimate(e, system, author.settings, [below])
+    assert only.vram_gb == E.estimate(e, system, author.settings, []).vram_gb
+    assert only.basis_detail == "estimated"
+
+
+def test_below_the_floor_keeps_the_measured_ram_peak(db):
+    """下限より小さい実測でも、同じ設定ならメインメモリの最大は使う(逃がして動いた回のメインメモリは
+    全部載せより少なくない。#151)。"""
+    e = db.get("image_sdxl_simple")
+    row = Measurement(
+        model_id=e.id,
+        gpu_name="NVIDIA GeForce RTX 3060",
+        gpu_vram_gb=12.0,
+        peak_vram_gb=5.0,
+        peak_ram_gb=30.0,
+        settings=Settings(width=1024, height=1024),
+        offload="none",
+    )
+    est = E.estimate(e, nv(12.0, ram=64.0), None, [row])
+    plain = E.estimate(e, nv(12.0, ram=64.0), None, [])
+    assert est.basis_detail == "estimated" and est.vram_gb == plain.vram_gb
+    assert est.ram_gb >= 30.0 > plain.ram_gb
+
+
 @pytest.mark.parametrize("origin", [None, "community"])
 def test_below_the_floor_is_the_same_for_author_and_community(db, origin):
     e = db.get("image_sdxl_simple")

@@ -422,6 +422,8 @@ The RTX 5080 measurements were taken with ComfyUI's dynamic VRAM, which **uses m
        (from the ACE-Step 1.5 checkpoint's 20 s, 10.80 GB (floor 10.82 GB), −1.91 GB at every length; its level was better than the split version with the same contents).
        Working-memory-only measurements (tests/test_issue_148.py) put the working memory at 20 s at 1.5 to 1.9 GB, so a full load should be 12.3 to 12.7 GB.
        10.80 GB is a record with part offloaded, not measurement noise.
+     - A measurement without that information does not push out one with it: if the chosen measurement (`estimate.pick_measurement`) is below the floor, the next candidate is used (the reasons say so),
+       and the value is the formula only when every candidate is below the floor. A measurement below the floor still supplies the main-memory peak (`peak_ram_gb`) at the same settings.
      - Pinned and lower-bound-only measurements ("at least") and measurements above the GPU total (capped) are unchanged.
    - On a small GPU, even if all-on-GPU does not fit, the result **falls to swapped in turn or offload**.
      Example: on 8 GB, Z-Image int8 needs 13.2 GB all on GPU, but runs at 7.5 GB swapped in turn. Use is 94% (Marginal), so since 0.11.0 part of the weights is offloaded instead and the level is Good (GPU+RAM).

@@ -1001,7 +1001,8 @@ def working_only(m: Measurement) -> bool:
 # 「これ以上」としてだけ使う測り方。torch_reserved は ComfyUI のプロセスの torch の確保量で、CUDA の文脈などを
 # 含まないので、本当の必要量より小さい(#34 のレビュー、オーナーの方針 2026-10-21)。
 # 作者の実測では式より小さければ式の値にする。ほかの利用者の実測では物理的な下限(重み + 固定分)まで
-# 下げてよい(2026-10-22)。段階を実測で決めるときは文脈の分を足して使う(TORCH_RESERVED_CONTEXT_GB。0.9.0)
+# 下げてよい(2026-10-22。下限より小さい実測は作業用メモリの情報を持たないのでずらさない。#151)。
+# 段階を実測で決めるときは文脈の分を足して使う(TORCH_RESERVED_CONTEXT_GB。0.9.0)
 LOWER_BOUND_METRICS = ("torch_reserved",)
 # 実測の最大 VRAM の上限: GPU の総量 × 1.02 + 0.25 GiB(contrib validate の「ありえない値」と同じ。
 # 総量の数え方の違い(公称 16 と 15.9 など)を許す)
@@ -1374,6 +1375,8 @@ class _Model:
     # 実測が全部載せの下限(重み + 固定分)を下回った(重みの一部を逃がして動いた記録)ので、作業用メモリの
     # 情報を持たないものとしてずらさない(delta = 0。#151、docs/accuracy.md「実測の使い方」)
     below_floor: bool = False
+    # 選ばれたが全部載せの下限より小さかったので、代わりの実測に譲った実測(理由に出すだけ。#151)
+    skipped: Measurement | None = None
 
     def parts_for(self, s: Settings) -> Parts:
         return apply_precision(replace(self.parts, notes=list(self.parts.notes)), self.entry, s)
@@ -1429,6 +1432,41 @@ def _prepare(
     sized = not no_size_input(entry)  # 大きさの入力があるか(手の表。#90)
     parts = components(entry)
     m = None if parts.unknown else pick_measurement(measurements, entry, s, gpu)
+    if m is not None and _no_working_info(m, entry, c, parts, sized):
+        # 作業用メモリの情報を持たない実測(下限より小さい)は、情報を持つ実測を押しのけない: ほかに候補があれば
+        # そちらを使い、全部が下限より小さいときだけ下の below_floor の枝(値は式)にする
+        # (#151。docs/accuracy.md「実測の使い方」)
+        rest = [
+            x
+            for x in measurements
+            if x.model_id == entry.id and not _no_working_info(x, entry, c, parts, sized)
+        ]
+        alt = pick_measurement(rest, entry, s, gpu)
+        if alt is not None:
+            return replace(_prepare_from(entry, measurements, c, s, gpu, alt, parts, sized), skipped=m)
+    return _prepare_from(entry, measurements, c, s, gpu, m, parts, sized)
+
+
+def _no_working_info(m: Measurement, entry: ModelEntry, c: Coefficients, parts: Parts, sized: bool) -> bool:
+    """実測が全部載せの下限(実測の設定での重み + 固定分)より小さく、作業用メモリの情報を持たないか(#151)。
+    張り付いた実測・下限としてだけ使う実測(これ以上)は別の扱いなので含めない。"""
+    if is_censored(m) or lower_bound_only(m):
+        return False
+    n = formula_need(entry, settings_for(entry, m.settings, sized=sized), c, parts)
+    return m.peak_vram_gb - n.full < -max(0.0, n.act)
+
+
+def _prepare_from(
+    entry: ModelEntry,
+    measurements: list[Measurement],
+    c: Coefficients,
+    s: Settings | None,
+    gpu: Any,
+    m: Measurement | None,
+    parts: Parts,
+    sized: bool,
+) -> _Model:
+    """選んだ実測 m で下ごしらえを作る(_prepare の続き)。"""
     if m is None:
         return _Model(entry, c, None, 0.0, settings_for(entry, None, sized=sized), parts)
     at = settings_for(entry, m.settings, sized=sized)
@@ -1825,6 +1863,17 @@ def _estimate(
     m = prep.measurement
     if m is not None:
         on = f"{m.gpu_name} ({m.gpu_vram_gb:g} GB)"
+        if prep.skipped is not None and system.vram_gb > 0:
+            k = prep.skipped
+            k_on = f"{k.gpu_name} ({k.gpu_vram_gb:g} GB)"
+            reasons.append(
+                tr(
+                    f"{k_on} の実測 {k.peak_vram_gb:.2f} GB は全部載せの下限より小さく、作業用メモリの情報を"
+                    f"持たないので、{on} の実測を使った",
+                    f"The measurement on {k_on} ({k.peak_vram_gb:.2f} GB) is below the full-load floor and"
+                    f" carries no working-memory information, so the measurement on {on} is used",
+                )
+            )
         if is_community(m):
             reasons.append(
                 tr(f"{on} の実測は、{community_label(m)}", f"Measured on {on}: {community_label(m)}")
@@ -1851,6 +1900,9 @@ def _estimate(
                     " working-memory information and the value is the formula",
                 )
             )
+            # メインメモリの最大は使う(逃がして動いた回のメインメモリは、全部載せより少なくはない)
+            if same_settings and m.peak_ram_gb:
+                n.ram_gpu = max(n.ram_gpu, m.peak_ram_gb)
         elif other_vendor:
             # 別の会社の GPU の実測は、作業用メモリをずらすのに使うだけ(その GPU での実測ではない)
             detail = "calibrated"

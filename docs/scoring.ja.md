@@ -241,8 +241,9 @@ CPU で実時間に動く設計の読み上げ(作者の資料の文。理由に
 - #151(2026-10-31)から、全部載せの下限(重み + 固定分)より小さい実測(作者・ほかの利用者とも)は、作業用メモリをずらさない(値は式のまま、`basis` は estimated)。重みの一部を逃がして動いた記録で、作業用メモリの情報を持たないため。下限より小さい実測については、#100 の「下限まで上げ、0.1 GB 以内は measured のまま」と 2026-10-22 の「ほかの利用者の実測は下限まで下げる」を覆した。
   - 根拠: 作業用メモリだけの実測(tests/test_issue_148.py)から、ACE-Step 1.5 の 20 秒の全部載せは 12.3〜12.7 GB のはず。作者の 10.80 GB は一部を逃がした記録。llmfit は実測で速さを補正するが、メモリの値は実測でずらさない。
   - フェア: 作者の 1 件の実測(ACE-Step 1.5 checkpoint の 20 秒 10.80 GB)が、どの長さでも全員の値を 1.91 GB 下げ、中身の同じ split の版と段階が違っていた。それが無くなる。
-  - 試験: `tests/test_working.py::test_measurement_below_the_floor_does_not_shift`・`test_ace_step_checkpoint_and_split_agree`。
-- 根拠: llmfit も実測で推定を補正する(同じ機種の実測から全モデルに同じ倍率。genmodelfit はモデルごと。ずらす量は #100 の段ごとの式で −1〜+2 GB 程度)。
+  - 情報を持たない実測は、情報を持つ実測を押しのけない: 選んだ実測が下限より小さければ次の候補を使い、候補が全部下限より小さいときだけ値を式にする。
+  - 試験: `tests/test_working.py::test_measurement_below_the_floor_does_not_shift`・`test_ace_step_checkpoint_and_split_agree`・`test_below_the_floor_row_does_not_push_out_a_row_with_information`。
+- 根拠: llmfit も実測で推定(速さ)を補正する(同じ機種の実測から全モデルに同じ倍率。genmodelfit はモデルごと。ずらす量は #100 の段ごとの式で −1〜+2 GB 程度)。
 - 試験: `tests/test_scoring.py::test_d_values_shift_by_at_most_the_delta`(実測の有無による差は、ずらした量以内)。
 
 ## 大きさの入力の無いテンプレートの実測
