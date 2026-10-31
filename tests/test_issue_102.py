@@ -170,7 +170,11 @@ def test_resident_matches_comfyui_partial_loads(db):
         (name, ((n.full if n.resident is None else n.resident) > usable) == partial)
         for name, n, partial, usable in rows
     ]
-    old = [(name, (n.full > usable) == partial) for name, n, partial, usable in rows]
+    # 今までの全部載せ = タイルの V_eff(#148 でタイルにしない V を使う VAE は、そのタイルの見積もり n.tiled)
+    old = [
+        (name, ((n.full if n.tiled is None else n.tiled.full) > usable) == partial)
+        for name, n, partial, usable in rows
+    ]
     hits = sum(ok for _, ok in resident)
     assert hits >= 19, [name for name, ok in resident if not ok]
     assert sum(ok for _, ok in old) <= 13

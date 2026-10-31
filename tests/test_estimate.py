@@ -225,10 +225,14 @@ def test_settings_scaling_is_monotonic(db, coef):
     assert seq(img, width=1024, height=1024, batch=1) < seq(img, width=1024, height=1024, batch=16)
     frames = [v(vid, width=512, height=512, frames=n) for n in (17, 49, 81, 121)]
     assert frames == sorted(frames) and frames[0] < frames[-1]
-    secs = [v(aud, seconds=t) for t in (10, 30, 600)]
-    assert secs == sorted(secs)
-    secs_seq = [seq(aud, seconds=t) for t in (10, 30, 600)]
-    assert secs_seq == sorted(secs_seq) and secs_seq[0] < secs_seq[-1]
+    # 音声: タイルにしない Oobleck の V が曲の長さで増える(#148)
+    secs = [v(aud, seconds=t) for t in (10, 30, 60)]
+    assert secs == sorted(secs) and secs[0] < secs[-1]
+    secs_seq = [seq(aud, seconds=t) for t in (10, 30, 60)]
+    assert secs_seq == sorted(secs_seq)
+    # 16 GB に入らない長さは、ComfyUI がタイルに分ける見積もり(段階は marginal まで)。表の量はタイルの値
+    long = estimate(aud, pc(16), Settings(seconds=600), db.measurements, coef)
+    assert long.fit == "marginal" and long.vram_gb <= secs[-1]
 
 
 def gpu_good(e) -> bool:

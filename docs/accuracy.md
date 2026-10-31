@@ -34,7 +34,7 @@ The coefficients are in `src/genmodelfit/data/calibration.json`; rebuild them wi
 - **Since #100 (2026-10-27) the working memory is ComfyUI's authors' own estimate (the formulas in the code), per stage** ("Formulas" below).
   The only coefficient still fitted to measurements is the one for 3D among the models without a per-stage formula (`act_3d_gb`).
 - Against the 4 unpinned RTX 5080 measurements of the maintainer (peaks on a GPU with room), the differences are Z-Image int8 +5.1%, SDXL +12.5%,
-  Wan 2.1 1.3B −14.7%, ACE-Step 1.5 +9.2% ("Results" below). The formula is not fitted to them, so this is a cross-check, not a fit.
+  Wan 2.1 1.3B −14.7%, ACE-Step 1.5 +17.8% ("Results" below; the ACE-Step measurement is below the weights floor and says nothing about the working memory). The formula is not fitted to them, so this is a cross-check, not a fit.
   - 4 measurements, one kind of GPU and dynamic-VRAM peaks, so it does not show that the target is met.
   - For Wan 2.1 1.3B the measurement is 1.96 GB above the formula (VAE at its tile value). It is a peak on a GPU with room, where dynamic VRAM
     kept the parts loaded and decoded the VAE without tiles (with the untiled VAE the formula gives 14.04 GB, +5.6%).
@@ -167,6 +167,58 @@ actually used is 0.5 to 1.0 times V, which would worsen the peak prediction (V i
 measurement shift d is added only when negative (a measurement with a positive shift already contains the VAE peak). Rows whose level
 was decided by measurements do not use it. A VAE whose estimate is reliable (`comfy_decode_estimate_is_reliable`, e.g. SeedVR) is
 tiled from the start without waiting for an OOM (sd.py:1286-1291@426f5ee); the others behave as above.
+
+**VAEs that count the untiled V (#148, 2026-10-31)**: only for the Oobleck VAE of ACE-Step 1.5 and Stable Audio Open,
+the V put into the amounts used is the **untiled V** (`working.VaeWork.untiled`).
+
+- Explanation: the longer the song, the more working memory the decode (VAE) needs. The formula now grows the same way.
+- Evidence: V = 1000 × L × 2048 × 2 bytes (sd.py:735@426f5ee), L = round(seconds × 48000 / 1920) (nodes_ace.py:105;
+  the ComfyUI node defaults to 120 s: nodes_ace.py:95). ComfyUI first decodes without tiles (sd.py:1278-1311) and
+  splits into tiles only on a CUDA OOM (sd.py:1312-1326, model_management.py:389-395).
+  The measured working memory is 0.81 to 0.98 times V at 30 s and longer, and 0.81 to 0.90 times at the most trustworthy 60 and 120 s ("ACE-Step 1.5 song length" under "Cross-check" below; 10 s points miss the peak and are not used).
+  For the image KL VAE it is 0.3 to 0.65 times, so V would worsen the prediction ("Cross-check", #102, below).
+- The old formula stayed at about 1 GB because it used the tile value V_tile (256 latent frames).
+- Tile fallback: when the untiled estimate does not run or is tight, the tiled estimate (min(V, V_tile)) is judged too.
+  Its level is capped at **Marginal**, and the better one is taken (untiled when equal). ComfyUI retries in tiles after
+  an OOM, and NVIDIA on Windows spills into shared memory by default (the RTX 3070 run at 120 s). Both are slow. The
+  reasons get one sentence. In that case the VRAM in the table is the tiled estimate, and the sentence says
+  "ComfyUI first tries X GB untiled". So the table VRAM can go down when the length goes up, and it differs
+  by GPU (e.g. the all-on-GPU value of ACE-Step 1.5 without measurements is 16.5 GB at 60 s and 11.8 GB at
+  120 s (tiled) on 8 / 12 GB, and 22.2 GB at 120 s (untiled) on 16 GB). The level never goes up with the length
+  (test `test_longer_songs_never_raise_the_level`).
+- Neither estimate drops when VRAM is added, so the better of the two does not drop either.
+- The CPU has no fallback. A failed allocation on the CPU is not a CUDA OOM, so ComfyUI stops without tiling
+  (model_management.py:380, 389-395).
+- No coefficient is fitted. No factor is applied to match the measurements (0.8 to 1.0 times V). From 30 s up the
+  formula is a little above the measurements (the safe side). Short songs around 10 s have V equal to V_tile, and
+  their measurements are not reliable ("Cross-check" below).
+- Only `audio_ace_step_1_5_checkpoint` lowers the working memory by 1.91 GB at every length, from the author
+  measurement (20 s, 10.8 GB, below the weights + fixed floor; the existing shift in "How measurements are used";
+  since V at 20 s is now 1.9 GB, the shift grew). Its level can be better than `audio_ace_step_1_5_split`, which
+  has the same contents (Good vs Marginal at 60 s on 8 GB). The behaviour is unchanged and goes to a separate issue.
+- Fairness: only the 8 models with the Oobleck VAE change (6 ACE-Step 1.5, 2 Stable Audio Open). No level of any
+  other model changes at VRAM 2 to 80 GB (0.5 GB steps), main memory 16 / 32 / 64 GB, or on AMD.
+  Even at the default length, V at 30 s (2.86 GB) is above the tile value (0.98 GB) for ACE-Step 1.5, so the level
+  changes at these VRAM sizes (for any main memory and vendor; Stable Audio Open's default 10 s does not change):
+  - `audio_ace_step_1_5_split`: Good → Marginal at 4 to 5 GB, Perfect → Good at 20 to 22.5 GB
+  - `audio_ace_step_1_5_checkpoint`: Perfect → Good at 18.5 to 19.5 GB
+  - `audio_ace_step_1_5_split_4b`: Perfect → Good at 27 to 30 GB
+  - the 3 XL models (base, sft, turbo): Perfect → Good at 35 to 38 GB
+  Stable Audio Open uses the same VAE code and formula, so it is treated the same (this model cannot make songs longer
+  than 47 s).
+- Left out: ACE-Step 1 (music_dcae VAE) and YuE2 have no measurements. The Wan VAE also measures 0.74 to 0.98 times V,
+  but it is also used by images such as Qwen Image, and treating it the same would lower the level in 36 places across
+  14 models at the default settings (Perfect → Good 27, Good → Marginal 9). To be decided in a separate issue.
+
+Levels of ACE-Step 1.5 (`audio_ace_step_1_5_split`, no measurements; NVIDIA, 32 GB main memory):
+
+| length | 8 GB | 12 GB | 16 GB | 24 GB |
+|---|---|---|---|---|
+| 10 s | Good | Good | Good | Perfect |
+| 30 s | Good | Good | Good | Perfect |
+| 60 s | Good → **Marginal** | Good | Good | Perfect → **Good** |
+| 120 s | Good → **Marginal** | Good → **Marginal** | Good | Perfect → **Good** |
+| 240 s | Good → **Marginal** | Good → **Marginal** | Good → **Marginal** | Good → **Marginal** |
 
 | shape | decode tile | encode tile |
 |---|---|---|
@@ -445,13 +497,13 @@ Fitted result (2026-10-27, n = 9, of which 3 pinned; only the 2 3D measurements 
 | text_to_video_wan | 512x512, 49 frames | 13.3 | 11.34 | 11.34 | -14.7% | -31.2% |
 | video_wan2_2_5B_ti2v | 640x640, 73 frames | 15.8 | 19.35 | 19.35 | pinned (weights alone exceed the measurement, no information) | +7.0% |
 | video_wan2_2_5B_ti2v | 640x640, 73 frames, text to video | 15.0 | 19.35 | 19.35 | pinned (weights alone exceed the measurement, no information) | +12.7% |
-| audio_ace_step_1_5_checkpoint | 20 s | 10.8 | 11.79 | 11.79 | +9.2% | -13.5% |
+| audio_ace_step_1_5_checkpoint | 20 s | 10.8 | 12.73 | 12.73 | +17.8% | -13.5% |
 | 3d_hunyuan3d_image_to_model | - | 6.7 | 6.85 | 7.13 | +6.4% | -31.5% |
 | 3d_hunyuan3d-v2.1 | - | 9.4 | 9.12 | 8.97 | -4.6% | -27.0% |
 
 4 could be evaluated (3d 2, image 2); maximum LOO error 12.5% (mean 7.2%). Inside the ±20% target.
 music and video have at most 1 unpinned measurement and cannot be evaluated (target_met is null).
-All 3 of the 3 pinned measurements are exceeded by the weights alone and carry no information. For reference: LOO mean absolute error over all 6 unpinned measurements 8.8%, maximum 14.7% (weights only: mean 22.8%)
+All 3 of the 3 pinned measurements are exceeded by the weights alone and carry no information. For reference: LOO mean absolute error over all 6 unpinned measurements 10.2%, maximum 17.8% (weights only: mean 22.8%)
 
 Cross-check (measured differently, so not used for fitting; predicted with the coefficients fitted on all):
 
@@ -466,7 +518,8 @@ How to read it:
 - For the 2 image rows (Z-Image int8 +5.1%, SDXL +12.5%) the heaviest stage is ComfyUI's VAE figure (tile value 1.06 GB), which leans high
   (the VAE figure is about 1.8× the measurement; "Per-stage working memory (#100)" above).
 - Wan 2.1 1.3B at −14.7% is the gap between the peak on a GPU with room (VAE not tiled) and the formula, as in "Summary" above.
-- ACE-Step 1.5 at +9.2%: the heaviest stage is the tile value of its VAE (Oobleck), 0.98 GB.
+- ACE-Step 1.5 at +17.8%: the heaviest stage is the untiled V of its VAE (Oobleck), 1.9 GB at 20 s (#148; "Tiles" above).
+  The measured 10.8 GB is below the weights + fixed floor and says nothing about the working memory ("Cross-check" below).
 - The 2 cross-check rows are working-memory-only measurements (#100), so they are compared with the working-memory estimate (the formula for models without a per-stage formula).
   BiRefNet at −81% shows that the image coefficient (0.23 GB per megapixel), fitted to diffusion models, is too small for tools.
 
@@ -792,7 +845,7 @@ already used 1.8 to 1.9 GB (ComfyUI idling and the Windows desktop). They did no
 - Whether "everything kept loaded (V)" exceeds the usable amount predicts "part unloaded" in 20 of 21 runs (the miss is
   text_to_video_wan 512px, 49 frames, by 0.06 GB). "All on GPU (V_eff)" predicts only 12. So the all-on-GPU mode is now
   chosen only when "everything kept loaded" fits (#102; "Tiles" above).
-- The usage prediction (the "Results" table above) keeps V_eff. The working memory actually used is smaller than V, and
+- The usage prediction (the "Results" table above) keeps V_eff (since #148 the Oobleck VAE alone uses the untiled V; "Tiles" above). The working memory actually used is smaller than V, and
   using V would worsen the largest LOO error from 12.5% to 34.3% (V is ComfyUI's estimate for deciding how to load, not
   the amount used).
 - The judgement compares with 98% of the total (15.6 GB) instead of the usable amount. Counted at 98% it still predicts 20 of
@@ -869,6 +922,27 @@ Measurements after the change (RTX 3070, ComfyUI 0.19.3):
   are probably low values that missed the peak.
 - The RTX 5080 submission of ACE-Step 30 s (0.47 GB) is probably the same: on a faster GPU the peak is even shorter (the decode took 1.04 s),
   and reading every 0.2 s probably did not read it once. Measuring again with 0.14.0 will tell.
+
+### ACE-Step 1.5 song length (#148, **used neither for fitting nor for levels**)
+
+Working-memory-only measurements (torch_reserved, dynamic VRAM) against the Oobleck VAE's V (untiled) and V_tile. In GiB.
+
+| length | V | V_tile | RTX 3070 8 GB (issue #148, ComfyUI 0.19.3) | RTX 5080 16 GB (#102) | RTX 5080 16 GB (PR #141) |
+|---|---:|---:|---:|---:|---:|
+| 10 s | 0.95 | 0.95 | 0.66 (not used) | 0.44 (not used) | 1.22 (not used) |
+| 30 s | 2.86 | 0.98 | 2.34 (re-measured: 2.34, 2.72) | 2.81 | 0.47 (not used) |
+| 60 s | 5.72 | 0.98 | 5.00 | 5.16 | - |
+| 120 s | 11.44 | 0.98 | 9.31 (above 8 GB, spilled into shared memory) | 9.78 | 9.50 |
+
+- From 30 s up, measured ÷ V is 0.81 to 0.98. It grows in proportion to the length, which V_tile (constant) cannot explain.
+- The 30 s run of PR #141 (0.47 GB) started with the previous run's allocation still held (torch 0.47 GB), so it is
+  not used (#131: measurements fluctuate).
+- **No 10 s point is used** (not even to check the formula). The #131 investigation found that the working-memory peak lasts only 0.02 to 0.05 s at 10 s and 0.2 to 0.3 s at 30 s, so bench, which reads every 0.2 s, missed it. Re-measured on the RTX 3070 with fast reads, 10 s gives 1.09 to 1.31 GB, but it is too brief to read reliably. The 60 s and 120 s peaks last longer and are the most trustworthy.
+- Re-measured, 30 s still gives 2.34 GB (sometimes 2.72 GB, a real difference between runs).
+- At 10 s V and V_tile are equal, so #148 does not change the value.
+- The ACE-Step 1.5 author measurement (20 s, 10.8 GB) is below the weights + fixed floor (dynamic VRAM kept some
+  weights in main memory), so it says nothing about the working memory. The +17.8% in "Results" above comes from
+  adding V at 20 s (1.9 GB) (+9.2% before #148).
 
 ### Public figures (not used for fitting)
 

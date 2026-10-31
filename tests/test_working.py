@@ -325,7 +325,7 @@ RTX5080 = {
     "image_z_image_turbo_int8": 13.87,
     "image_sdxl_simple": 9.00,
     "text_to_video_wan": 11.34,
-    "audio_ace_step_1_5_checkpoint": 11.79,
+    "audio_ace_step_1_5_checkpoint": 12.73,  # #148: タイルにしない Oobleck の V(20 秒で 1.9 GB)
 }
 
 

@@ -110,6 +110,18 @@
 | GPU+RAM(一部をメインメモリへ逃がす) | Good | 遅いので Perfect にはしないが、余裕があれば Good(llmfit と同じ)。diffusers の比較(PR #11682)で、逃がしたときの遅れは Wan で 1.14〜1.5 倍(モデル単位と組単位の逃がし方)、FLUX で 3.3〜10.4 倍 |
 | CPU: CPU で実時間に動く読み上げ(表にあるもの)・1 回の計算の道具 | Good | 下の「CPU で動かすとき」 |
 | CPU: 画像・動画・音楽・効果音・3D の生成 | Marginal | 下の「CPU で動かすとき」 |
+| GPU・GPU~・GPU+RAM で、仕上げ(VAE)をタイルに分ける(タイルにしない V を使う Oobleck の VAE だけ。#148) | Marginal | ComfyUI は OOM のあとタイルに分けてやり直し、Windows の NVIDIA は共有メモリにはみ出す。どちらも遅い([accuracy.ja.md「タイル」](accuracy.ja.md#タイル)) |
+
+### 仕上げをタイルに分けるとき(#148)
+
+**1 文で**: タイルにしない仕上げが入らないときの Marginal の上限は、Oobleck の VAE(ACE-Step 1.5・Stable Audio Open)だけ。
+
+- Oobleck の VAE は、実測がタイルにしない V の 0.8〜1.0 倍(30 秒以上)なので、使う量に V を入れる。V が入らないときだけ、
+  タイルの見積もりで判定して Marginal までにする(GPU+RAM の行も同じ)。
+- ほかの VAE は今までどおり、使う量はタイルの値 min(V, V_tile) で、V が入らなければ注意を出すだけ(段階は変えない)。
+  画像の KL の VAE は実測が V の 0.3〜0.65 倍で、V を入れると予測が悪くなる。Wan の VAE は別の Issue で決める。
+- 表の VRAM はタイルの見積もりの値なので、長さを延ばすと減ることがある。段階は上がらない
+  ([accuracy.ja.md「タイル」](accuracy.ja.md#タイル))。
 
 ### 逃がす動かし方を選ぶとき
 
@@ -382,6 +394,7 @@ r(動かし方ごと。表の Mem% と JSON の `utilization_pct` はこの r):
 | 逃がすのは Good まで・段階が上がるときだけ・GPU の Perfect / Good は替わらない・メインメモリも見る・限界は GPU の行だけ(#108) | `tests/test_levels.py`(`test_offload_is_capped_at_good_and_chosen_only_when_it_raises_the_level` ほか) |
 | CPU の上限(読み上げ・道具は Good、生成は Marginal)・メインメモリの帯 | `tests/test_levels.py::test_cpu_only_caps`、`test_cpu_top_table`、`test_cpu_level_uses_the_ram_band` |
 | 既定で切ってある部品: 型の表の出力のノード(サブグラフの中・lazy の枝)から届けば数える・Soft Switch は選んだ側がつながっていなければもう一方・入れ子の素通しの実体の中身は使う・出力に届かないノードの部品は download にも数えない・素通しのノード自身のファイルは数えない・#81 の値(8 GB で 4.96 / 5.14 GB の Good)・FLUX.2 Klein・#112(Wan 2.2 5B が 8 GB で Good)・上限の 1 文・段階が下がらない | `tests/test_optional.py` |
+| #148: Oobleck の VAE の作業用メモリが曲の長さで増える・タイルの逃げ道は Marginal まで・CPU に逃げ道は無い・ほかの VAE は変わらない・VRAM を増やして段階が下がらない | `tests/test_issue_148.py` |
 | 確認済みの種類(NVIDIA の専用 VRAM は true、AMD・Apple・GB10 は false。1 機種は何件でも未確認、2 機種で確認済み、出どころを分けない)・✓ は確認済みだけ・gate は種類によらない・AMD と NVIDIA の分布が近い・VRAM とメモリを増やして段階が下がらない | `tests/test_levels.py` |
 
 `SCHEMA_VERSION`(同梱・配布の db.json の形の版)は変えていません。出力の意味が変わったので、パッケージは 0.11.0 です([CHANGELOG.md](../CHANGELOG.md))。
