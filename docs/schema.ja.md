@@ -537,14 +537,15 @@ VRAM を増やすと、代表がより重い精度・動かし方に替わって
 
 `basis_detail`(#34)。実測に近い順に並べる(`models.BASIS_DETAILS`):
 1. `measured`: 同じ設定の実測。保守者 / この PC の bench の実測と、ほかの利用者の提出を `contrib aggregate` でまとめたもの(値には **1 件**の提出から使う)を分けない。出どころの数は `sample_count`
-2. `calibrated`: 別の設定の実測でずらしたもの(同じ設定でも、下の上限・下限で切り詰めたもの)
-3. `estimated`: 式だけ
+2. `calibrated`: 別の設定の実測でずらしたもの(同じ設定でも、下の上限で切り詰めたもの・下限としてだけ使ったもの)
+3. `estimated`: 式だけ(全部載せの下限より小さい実測があっても、作業用メモリの情報を持たないのでずらさない。#151)
 
 0.11.0(#108)で `measured_community` を `measured` にまとめた。アプリは `measured_community` を見ていたら `measured` に直す(どの出どころかは `info --json` の `measurements` の `origin` に残る。印には使わない)。
 
 2026-10-22 から(llmfit と同じ)、community の実測は**両方向**に使う(要る量を下げることも上げることもできる)。
 物理的な上限だけで縛る:
 - 全部載せの値は、重み + 固定の上乗せ(作業メモリ 0)より下がらず、実測した GPU の VRAM × 1.02 + 0.25 GiB より上がらない。
+- 重み + 固定の上乗せより小さい実測(重みの一部を逃がして動いた記録)は、作業用メモリをずらさない(値は式のまま、`basis_detail` は `estimated`。#151 から。それまでは下限まで上げていた)。保守者の実測も同じ。
 - GPU の上限に張り付いた値は下限。
 - 別の設定に広げるときは、実測 ÷ 式の比を [0.6, 1.4] に切る(`estimate.COMMUNITY_CALIBRATION_RANGE`。llmfit は速度に [0.05, 3.0] を使う)。
 
@@ -1481,7 +1482,7 @@ llmfit の `validate_community_benchmarks.py` と同じく、**機械的な確�
 - `gpu_vram_nominal`: VRAM が名前の公称の量に合わない(0.11.0。改造品でなければ誤り)。
 - `batch_sizeless`: 大きさの入力の無いテンプレート(`estimate.NO_SIZE_INPUT`)なのに `batch` が 1 でない(0.10.1 の bench が MoGe の処理の単位を枚数と記録した。判定は batch 1 なので同じ設定の実測にならない。#90)。
 - `deviation`: ピーク VRAM が、その設定での式の全部載せの見積もりから 40% より離れている。
-- `below_weights`: `offload: none` なのにピーク VRAM が 重み + 固定の上乗せより小さい。見積もりは、これより小さいすべての提出に対して、その下限を使う(dynamic VRAM や部分的な読み込みでは、小さなピークは普通)。
+- `below_weights`: `offload: none` なのにピーク VRAM が 重み + 固定の上乗せより小さい。見積もりは、これより小さい提出では作業用メモリをずらさず式の値を使う(#151。dynamic VRAM や部分的な読み込みでは、小さなピークは普通)。
 - `fit_change`: この提出だけで、提出された GPU の PC の段階が変わる。
   - 「提出された GPU の PC」= 名前・PCI 型番 ID・ベンダーが同じで、VRAM が提出の `vram_gb` と同じ。同じ名前の、ほかの公称 VRAM が分かっていればそれも含める(Intel Arc: `hardware._INTEL_XPU`。NVIDIA: `estimate.NVIDIA_VRAM_VARIANTS`、0.9.1: RTX 2060 / 3050 / 3060 / 3080 / 4060 Ti / 5060 Ti)。
   - これに RAM 16 / 32 / 64 GB を掛け、既定の設定と提出の設定で調べる。

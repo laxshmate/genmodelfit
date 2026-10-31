@@ -475,16 +475,73 @@ def test_positive_shift_from_a_roomy_gpu_goes_to_full_load_only(db):
     assert not E._full_only(small, 11.34, 0.5)
 
 
-def test_measurement_slightly_below_the_floor_stays_measured(db):
-    """作者の ACE-Step 1.5 の実測 10.80 GB は下限 10.82 GB を 0.02 GB 下回る(数え方の誤差)。値は下限、
-    根拠は measured のまま、理由に出す。"""
+def test_measurement_below_the_floor_does_not_shift(db):
+    """作者の ACE-Step 1.5 の実測 10.80 GB は全部載せの下限 10.82 GB を下回る(一部を逃がして動いた記録)。
+    作業用メモリの情報を持たないので、ずらさない: 20 秒でも値は式(12.73 GB)、basis は estimated(#151。
+    #100 の「0.1 GB 以内は measured のまま下限」をやめた。docs/accuracy.md「実測の使い方」)。"""
     e = db.get("audio_ace_step_1_5_checkpoint")
-    s = Settings(seconds=20)
+    c = E.load_coefficients()
+    prep = E._prepare(e, db.measurements, c, Settings(seconds=20), None)
+    assert prep.measurement is not None and prep.measurement.peak_vram_gb == 10.80
+    assert prep.below_floor and prep.delta == 0.0 and not prep.clamped and not prep.full_only
+    assert not hasattr(E, "MEASURED_FLOOR_TOLERANCE")
+    for sec in (None, 10, 20, 30, 60, 120, 240):
+        s = Settings(seconds=sec) if sec else None
+        a = E.estimate(e, nv(16.0), s, db.measurements)
+        b = E.estimate(e, nv(16.0), s, [])
+        assert (a.vram_gb, a.vram_sequential_gb, a.vram_offload_gb, a.fit) == (
+            b.vram_gb,
+            b.vram_sequential_gb,
+            b.vram_offload_gb,
+            b.fit,
+        ), sec
+        assert a.basis == "estimated" and a.basis_detail == "estimated" and a.sample_count is None
     with i18n.forced("ja"):
-        est = E.estimate(e, nv(16.0), s, db.measurements)
-    assert est.basis == "measured" and est.vram_gb == pytest.approx(10.82, abs=0.01)
-    assert any("わずかに下回る" in r for r in est.reasons)
-    assert E.MEASURED_FLOOR_TOLERANCE == 0.1  # 下限の大きさによらない(#100 の再チェック)
+        est = E.estimate(e, nv(16.0), Settings(seconds=20), db.measurements)
+    assert est.vram_gb == pytest.approx(12.73, abs=0.01) and est.measured_on is None
+    assert any("作業用メモリの情報を持たず" in r for r in est.reasons)
+    assert not any("補正した推定" in r for r in est.reasons)
+    with i18n.forced("en"):
+        est = E.estimate(e, nv(16.0), Settings(seconds=20), db.measurements)
+    assert any("no working-memory information" in r for r in est.reasons)
+
+
+ACE_LENGTHS = (None, 10, 20, 30, 60, 120, 240)
+
+
+def test_ace_step_checkpoint_and_split_agree(db):
+    """中身の同じ ACE-Step 1.5 の checkpoint と split は、どの VRAM・長さでも同じ段階(#151。checkpoint だけ
+    下限より小さい作者の実測で作業用メモリを 1.91 GB 減らしていた)。値は ±0.05 GB(中身のファイルは違う)。"""
+    ck, sp = db.get("audio_ace_step_1_5_checkpoint"), db.get("audio_ace_step_1_5_split")
+    assert any(m.model_id == ck.id for m in db.measurements)
+    for sec in ACE_LENGTHS:
+        s = Settings(seconds=sec) if sec else None
+        vram = 4.0
+        while vram <= 80.0:
+            a = E.estimate(ck, nv(vram), s, db.measurements)
+            b = E.estimate(sp, nv(vram), s, db.measurements)
+            assert a.fit == b.fit, (sec, vram, a.fit, b.fit)
+            assert a.vram_gb == pytest.approx(b.vram_gb, abs=0.05), (sec, vram)
+            vram += 0.5
+
+
+@pytest.mark.parametrize(
+    ("mid", "kw", "delta"),
+    [
+        ("text_to_video_wan", {"width": 512, "height": 512, "frames": 49}, 1.96),
+        ("image_sdxl_simple", {"width": 832, "height": 832}, -1.00),
+        ("image_z_image_turbo_int8", {"width": 832, "height": 832}, -0.67),
+    ],
+)
+def test_measurements_above_the_floor_still_shift(db, mid, kw, delta):
+    """下限より上の実測は今までどおり作業用メモリをずらす(#151 の回帰)。"""
+    e = db.get(mid)
+    m = next(x for x in db.measurements if x.model_id == mid and E.usable(x) and not E.working_only(x))
+    prep = E._prepare(e, db.measurements, E.load_coefficients(), E.settings_for(e, m.settings), None)
+    assert prep.measurement is not None and not prep.below_floor
+    assert prep.delta == pytest.approx(delta, abs=0.02)
+    est = E.estimate(e, nv(16.0), m.settings, db.measurements)
+    assert est.basis == "measured"
 
 
 def test_working_only_community_rows_never_set_the_level(db):
@@ -515,11 +572,75 @@ def test_working_only_community_rows_never_set_the_level(db):
     assert est.fit_from == "estimate" and est.basis_detail == "estimated"
 
 
-# --- #100 の再チェック: 下限の許しは作者・ほかの利用者で同じ。当てられないモデルも正のずらしは全部載せ ---
+# --- 下限より小さい実測の扱いは作者・ほかの利用者で同じ(#151)。当てられないモデルも正のずらしは全部載せ ---
+
+
+def _rtx4090(vram=24.0):
+    g = Gpu(name="NVIDIA GeForce RTX 4090", vendor="nvidia", vram_total_gb=vram, backend="cuda")
+    return SystemInfo(os="t", cpu="t", cpu_cores=8, ram_total_gb=32, ram_available_gb=32, gpus=[g])
+
+
+@pytest.mark.parametrize("origin", ["community", None])
+def test_below_the_floor_row_does_not_push_out_a_row_with_information(db, origin):
+    """作業用メモリの情報を持たない実測(下限より小さい)は、情報を持つ実測を押しのけない(#151)。
+    RTX 4090 の PC で、4090 の下限より小さい実測(ほかの利用者・作者のどちらでも)があっても、
+    作者の RTX 5080 の +1.96 GB の実測でずらす。"""
+    e = db.get("text_to_video_wan")
+    c = E.load_coefficients()
+    author = next(
+        x for x in db.measurements if x.model_id == e.id and not E.is_community(x) and not E.working_only(x)
+    )
+    at = E.settings_for(e, author.settings)
+    fl = E.formula_need(e, at, c, E.components(e))
+    floor = fl.full - fl.act
+    extra = {"origin": "community", "n_sources": 1} if origin else {}
+    # 作者の別の行: 同じ設定・大きい GPU なので、ふだんなら 5080 の行より先に選ばれる
+    below = Measurement(
+        **{
+            **vars(author),
+            "gpu_name": "NVIDIA GeForce RTX 4090",
+            "gpu_vram_gb": 24.0,
+            "peak_vram_gb": round(floor - 0.3, 2),
+            **extra,
+        }
+    )
+    base = [x for x in db.measurements if x.model_id == e.id and not E.is_community(x)]
+    system = _rtx4090()
+    assert E.pick_measurement([*base, below], e, at, system.best_gpu) is below
+    for s in (author.settings, None):
+        a = E.estimate(e, system, s, base)
+        with i18n.forced("ja"):
+            b = E.estimate(e, system, s, [*base, below])
+        assert (b.vram_gb, b.basis_detail, b.fit) == (a.vram_gb, a.basis_detail, a.fit), s
+        assert b.vram_gb > E.estimate(e, system, s, []).vram_gb  # +1.96 のずらしが効いている
+        assert any("作業用メモリの情報を持たないので" in r and "RTX 5080" in r for r in b.reasons)
+    # 候補が全部下限より小さいときだけ、値は式(below_floor の枝)
+    only = E.estimate(e, system, author.settings, [below])
+    assert only.vram_gb == E.estimate(e, system, author.settings, []).vram_gb
+    assert only.basis_detail == "estimated"
+
+
+def test_below_the_floor_keeps_the_measured_ram_peak(db):
+    """下限より小さい実測でも、同じ設定ならメインメモリの最大は使う(逃がして動いた回のメインメモリは
+    全部載せより少なくない。#151)。"""
+    e = db.get("image_sdxl_simple")
+    row = Measurement(
+        model_id=e.id,
+        gpu_name="NVIDIA GeForce RTX 3060",
+        gpu_vram_gb=12.0,
+        peak_vram_gb=5.0,
+        peak_ram_gb=30.0,
+        settings=Settings(width=1024, height=1024),
+        offload="none",
+    )
+    est = E.estimate(e, nv(12.0, ram=64.0), None, [row])
+    plain = E.estimate(e, nv(12.0, ram=64.0), None, [])
+    assert est.basis_detail == "estimated" and est.vram_gb == plain.vram_gb
+    assert est.ram_gb >= 30.0 > plain.ram_gb
 
 
 @pytest.mark.parametrize("origin", [None, "community"])
-def test_floor_tolerance_is_the_same_for_author_and_community(db, origin):
+def test_below_the_floor_is_the_same_for_author_and_community(db, origin):
     e = db.get("image_sdxl_simple")
     s = E.settings_for(e, None)
     fl = round(_floor_need(e, s).full, 2)
@@ -547,11 +668,26 @@ def test_floor_tolerance_is_the_same_for_author_and_community(db, origin):
             **extra,
         )
 
-    near = E.estimate(e, nv(12.0), None, [row(round(fl - 0.05, 2))])
-    assert near.basis == "measured" and near.vram_gb == pytest.approx(fl, abs=0.01)
-    assert any("下限" in r for r in near.reasons) or any("floor" in r for r in near.reasons)
-    far = E.estimate(e, nv(12.0), None, [row(round(fl - 0.5, 2))])
-    assert far.basis == "estimated" and far.vram_gb == pytest.approx(fl, abs=0.01)
+    plain = E.estimate(e, nv(12.0), None, [])
+    assert plain.vram_gb == pytest.approx(9.00, abs=0.01) and fl == pytest.approx(7.93, abs=0.01)
+    c = E.load_coefficients()
+    # 下限のすぐ下(#100 では measured のまま下限)も、ずっと下(下限)も、値は式の全部載せ(下限ではない)
+    for peak in (round(fl - 0.05, 2), round(fl - 0.5, 2)):
+        prep = E._prepare(e, [row(peak)], c, s, nv(12.0).best_gpu)
+        assert prep.below_floor and prep.delta == 0.0
+        assert prep.delta_other in (None, 0.0) and not prep.clamped and prep.clamp is None
+        est = E.estimate(e, nv(12.0), None, [row(peak)])
+        assert (est.basis, est.basis_detail, est.sample_count) == ("estimated", "estimated", None)
+        assert est.vram_gb == plain.vram_gb and est.fit == plain.fit
+        assert any("no working-memory information" in r or "作業用メモリの情報" in r for r in est.reasons)
+        # 違う設定へ広げる値もずらさない(ほかの利用者の delta_other も 0)
+        s2 = Settings(width=1536, height=1536)
+        assert E.estimate(e, nv(12.0), s2, [row(peak)]).vram_gb == E.estimate(e, nv(12.0), s2, []).vram_gb
+    if origin:
+        assert E._prepare(e, [row(round(fl - 0.5, 2))], c, s, nv(12.0).best_gpu).delta_other == 0.0
+    # 下限より上なら今までどおりずれる
+    above = E.estimate(e, nv(12.0), None, [row(round(fl + 0.3, 2))])
+    assert above.basis == "measured" and above.vram_gb == pytest.approx(fl + 0.3, abs=0.01)
 
 
 def test_fallback_positive_shift_goes_to_full_load_only(db):
