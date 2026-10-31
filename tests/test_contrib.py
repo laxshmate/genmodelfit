@@ -683,13 +683,13 @@ def test_basis_ordering(db):
     assert e.measured_on.startswith("NVIDIA GeForce RTX 3070")
     assert any(f"ほかの利用者の実測(出どころ 3。中央値 {high.peak_vram_gb:.2f} GB)" in r for r in e.reasons)
     assert e.to_dict()["sample_count"] == 3
-    # 小さい値: 必要量を下げる。ただし重み + 固定分(物理的な下限)より下げない
+    # 重み + 固定分(物理的な下限)より小さい値: 作業用メモリの情報を持たないので、ずらさない(値は式。#151)
     floor = _floor(entry, s1536)
     low = _community(high, peak_vram_gb=floor - 1.0)
     e = est([*maint, low])
-    assert e.vram_gb == round(floor, 2) < base.vram_gb
-    assert (e.basis, e.basis_detail) == ("estimated", "calibrated")  # 値は実測ではない(下限)
-    assert any("下限" in r for r in e.reasons)
+    assert e.vram_gb == est([]).vram_gb and e.vram_gb > floor
+    assert (e.basis, e.basis_detail, e.sample_count) == ("estimated", "estimated", None)
+    assert any("作業用メモリの情報を持たず" in r for r in e.reasons)
     mid = _community(high, peak_vram_gb=round((floor + base.vram_gb) / 2, 2))  # 下限より上なら、そのまま使う
     e = est([*maint, mid])
     assert e.vram_gb == mid.peak_vram_gb < base.vram_gb and e.basis == "measured"
@@ -753,16 +753,15 @@ def test_calibrated_spread_is_bounded(db):
         )
         same = estimate(entry, sysi, s512, [m])
         other = estimate(entry, sysi, sdef, [m])
-        assert other.basis_detail == "calibrated" and other.sample_count == 3
         if sign > 0:
+            assert other.basis_detail == "calibrated" and other.sample_count == 3
             assert same.vram_gb == m.peak_vram_gb  # 同じ設定なら実測そのもの(上は GPU の総量まで)
             assert other.vram_gb == pytest.approx(a.vram_gb + 0.4 * est_m, abs=0.02)
         else:
-            assert same.vram_gb == round(_floor(entry, s512), 2)  # 同じ設定でも物理的な下限まで
-            assert other.vram_gb >= max(
-                _floor(entry, Settings(width=1024, height=1024)), a.vram_gb - 0.4 * est_m
-            )
-            assert other.vram_gb < a.vram_gb
+            # 物理的な下限より小さい実測は作業用メモリの情報を持たないので、どの設定でもずらさない(#151)
+            assert m.peak_vram_gb < _floor(entry, s512)
+            assert same.vram_gb == est_m and other.vram_gb == a.vram_gb
+            assert other.basis_detail == "estimated" and other.sample_count is None
 
 
 def test_torch_reserved_is_a_lower_bound(db):

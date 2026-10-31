@@ -192,10 +192,10 @@ the V put into the amounts used is the **untiled V** (`working.VaeWork.untiled`)
 - No coefficient is fitted. No factor is applied to match the measurements (0.8 to 1.0 times V). From 30 s up the
   formula is a little above the measurements (the safe side). Short songs around 10 s have V equal to V_tile, and
   their measurements are not reliable ("Cross-check" below).
-- Only `audio_ace_step_1_5_checkpoint` lowers the working memory by 1.91 GB at every length, from the author
-  measurement (20 s, 10.8 GB, below the weights + fixed floor; the existing shift in "How measurements are used";
-  since V at 20 s is now 1.9 GB, the shift grew). Its level can be better than `audio_ace_step_1_5_split`, which
-  has the same contents (Good vs Marginal at 60 s on 8 GB). The behaviour is unchanged and goes to a separate issue.
+- The author measurement of `audio_ace_step_1_5_checkpoint` (20 s, 10.8 GB) is below the weights + fixed floor, so
+  the working memory is not shifted (#151; "How measurements are used" 1 below). At #148 it lowered the working memory
+  by 1.91 GB at every length, and its level could be better than `audio_ace_step_1_5_split`, which has the same
+  contents (Good vs Marginal at 60 s on 8 GB). Since #151 the two levels are the same.
 - Fairness: only the 8 models with the Oobleck VAE change (6 ACE-Step 1.5, 2 Stable Audio Open). No level of any
   other model changes at VRAM 2 to 80 GB (0.5 GB steps), main memory 16 / 32 / 64 GB, or on AMD.
   Even at the default length, V at 30 s (2.86 GB) is above the tile value (0.98 GB) for ACE-Step 1.5, so the level
@@ -413,9 +413,16 @@ The RTX 5080 measurements were taken with ComfyUI's dynamic VRAM, which **uses m
      Which one applies depends on the measurement, so it is monotonic in the VRAM of the PC being judged.
    - v3's "the same shift for all three" (`max(a + d, b + d) = max(a, b) + d`) holds only when the shift is an error of the fixed part.
      Gaps with other causes (dynamic VRAM using free space, no tiling) differ by stage, hence the rules above.
-   - A measurement (the maintainer's or other users') below the floor is raised to the floor (it ran with part of the weights in main memory).
-     Within 0.1 GB it is rounding or measurement noise: `basis: "measured"` stays, the value is the floor, and the reasons say so
-     (ACE-Step 1.5: 10.80 GB against a floor of 10.82 GB, 0.02 GB; `estimate.MEASURED_FLOOR_TOLERANCE`).
+   - **When a measurement (the maintainer's or other users') is below the floor (weights + fixed part), the working memory is not shifted** (#151, 2026-10-31).
+     A measurement below the floor is a record of running with part of the weights offloaded to main memory and says nothing about the size of the working memory
+     (the same reason it does not set the level; [scoring.md](scoring.md) "When measurements set the level"). At every setting the value is the formula,
+     `basis` is estimated (`basis_detail` is also estimated), and the reasons say "it carries no working-memory information and the value is the formula".
+     - This reverses the #100 decision (raise to the floor and, within 0.1 GB, keep `basis: "measured"`; `MEASURED_FLOOR_TOLERANCE`).
+       Raising to the floor made the shift (measurement − formula) negative by the gap to the floor, and that shift applied **to every length and resolution**
+       (from the ACE-Step 1.5 checkpoint's 20 s, 10.80 GB (floor 10.82 GB), −1.91 GB at every length; its level was better than the split version with the same contents).
+       Working-memory-only measurements (tests/test_issue_148.py) put the working memory at 20 s at 1.5 to 1.9 GB, so a full load should be 12.3 to 12.7 GB.
+       10.80 GB is a record with part offloaded, not measurement noise.
+     - Pinned and lower-bound-only measurements ("at least") and measurements above the GPU total (capped) are unchanged.
    - On a small GPU, even if all-on-GPU does not fit, the result **falls to swapped in turn or offload**.
      Example: on 8 GB, Z-Image int8 needs 13.2 GB all on GPU, but runs at 7.5 GB swapped in turn. Use is 94% (Marginal), so since 0.11.0 part of the weights is offloaded instead and the level is Good (GPU+RAM).
    - A measured value larger than the GPU does not by itself make a model Too tight.
@@ -624,9 +631,12 @@ The rules below describe how submissions are handled.
 **Direction:** a measurement is used to **lower or raise** the need. It counts the same as the maintainer's measurements. Only the physical range limits it (`estimate._prepare`).
 
 - Lower bound: the all-on-GPU value is not lowered below **weights + fixed part** (working memory 0).
-  - A smaller measurement means some weights were held in main memory (dynamic VRAM, partial) or the measurement was wrong.
-  - The estimate is set to the lower bound. `basis` is estimated (`basis_detail` is calibrated; measured_community before 0.11.0). The reason says 「下限の値にした」 ("set to the lower bound").
-  - The condition that validate used to flag for review (`offload: none` and smaller than weights + fixed part) is now clamped in the estimate.
+  - A smaller measurement means some weights were held in main memory (dynamic VRAM, partial) or the measurement was wrong. It carries no working-memory information.
+  - **Such a measurement does not shift the working memory** (neither at the same settings nor in the value extended to other settings; #151, 2026-10-31). The value is the formula, `basis` is estimated
+    (`basis_detail` is also estimated). The reasons say "it carries no working-memory information and the value is the formula".
+  - This reverses the 2026-10-22 decision (raise to the lower bound; `basis_detail` calibrated, reason 「下限の値にした」). Raising to the lower bound made
+    a negative shift equal to the gap between the lower bound and the formula's full load, and it spread to other settings. It is the same treatment as the maintainer's measurements ("How measurements are used" 1 above).
+  - The condition that validate used to flag for review (`offload: none` and smaller than weights + fixed part) is now a condition for not using the measurement in the estimate.
 - Upper bound: the measured GPU's total × 1.02 + 0.25 GiB (the same as validate's "impossible value").
   - A larger value is clamped to this bound (total × 1.02 + 0.25 GiB) (`estimate._prepare`).
   - The reason reads 「GPU の総量を超えるので、上限(総量 × 1.02 + 0.25 GB)までにした」 ("it exceeds the GPU total, so it was limited to the bound (total × 1.02 + 0.25 GB)").
@@ -639,7 +649,7 @@ The rules below describe how submissions are handled.
   - On the low side, the lower bound of weights + fixed part usually acts first (the maintainer's lower bound ÷ formula is 0.73–1.0).
 - The default settings used for judging are not changed to the settings of other users' measurements (a submission with small settings does not shrink the default settings themselves).
 - The maintainer's and this PC's `torch_reserved` measurements (no CUDA context included; the 2 RTX 3070 ones) are used only as "at least", as before.
-- Other users' `torch_reserved` measurements may be lowered down to the lower bound (weights + fixed part), because every bench submission is torch_reserved and could otherwise never be used to lower the need.
+- Other users' `torch_reserved` measurements may be lowered down to the lower bound (weights + fixed part), because every bench submission is torch_reserved and could otherwise never be used to lower the need. Those below the lower bound do not shift, as in "Lower bound" above.
 
 **How a measurement is picked** (`estimate.pick_measurement`): only measurements on the same GPU are candidates for other users' measurements. The order is:
 

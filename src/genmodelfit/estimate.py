@@ -1371,8 +1371,9 @@ class _Model:
     # 正のずらしを全部載せにだけ足すか(#100): 実測した GPU の VRAM が式の全部載せ以上(余裕のある GPU の山。
     # 動的 VRAM が部品を載せたままにし、VAE もタイルに分けずに仕上げた)なら True
     full_only: bool = False
-    # 作者の実測が下限(重み + 固定分)をわずかに下回った(MEASURED_FLOOR_TOLERANCE 以内)ので下限にした
-    near_floor: bool = False
+    # 実測が全部載せの下限(重み + 固定分)を下回った(重みの一部を逃がして動いた記録)ので、作業用メモリの
+    # 情報を持たないものとしてずらさない(delta = 0。#151、docs/accuracy.md「実測の使い方」)
+    below_floor: bool = False
 
     def parts_for(self, s: Settings) -> Parts:
         return apply_precision(replace(self.parts, notes=list(self.parts.notes)), self.entry, s)
@@ -1437,16 +1438,19 @@ def _prepare(
     delta = m.peak_vram_gb - est
     if is_community(m):
         # ほかの利用者の実測は両方の向きに使う(2026-10-22 のオーナーの決定。llmfit に合わせた)。抑えるのは
-        # 物理的な範囲だけ: 全部載せの値は重み + 固定分より下げない(作業用メモリを 0 より下げない)、
+        # 物理的な範囲だけ: 全部載せの下限(重み + 固定分)より小さい実測はずらしに使わない(#151)、
         # GPU の総量を超えた値は使わない。張り付いた実測(動的 VRAM が空きを使い切った)は
         # 「これ以上」としてだけ使う。
         # 判定する既定の設定は own のまま(小さな設定の提出で、既定の設定そのものを小さくしない)
         own = _prepare(entry, [x for x in measurements if not is_community(x)], c, s, gpu)
         lo = 0.0 if is_censored(m) else -max(0.0, act_m)
         hi = max(lo, peak_vram_cap(m) - est)
-        # 下限との差が MEASURED_FLOOR_TOLERANCE 以内なら、作者の実測と同じく数え方の誤差として実測のまま扱う
-        near = delta < lo and lo - delta <= MEASURED_FLOOR_TOLERANCE
-        clamp = "floor" if (delta < lo and not near) else ("cap" if delta > hi else None)
+        # 全部載せの下限より小さい実測は作業用メモリの情報を持たないので、どの設定にもずらさない
+        # (#151 で 2026-10-22 の「下限まで上げる」をやめた。docs/accuracy.md「実測の使い方」)
+        below = not is_censored(m) and delta < lo
+        if below:
+            return _Model(entry, c, m, 0.0, own.base, parts, False, own, None, 0.0, False, below_floor=True)
+        clamp = "floor" if delta < lo else ("cap" if delta > hi else None)
         delta = min(max(delta, lo), hi)
         # 設定の違う推定へは、実測 ÷ 式 を COMMUNITY_CALIBRATION_RANGE に収めて広げる
         r_lo, r_hi = COMMUNITY_CALIBRATION_RANGE
@@ -1463,20 +1467,17 @@ def _prepare(
             clamp,
             other,
             _full_only(m, est, delta),
-            near,
         )
-    clamped = near = False
+    clamped = below = False
     if is_censored(m) or lower_bound_only(m):
         clamped = delta < 0 and lower_bound_only(m)
         delta = max(0.0, delta)  # 張り付いた実測・下限の実測は「これ以上」としてだけ使う
     elif delta < -max(0.0, act_m):
-        # 全部載せの値は重み + 固定分(作業用メモリ 0)より下げない(#95 の下限。#100 で段ごとの式にして、作者の
-        # 動的 VRAM の実測が下限より小さく出ることがある: 重みの一部をメインメモリに置いていた)。
-        # 下限との差が MEASURED_FLOOR_TOLERANCE 以内なら、数え方の誤差として実測のまま扱う
-        # (値は下限、理由に出す)
-        near = -max(0.0, act_m) - delta <= MEASURED_FLOOR_TOLERANCE
-        clamped = not near
-        delta = -max(0.0, act_m)
+        # 全部載せの下限(重み + 固定分、作業用メモリ 0)より小さい実測は、重みの一部をメインメモリに置いて
+        # 動いた記録で、作業用メモリの大きさについて何も言えない。値は式のまま(ずらさない。#151 で
+        # #100 の「下限まで上げる・0.1 GB 以内は実測のまま」をやめた。docs/accuracy.md「実測の使い方」)
+        below = True
+        delta = 0.0
     return _Model(
         entry,
         c,
@@ -1487,13 +1488,8 @@ def _prepare(
         clamped,
         clamp="floor" if clamped else None,
         full_only=_full_only(m, est, delta),
-        near_floor=near,
+        below_floor=below,
     )
-
-
-# 実測(作者・ほかの利用者)が下限(重み + 固定分)を下回っても、この幅(GiB)以内なら丸め・測りの揺れとして
-# 実測のまま扱う(値は下限、理由に出す。#100。例: ACE-Step 1.5 の 10.80 GB と下限 10.82 GB の 0.02 GB)
-MEASURED_FLOOR_TOLERANCE = 0.1
 
 
 def _full_only(m: Measurement, est_full: float, delta: float) -> bool:
@@ -1842,6 +1838,19 @@ def _estimate(
                     f"No GPU, so the measurement on {on} is not used",
                 )
             )
+        elif prep.below_floor and not (is_community(m) and _precision_changed(m, s, entry)):
+            # 全部載せの下限より小さい実測は作業用メモリの情報を持たない: 値は式のまま(basis は estimated、
+            # 「実測で補正した」とも言わない。#151、docs/accuracy.md「実測の使い方」)
+            reasons.append(
+                tr(
+                    f"{on} の実測 {m.peak_vram_gb:.2f} GB は、全部 GPU に載せたときの下限(重み + 固定分)より"
+                    "小さい(重みの一部をメインメモリに逃がして動いた記録)ので、作業用メモリの情報を持たず、"
+                    "値は式のまま",
+                    f"The measurement on {on} ({m.peak_vram_gb:.2f} GB) is below the full-load floor"
+                    " (weights + fixed): it ran with part of the weights in main memory, so it carries no"
+                    " working-memory information and the value is the formula",
+                )
+            )
         elif other_vendor:
             # 別の会社の GPU の実測は、作業用メモリをずらすのに使うだけ(その GPU での実測ではない)
             detail = "calibrated"
@@ -1883,17 +1892,10 @@ def _estimate(
                     )
                 )
             else:
+                # 残るのは張り付いた実測(ほかの利用者)が式より小さいときだけ(下限より小さい実測は
+                # below_floor の枝。#151)
                 reasons.append(
                     tr(
-                        f"{on} の実測 {m.peak_vram_gb:.2f} GB は、全部 GPU に載せたときの下限"
-                        f"(重み + 固定分 {n.full:.2f} GB)より小さいので、下限の値にした"
-                        "(一部の重みをメインメモリに置いていた実測)",
-                        f"The measurement on {on} ({m.peak_vram_gb:.2f} GB) is below the minimum for loading"
-                        f" everything on the GPU (weights + fixed {n.full:.2f} GB), so the minimum is used"
-                        " (some weights were kept in main memory during the measurement)",
-                    )
-                    if not is_censored(m)
-                    else tr(
                         f"{on} の実測 {m.peak_vram_gb:.2f} GB は GPU の上限に張り付いた値なので、"
                         "これ以上としてだけ使い、式の値にした",
                         f"The measurement on {on} ({m.peak_vram_gb:.2f} GB) hit the GPU limit,"
@@ -1905,18 +1907,6 @@ def _estimate(
         elif same_settings:
             basis, measured_on = "measured", on
             detail = "measured"  # 作者・ほかの利用者の実測を分けない(#108。出どころの数は sample_count)
-            if prep.near_floor:
-                reasons.append(
-                    tr(
-                        f"{on} の実測 {m.peak_vram_gb:.2f} GB は、全部 GPU に載せたときの下限(重み + 固定分 "
-                        f"{n.full:.2f} GB)をわずかに下回るので下限の値にした(差が "
-                        f"{MEASURED_FLOOR_TOLERANCE:g} GB 以内なら丸め・測りの揺れとして実測のまま扱う)",
-                        f"The measurement on {on} ({m.peak_vram_gb:.2f} GB) is slightly below the full-load"
-                        f" floor (weights + fixed {n.full:.2f} GB), so the floor is used (within"
-                        f" {MEASURED_FLOOR_TOLERANCE:g} GB it still counts as measured: rounding or"
-                        " measurement noise)",
-                    )
-                )
             if is_censored(m):
                 reasons.append(
                     tr(
@@ -2390,7 +2380,7 @@ def measured_level(
     if total < floor_gb:
         # ピークが全部載せの物理的な下限(重み + 固定分)より小さい = 重みの一部をメインメモリに逃がして動いた
         # 記録。逃がせば動くことの根拠にはなるが、GPU に全部載ることの根拠にはならないので段階は決めない
-        # (値をずらすのには使う。docs/scoring.md「実測で段階を決める条件」)
+        # (作業用メモリの情報も持たないので値もずらさない。#151。docs/scoring.md「実測で段階を決める条件」)
         return None, tr(
             f"段階は見積もりで決めた(同じ GPU・同じ設定の実測 {total:.1f} GB は、全部 GPU に載せたときの下限"
             f"(重み + 固定分 {floor_gb:.1f} GB)より小さい。重みの一部を逃がして動いた記録なので、"
