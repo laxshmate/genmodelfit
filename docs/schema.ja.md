@@ -122,6 +122,7 @@ Gpu:
 | `gfx_target` | str \| null | (0.7.0)AMD の LLVM ターゲット。例: `gfx1100` |
 | `carveout_gb` | float \| null | (0.7.0)`memory: shared` のとき、BIOS が確保する VRAM(`ram_total_gb` には含まれない)。RAM の確認では、これを超える GPU 使用分だけ数える。それ以外は null |
 | `pci_id` | str \| null | (0.9.0)AMD / Intel の GPU の PCI 型番 ID `vendor:device`(`1002:744c`)。Windows の WMI `PNPDeviceID`、Linux の `lspci -nn` から取る。NVIDIA(nvidia-smi の名前はどこでも一致する)と Apple では null。同じ GPU でのほかの利用者の実測と照らすのに使う(`estimate.same_gpu`) |
+| `vram_overridden` | bool | (#150、任意)`--vram` / `vram_gb=` で量を置き換えたとき true。`name`・世代・精度はこの PC の GPU のままで、VRAM だけが仮定。理由・注意では名前でなく「<name> の世代」と書く。`name` の値は変えない。それ以外は無い / false |
 
 Adapter(`other_gpus`): `name`、`vendor`(`nvidia` / `amd` / `intel` / `apple` / `unknown`)、
 `vram_gb`(Windows: レジストリの `HardwareInformation.qwMemorySize`、無ければ 4 GiB 未満の WMI `AdapterRAM`。Linux の AMD: sysfs。Linux の Intel Arc: 名前から小さいほうのモデルの VRAM。不明なら null)、

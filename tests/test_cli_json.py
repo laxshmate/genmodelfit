@@ -57,6 +57,7 @@ GPU = {
     "gfx_target",
     "carveout_gb",
     "pci_id",  # 0.9.0(PCI の型番 ID。同じ GPU の照合)
+    "vram_overridden",  # #150(--vram で量だけ上書きしたか。#150)
 }
 DATABASE = {"origin", "generated_at", "models", "measurements"}
 FIT = {
