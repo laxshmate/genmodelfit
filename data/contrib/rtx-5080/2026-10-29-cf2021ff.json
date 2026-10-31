@@ -1,0 +1,64 @@
+{
+ "contrib_schema": 3,
+ "kind": "genmodelfit-measurement",
+ "tool": {
+  "name": "genmodelfit",
+  "version": "0.13.0"
+ },
+ "date": "2026-10-29",
+ "system": {
+  "os_family": "windows",
+  "ram_total_gb": 32,
+  "gpu": {
+   "name": "NVIDIA GeForce RTX 5080",
+   "vram_gb": 15.92,
+   "arch": "blackwell",
+   "compute_capability": "12.0",
+   "driver": "610.88",
+   "vendor": "nvidia",
+   "backend": "cuda"
+  }
+ },
+ "comfyui_version": "0.34.3",
+ "db": {
+  "generated_at": "2026-10-21",
+  "sha256": "870e4e4516ad"
+ },
+ "measurement": {
+  "model_id": "3d_hunyuan3d-v2.1",
+  "settings": {
+   "steps": 30,
+   "precision": "fp16"
+  },
+  "outcome": "ok",
+  "standard": true,
+  "offload": "dynamic",
+  "peak_vram_gb": 1.59,
+  "peak_ram_gb": 12.8,
+  "seconds": 39.7,
+  "vram_metric": "torch_reserved",
+  "note": "GPU 全体(nvidia-smi)の増分 3.12 GB(開始前 6.48 GB 使用、最大 9.60 GB)。/system_stats の GPU 全体の増分 7.12 GB。開始前に /free でモデルを解放(解放前 torch 0.09 GB、解放後 0.09 GB)。ComfyUI の実行時間 39.39 秒。計測 175 回",
+  "files_fp": "31df388de5a8c6567399977b2e1beae329e73af4e57f69fd2c3d9eb124406951",
+  "estimate": {
+   "fit_level": "perfect",
+   "run_mode": "gpu",
+   "vram_gb": 9.12,
+   "vram_resident_gb": 9.12,
+   "work_gb": 0.78,
+   "ram_required_gb": 8.68,
+   "seconds": 120.0,
+   "basis": "estimated",
+   "measurements": "bundled-excluding-this-gpu"
+  },
+  "timing": {
+   "queue_s": 0.05,
+   "load_s": 5.08,
+   "sampling_s": 12.0,
+   "sec_per_step": 0.4,
+   "decode_s": 22.3,
+   "save_s": null,
+   "total_s": 39.7,
+   "cold_load": true
+  }
+ }
+}
