@@ -19,8 +19,8 @@ All notable changes to this project are documented here. The format is based on
   is below the floor (the main-memory peak at the same settings is still used). Pinned, lower-bound-only and
   over-the-GPU-total measurements are unchanged. Only `audio_ace_step_1_5_checkpoint` changes in the bundled
   data: its author measurement (20 s, 10.80 GB against a 10.82 GB floor) took 1.91 GB off every length, so its
-  level was better than the split version of the same model; now the two agree (e.g. the default 30 s: 4 to 5 GB Good → Marginal, 20 to 22.5 GB Perfect → Good;
-  20 s value 10.82 → 12.73 GB). Calibration unchanged. Details in docs/accuracy "How measurements are used".
+  level was better than the split version of the same model; now the two agree (e.g. the default 30 s: 4 to 5 GB
+  Good → Marginal, 20 to 22.5 GB Perfect → Good; 20 s value 10.82 → 12.73 GB). Calibration unchanged. Details in docs/accuracy "How measurements are used".
   (全部載せの下限より小さい実測では作業用メモリをずらさず、ほかの実測も押しのけない。#100 と 2026-10-22 の決めを覆した)
 
 ### Fixed
