@@ -820,9 +820,9 @@ genmodelfit download MODEL --uncensored --any-license --yes    # 尋ねずに落
 
 ```text
 genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--url URL]
-                    [--comfyui-dir DIR] [--no-start] [--start-timeout SEC] [--yes] [--free]
-                    [--resolution WxH] [--frames N] [--length SEC] [--limit N] [--timeout SEC]
-                    [model]
+                    [--comfyui-dir DIR] [--no-start] [--start-timeout SEC] [--yes]
+                    [--delete-downloaded] [--free] [--resolution WxH] [--frames N] [--length SEC]
+                    [--limit N] [--timeout SEC] [model]
 ```
 
 - ComfyUI でモデルを実測し、結果をこの PC に保存する(ComfyUI が無ければ起動する。何も送らない)。
@@ -835,6 +835,8 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 - その設定で GPU に載り(good 以上)、この PC でその設定をまだ測っていないものだけで、1 つのモデルに 2 件まで。
 - 時間の目安が約 300 秒を超えるものは出さない。
 - 1 回は生成 1 回(数分)で、もう一度 measure を実行すると次のものを選べる。
+- この PC でもう測ったモデル・設定でも、測ったときと今で ComfyUI の版が違えば、ほかのものの後に出す(行に「ComfyUI 0.19 → 0.20 で測り直し」と出す。起動していない ComfyUI の版はフォルダから読む)。
+- 同じ版なら出さない。
 - MODEL はモデルの名前・ワークフローの ID・その一部で、download と同じ選び方で決める(ComfyUI のテンプレートのあるワークフローだけ)。
 - `--resolution`・`--frames`・`--length` で bench と同じく設定を変える。
 - 測る前に 1 画面で、モデルと精度、設定(テンプレートのまま、または変えた設定)、どの ComfyUI か・どう見つけたか、ファイルが入っているか、時間の目安、何も送らないことを見せ、[Y/n] で尋ねる(`--yes` で尋ねない)。
@@ -842,6 +844,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 - 設定を変えたときは画素数・コマ数・長さの比で伸び縮みさせる。
 - テンプレートが頼んだ設定を受け付けないとき・ComfyUI に要るノードが無いときは、落とす前・生成の前に止める。
 - 入っていないモデルは、download と同じ確かめ・同意の決まりで先に落とす。
+- 落としたものは、終わると(失敗・Ctrl+C でも)一覧と合計の量を見せて消すかを [y/N] で尋ねる(この実行で新しく落としたファイルだけ。前から入っていたものは消さない。`--yes`・端末でないときは残す。`--delete-downloaded` で尋ねずに消す)。
 - genmodelfit が起動した ComfyUI は、測る前に空ける(/free。モデルを外し、前の結果を消す)。
 - 自分の ComfyUI は `--free` のときだけ。
 - 終わると結果と保存した場所を出し、最後に `genmodelfit share`(送るコマンド)を 1 行だけ案内する(送るかどうかは尋ねない)。
@@ -857,6 +860,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 | `--no-start` |  |  | 起動中の ComfyUI が無くても、見つけた ComfyUI を起動しない(環境変数 GENMODELFIT_COMFYUI_START=0 と同じ) |
 | `--start-timeout` | `SEC` | `300` | 起動した ComfyUI の準備を待つ時間の上限(秒。既定 300) |
 | `--yes`, `-y` |  |  | 測る前に尋ねない(入っていないモデルは download `--yes` と同じ決まりで落とす) |
+| `--delete-downloaded` |  |  | 測るために落としたファイル(この実行で新しく落としたものだけ)を、終わったら尋ねずに消す |
 | `--free` |  |  | 測る前に ComfyUI の /free でモデルと前の結果を外す(起動中の自分の ComfyUI 向け。genmodelfit が起動した ComfyUI ではいつも外す) |
 | `--resolution` | `WxH` |  | 幅と高さ(例: 1536x1536)を変えて測る(bench と同じ。省くとテンプレートのまま) |
 | `--frames` | `N` |  | 動画のコマ数を変えて測る(bench と同じ。省くとテンプレートのまま) |
@@ -883,6 +887,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 - 結果を `<cache>/measurements/`(この PC の判定に使う)に、送るための下書き(か失敗の記録)を `<cache>/submissions/`(`genmodelfit share` が送るもの)に書く。
 - 起動した ComfyUI の出力は `<cache>/comfyui-<日付>.log`。
 - 測るあいだは `<cache>/measure.lock`。
+- この実行で落としたモデルのファイルを消すのは、y と答えたか `--delete-downloaded` のときだけ(置き場所の中だけ)。
 
 **終了コード**
 
@@ -919,14 +924,14 @@ genmodelfit measure --url http://127.0.0.1:8000  # この ComfyUI で測る(探�
 **使い方**
 
 ```text
-genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--any-license] [--no-measure]
-                  [--budget SEC] [--dry-run] [--issue] [--print-url] [--logout] [--all]
-                  [--mark-sent] [--url URL] [--comfyui-dir DIR] [--no-start] [--start-timeout SEC]
-                  [--timeout SEC] [--db PATH] [--no-cache] [file]
+genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--delete-downloaded]
+                  [--any-license] [--no-measure] [--budget SEC] [--dry-run] [--issue] [--print-url]
+                  [--logout] [--all] [--mark-sent] [--url URL] [--comfyui-dir DIR] [--no-start]
+                  [--start-timeout SEC] [--timeout SEC] [--db PATH] [--no-cache] [file]
 ```
 
 - 数分測って、実測を GitHub の PR で送る。
-- FILE を省くと、measure と同じく ComfyUI を見つけ(`--url`、無ければこの PC で起動中のもの、無ければ見つけたものを起動し、終わったら止める)、measure の提案のうち、ファイルが入っていて、この PC でまだ測っていないもの(この PC に保存したものは、送ったかどうかによらず測ったと数える。ほかの人の実測は数えない)で、その ComfyUI にノードがそろうものを、時間の目安の合計が `--budget`(300 秒)に収まるまで選び、送っていない実測と合計の時間(ComfyUI の起動 約 45 秒・測る時間・落とす時間を 100 Mbps の例で)を添えて計画を見せる。
+- FILE を省くと、measure と同じく ComfyUI を見つけ(`--url`、無ければこの PC で起動中のもの、無ければ見つけたものを起動し、終わったら止める)、measure の提案のうち、ファイルが入っていて、この PC でまだ測っていないもの(この PC に保存したものは、送ったかどうかによらず測ったと数える。ほかの人の実測は数えない。ComfyUI の版が違うときに測ったものは、measure と同じくほかのものの後に出す)で、その ComfyUI にノードがそろうものを、時間の目安の合計が `--budget`(300 秒)に収まるまで選び、送っていない実測と合計の時間(ComfyUI の起動 約 45 秒・測る時間・落とす時間を 100 Mbps の例で)を添えて計画を見せる。
 - 1 回だけ [Y/n] で尋ね、1 つずつ測る(失敗しても残りは続け、Ctrl+C ならそこまでのものを送るかに進む)。
 - 測る前には毎回 ComfyUI を空ける。
 - 入っていないモデルを落とすのは、`--download` か、1 回の [y/N] の質問に y のときだけ(入っていて測れるものが無ければ最初に、ほかは測り終えてから尋ねる)。
@@ -944,6 +949,7 @@ genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--any-lic
 - PR を作れなければ、端末なら同じファイルを Issue で送るかを尋ねる。
 - 結果は送る前に保存し、測り直さない: あとで `genmodelfit share --no-measure`(か `--issue`)で送れる。
 - 送ったものはこの PC で印を付ける(`--all` で含める)。
+- 測るために落としたモデルのファイルは、最後に(失敗・Ctrl+C でも)一覧と合計の量を見せて消すかを [y/N] で尋ねる(この実行で新しく落としたファイルと残った .part だけ。前から入っていたものは消さない。`--yes`・端末でないときは残す。`--delete-downloaded` で尋ねずに消す)。
 - 測れなかったものは、1 回に 1 つの失敗の記録のファイルにまとめる(名前と数だけ。エラーの本文は入れない)。
 - ComfyUI が無ければ送っていない実測だけを送り、それも無ければ尋ねずに ComfyUI の起動の仕方を出して 1 で終える。
 - FILE はそのファイルだけを送る。
@@ -956,6 +962,7 @@ genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--any-lic
 | `file` |  |  | 送る提出の JSON(省くと、測ってから送っていない実測をすべて送る) |
 | `--yes`, `-y` |  |  | 測る・送る前に尋ねない(入っていないモデルを落とすことには同意しない) |
 | `--download` |  |  | 時間が残れば、入っていない提案も落として測る(download と同じ決まり。尋ねない) |
+| `--delete-downloaded` |  |  | 測るために落としたファイル(この実行で新しく落としたものだけ)を、終わったら尋ねずに消す |
 | `--any-license` |  |  | `--download`・端末でないとき、ライセンスの分からないモデルも落とす(download と同じ。略せない) |
 | `--no-measure` |  |  | 測らずに、送っていない実測だけを送る |
 | `--budget` | `SEC` | `300` | 測る時間の合計の上限(時間の目安の合計。秒) |
@@ -986,6 +993,7 @@ genmodelfit share [-h] [--lang {en,ja}] [--json] [--yes] [--download] [--any-lic
 - ログイン・フォーク・ブランチ・ファイル・PR は、送ることに同意したあとだけ。
 - `--dry-run` は ComfyUI が起動しているかを 127.0.0.1 に尋ねるだけ、`--issue` は GitHub に通信しない。
 - 実測と失敗の記録を measure と同じく書き、送った印を `<cache>/submissions_shared.json` に、ログインのトークンを `<config>/github_token`(本人だけが読める)に書く。
+- この実行で落としたモデルのファイルを消すのは、y と答えたか `--delete-downloaded` のときだけ(置き場所の中だけ)。
 
 **終了コード**
 

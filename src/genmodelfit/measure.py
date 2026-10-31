@@ -162,18 +162,72 @@ def has_measurement_here(
     settings が None なら、テンプレートの設定のままで測った実測(settings_override の無いもの。記録の無い
     古い行も含む)だけを数える(#116)。settings を渡すと、その設定(same_variant)の実測を、設定を変えたか
     どうかによらず数える。"""
+    return bool(_rows_here(entry, measurements, gpu, settings))
+
+
+def _rows_here(
+    entry: ModelEntry, measurements: list[Measurement], gpu: Any, settings: Settings | None = None
+) -> list[Measurement]:
+    """has_measurement_here が数える実測の行。"""
     from .estimate import measured_on_this_gpu
 
-    return any(
-        _finished(m, entry)
+    return [
+        m
+        for m in measurements
+        if _finished(m, entry)
         and measured_on_this_gpu(m, gpu)
         and (
             not getattr(m, "settings_override", None)
             if settings is None
             else same_variant(m.settings, settings)
         )
-        for m in measurements
-    )
+    ]
+
+
+def comfyui_version_text(v: Any) -> str | None:
+    """ComfyUI の版をそろえた文字(前後の空白と頭の v を除く)。空なら None。"""
+    t = str(v or "").strip()
+    t = t[1:] if t[:1] in ("v", "V") else t
+    return t or None
+
+
+def stale_version(
+    entry: ModelEntry,
+    measurements: list[Measurement],
+    gpu: Any,
+    current: Any,
+    settings: Settings | None = None,
+) -> str | None:
+    """この GPU のその設定の実測(has_measurement_here が数えるもの)があり、どれも今の ComfyUI の版(current)と
+    違う版で測ったものなら、いちばん新しい実測の版(測り直しを提案する。#147)。同じ版の実測か版の記録の無い
+    実測が 1 件でもある・今の版が分からないときは None(同じ人が同じものを何回送っても 1 回分にしか
+    数えないので、同じ版では測り直さない)。"""
+    cur = comfyui_version_text(current)
+    if cur is None:
+        return None
+    rows = _rows_here(entry, measurements, gpu, settings)
+    versions = [(m.date or "", comfyui_version_text(m.comfyui_version)) for m in rows]
+    # 版の記録の無い実測が 1 件でもあれば出さない(同じ版で測ったかもしれない)
+    if not rows or any(v is None or v == cur for _, v in versions):
+        return None
+    return max(versions)[1]
+
+
+def measured_here_count(db: Database, system: SystemInfo, *, extra: Any = ()) -> int:
+    """この PC の実測(measured_by_this_pc と extra)で、この GPU にテンプレートの設定のまま最後まで測った
+    ワークフロー(テンプレートのあるもの)の数(#146。share の「送るものはありません」の理由に出す)。"""
+    gpu = system.best_gpu
+    if gpu is None:
+        return 0
+    here = measured_by_this_pc(list(db.measurements)) + list(extra)
+    ids: set[str] = set()
+    for m in here:
+        if m.model_id in ids:
+            continue
+        entry = db.get(m.model_id)
+        if entry is not None and entry.source == TEMPLATE_SOURCE and has_measurement_here(entry, [m], gpu):
+            ids.add(m.model_id)
+    return len(ids)
 
 
 def template_settings(entry: ModelEntry, measurements: list[Measurement]) -> Settings | None:
@@ -289,6 +343,8 @@ class Suggestion:
     group_key: str = ""
     fit: Any = field(default=None, repr=False, compare=False)
     settings: Settings | None = None  # 設定を変えた測定(#116)。None はテンプレートのまま
+    # この PC で測ったが、そのときと今で ComfyUI の版が違うので測り直すもの(#147): (測ったときの版, 今の版)
+    remeasure: tuple[str, str] | None = None
 
     @property
     def args(self) -> list[str]:
@@ -310,13 +366,16 @@ class Suggestion:
             "seconds_basis": self.seconds_basis,
             "settings": settings_dict(self.settings),
             "args": self.args,
+            "remeasure": {"from": self.remeasure[0], "to": self.remeasure[1]} if self.remeasure else None,
         }
 
 
 def _order(s: Suggestion) -> tuple:
-    """並び: 入っているもの → 時間が短いもの → 落とす量が少ないもの → 名前。"""
+    """並び: まだ測っていないもの → 測り直すもの(#147)。その中で 入っているもの → 時間が短いもの →
+    落とす量が少ないもの → 名前。"""
     inst = s.installed
     return (
+        s.remeasure is not None,
         inst.state != "yes",
         s.seconds,
         inst.missing_bytes,
@@ -337,6 +396,7 @@ def suggestions(
     variants_per_model: int | None = VARIANTS_PER_MODEL,
     extra: Any = (),
     include_unknown_license: bool = False,
+    comfyui_version: str | None = None,
 ) -> list[Suggestion]:
     """測ると役に立つモデル(#113): テンプレートがあり、この PC の GPU に載り(perfect / good で GPU)、
     この GPU にテンプレートの設定のままの、この PC の実測(measured_by_this_pc と extra)が無いもの。
@@ -346,6 +406,9 @@ def suggestions(
     実測があり(先にテンプレートのままを測ってもらう)、その設定(judged_settings)で見積もって GPU に載り、
     この GPU でその設定の実測が無いもの。同じモデル・同じ設定は 1 件(選び方は同じ)で、同じモデルの設定を
     変えた測定は、並べた順に variants_per_model 件まで(None なら全部)。
+    comfyui_version(今の ComfyUI の版)を渡すと、この PC でもう測ったもの(テンプレートのまま・設定を変えた
+    測定)でも、測ったときの版がどれも違えば測り直しとして出す(#147。stale_version。Suggestion.remeasure に
+    版を入れ、まだ測っていないものの後に並べる)。
     時間の目安が MAX_SUGGEST_SECONDS を超えるものは出さない。動画の設定を変えた測定で、時間の目安が
     種類ごとのおおよその値のときは TYPICAL_VIDEO_FRAMES_MAX コマまで。
     並びは入っているもの → 時間 → 落とす量。GPU が無ければ空。"""
@@ -374,21 +437,27 @@ def suggestions(
         # ライセンスの分からないものは、一覧の既定と同じく出さない(--any-license で出す。#124)
         if not include_unknown_license and m.license_unknown:
             continue
-        rows: list[tuple[Settings | None, str]] = []
+        rows: list[tuple[Settings | None, str, str | None]] = []  # (設定, 段階, 測り直す前の版)
+        fits = e.fit in SUGGEST_LEVELS and e.run_mode == SUGGEST_MODE
         if not has_measurement_here(m, here, gpu):
-            if e.fit in SUGGEST_LEVELS and e.run_mode == SUGGEST_MODE:
-                rows.append((None, e.fit))
+            if fits:
+                rows.append((None, e.fit, None))
         else:
+            old = stale_version(m, here, gpu, comfyui_version)
+            if fits and old is not None:
+                rows.append((None, e.fit, old))
             for v in variants(m, ms):
                 ve = estimate(m, system, judged_settings(m, ms, v), ms, c)
-                if (
-                    ve.fit in SUGGEST_LEVELS
-                    and ve.run_mode == SUGGEST_MODE
-                    and not has_measurement_here(m, here, gpu, v)
-                ):
-                    rows.append((v, ve.fit))
+                if ve.fit not in SUGGEST_LEVELS or ve.run_mode != SUGGEST_MODE:
+                    continue
+                if not has_measurement_here(m, here, gpu, v):
+                    rows.append((v, ve.fit, None))
+                else:
+                    old = stale_version(m, here, gpu, comfyui_version, v)
+                    if old is not None:
+                        rows.append((v, ve.fit, old))
         inst = installed_state(m, roots, refs) if rows else None
-        for settings, level in rows:
+        for settings, level, old in rows:
             secs, basis = time_hint(m, ms, settings)
             if secs > MAX_SUGGEST_SECONDS:
                 continue
@@ -412,12 +481,21 @@ def suggestions(
                 group_key=f.group_key or m.id,
                 fit=f,
                 settings=settings,
+                remeasure=(old, str(comfyui_version_text(comfyui_version))) if old is not None else None,
             )
             key = (s.group_key, tuple(s.args))
             per_key.setdefault(key, []).append(s)
     picked = sorted(
         (
-            min(group, key=lambda s: (s.installed.state != "yes", variant_key(s.fit), s.model_id))
+            min(
+                group,
+                key=lambda s: (
+                    s.remeasure is not None,
+                    s.installed.state != "yes",
+                    variant_key(s.fit),
+                    s.model_id,
+                ),
+            )
             for group in per_key.values()
         ),
         key=_order,

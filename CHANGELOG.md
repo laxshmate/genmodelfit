@@ -41,6 +41,33 @@ All notable changes to this project are documented here. The format is based on
   good → marginal at 4–5 GB, perfect → good at 20–22.5 GB; full list in docs/accuracy "Tiles"). No other model
   changes. Other VAEs are unchanged (the Wan VAE is left for a separate issue).
   (ACE-Step 1.5 の仕上げの作業用メモリが曲の長さで増えるようにした。既定の 30 秒でも一部の VRAM で段階が変わる)
+- `share` says why when there is nothing to send, and what to do next (#146): already measured on this PC (with the
+  count; only when this PC has such runs, else that no installed model can be measured), nodes missing in this ComfyUI (update ComfyUI), not-installed models declined or not downloaded
+  (`share --download`), nothing fits `--budget`, the models folder unknown (`--comfyui-dir`), runs that failed or
+  cannot be sent, Ctrl+C, failure records already sent, and no unsent measurements (`share --no-measure --all` to send
+  the sent ones again). `--json` adds `reasons` (`{code, text}`) and `next_step` next to `reason`, also after measuring.
+  (「送るものはありません」に理由と次にできることを出す)
+
+### Added
+
+- `share` and `measure` offer to delete what they downloaded to measure (#145): at the end (also after a failure or
+  Ctrl+C) they list the files this run downloaded from the start (finished files and leftover `.part`), with the
+  total size, and ask `[y/N]` (Enter keeps them). Files that were already there are never listed or deleted, nor is
+  a `.part` from an earlier run or the file finished from it; a file several of the run's models use is listed
+  once; only files inside the destination folder that are still the same file (device, inode, size, modification
+  time checked again right before deleting) are deleted, so another run's files are not; folders this run made are
+  removed when they end up empty. `--yes` or no terminal keeps them; the new flag `--delete-downloaded` deletes them
+  without asking. An error is printed before the question. The library records what a download put in place with
+  `download(..., record=DownloadRecord())` (nothing is printed).
+  (測るために落としたものを、終わったあとで消すかを尋ねる。前から入っていたものは消さない)
+- `measure` and `share` suggest measuring again what this PC already measured when the ComfyUI version changed
+  (#147): a model or setting whose runs on this GPU were all made with another ComfyUI version comes back after the
+  ones never measured, with "ComfyUI 0.19 → 0.20 で測り直し" ("remeasure: ComfyUI 0.19 → 0.20") on its line and
+  `remeasure: {from, to}` in JSON. With the same version nothing changes (one account counts once). The current
+  version comes from the running ComfyUI's `/system_stats`, or, before starting one, from the text of its
+  `comfyui_version.py` / `pyproject.toml` (not imported); JSON `comfyui.version`. genmodelfit has no separate version of
+  its measuring method, so only the ComfyUI version is compared.
+  (ComfyUI の版が変わったら、前に測ったものも測り直しを提案する)
 
 ## [0.13.2] - 2026-10-29
 
