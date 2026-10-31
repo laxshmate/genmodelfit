@@ -76,7 +76,7 @@ r.auto, r.held_by, r.to_dict()
 | `official_workflow` | ComfyUI 公式テンプレート(`source: comfyui-template`)で `openSource` が false でない | Hugging Face だけの項目 |
 | `custom_nodes` | テンプレートの `requiresCustomNodes` が空 | カスタムノードが要る、テンプレートが無い |
 | `comfyui_version` | テンプレートの `minComfyUIVersion` ≦ 使う版(数字で比べる。`0.3.9 < 0.3.10`) | 版が読めない・記載なし・使う版が不明 |
-| `app_runtime` | (`runtime` が `comfyui` でも null でもないモデルだけ。`official_workflow`・`custom_nodes`・`comfyui_version` の代わり)通らない。動かす仕組み(piper・irodori-tts)はこの一覧では確かめられないので、使う側が確かめる(0.5.0、#36) | `src/genmodelfit/data/manual.json` に手で足したモデルのつくよみちゃん(runtime `piper`)・Irodori-TTS(runtime `irodori-tts`) |
+| `app_runtime` | (`runtime` が `comfyui` でも null でもないモデルだけ。`official_workflow`・`custom_nodes`・`comfyui_version` の代わり)通らない。動かす仕組み(piper・irodori-tts・supertonic)はこの一覧では確かめられないので、使う側が確かめる(0.5.0、#36) | `src/genmodelfit/data/manual.json` に手で足したモデルのつくよみちゃん(runtime `piper`)・Irodori-TTS(runtime `irodori-tts`)・Supertonic 3(runtime `supertonic`) |
 | `url_reachable` | すべてのファイルの URL に、匿名の HEAD が 200 / 302 / 307(`/api/resolve-cache` への転送)を返した記録があり、その確認が `max_head_age_days`(既定 30 日)より新しい | 401(gated)・404・記録なし(未確認)・URL なし・確認が古い・確認の日時が無い |
 | `sha256` | すべてのファイルに 64 桁の 16 進の sha256 がある | Civitai のファイルなど |
 | `content` | 無検閲(`content: uncensored`)でない | 無検閲(`--allow-uncensored-auto` で外せる) |

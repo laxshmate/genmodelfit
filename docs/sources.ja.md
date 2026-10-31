@@ -544,16 +544,17 @@ including: English, Chinese, Russian, Spanish, Japanese, German, French, Portugu
 渡して正しく編集できた(Issue #81 の 2026-10-26 の追記)。Turbo の編集と文章から画像は日本語で試していないので付けない。
 `zh` は Qwen-Image 2.1 のカード(https://huggingface.co/Qwen/Qwen-Image-2.1 、2026-10-28 に確認)に言語の記述が無いので付けない。
 
-手のモデル `src/genmodelfit/data/manual.json` の 3 件: つくよみちゃんの `speech` は `ja` `en`: カード(https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan)の
+手のモデル `src/genmodelfit/data/manual.json` の 4 件: つくよみちゃんの `speech` は `ja` `en`: カード(https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan)の
 `language` は 6 言語(ja en zh es fr pt)だが、アプリが実機で確かめたのは日本語と英語だけなのでそれだけにした。
 Irodori-TTS は `ja`(カードの `language: ja`)。Stable Audio 3 Small の音楽は `prompt` が `en`・`speech` が `[]`。
+Supertonic 3 は `speech` がカードの 31 言語(カードの `language` と本文の「Supported Languages」の表が同じ)。
 
 ### 動かし方
 
 項目 `runtime`。
 
 公式テンプレート由来は `comfyui`。HF 由来は、読み上げ以外で ComfyUI の系統(`comfy_family`)に当たったものだけ `comfyui`
-(読み上げは仕組みがモデルごとに違うので決めない = null)。手のモデルは書いた値(`piper` `irodori-tts` `comfyui`)。
+(読み上げは仕組みがモデルごとに違うので決めない = null)。手のモデルは書いた値(`piper` `irodori-tts` `supertonic` `comfyui`)。
 `comfyui` でも null でもない値のモデルは、見積もりが `.onnx` などの ComfyUI で使わない形式のファイルも数える
 (`estimate.select_files`。つくよみちゃんの重みは onnx)。それ以外のモデルの数え方は変えていない。
 
@@ -581,7 +582,7 @@ update は、ほかのモデルと同じ道に乗せる: 一式のライセン�
 `directory` に `/` を許さないので、そこには書かない)。
 HF の収集が手のモデルと同じリポジトリ(本体のファイルの `license_from` と `homepage`)を拾ったら、その `hf:` の項目は
 一覧に入れない(`appinfo.merge_manual`。部品の T5Gemma や、元のモデルの Irodori-TTS v4 は除かない)。
-`runtime` が `comfyui` 以外の手のモデル(piper・irodori-tts)は、判定(gate)の `official_workflow`・`custom_nodes`・
+`runtime` が `comfyui` 以外の手のモデル(piper・irodori-tts・supertonic)は、判定(gate)の `official_workflow`・`custom_nodes`・
 `comfyui_version` の代わりに `app_runtime` で保留にする(この一覧では動かし方を確かめられない。[gate.ja.md](gate.ja.md))。
 書いた値がカードより厳しい段階なら、本文の制限を読んで厳しくしたものとして警告しない(Irodori-TTS)。
 
@@ -593,6 +594,7 @@ LFS でない小さいファイルは実際に落として sha256 を計算し�
 | `manual:tsukuyomi-chan-piper-plus` | `other` / `tsukuyomi-chan-corpus`(つくよみちゃんコーパス利用規約。SPDX に無い) | https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan のカードの `license: other`・`license_name: tsukuyomi-chan-corpus`・`license_link: https://tyc.rei-yumesaki.net/material/corpus/#terms3`。クレジット表記と出力音声の用途の禁止事項がある(アプリの `credit` / `conditions`。スキーマには持たない) |
 | `manual:irodori-tts-v4.1-small` | `other` / `mit-with-ethical-restrictions`(用途の制限付きの段。声のコーデックは `mit`) | https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small のカードの cardData は `license: mit`・本文「released under MIT」だが、同じカードの「Ethical Restrictions」(https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small#ethical-restrictions。実在の人の声を同意なくまねない・ディープフェイクや偽情報の音声をつくらない)が用途を制限するので、寛容の段に入れない(gate の許可リストの `mit` にも当たらない)。声のコーデック https://huggingface.co/Aratako/Semantic-DACVAE-Japanese-32dim も `license: mit`(元の facebook/dacvae-watermarked は `apache-2.0`) |
 | `manual:stable-audio-3-small-music` | `other` / `stable-audio-community`、文字を読む部品 `t5gemma_b_b_ul2` は `gemma` | https://huggingface.co/stabilityai/stable-audio-3-small-music のカード(`license: other`・`license_name: stable-audio-community`、`gated: auto`)。同じリポジトリに `LICENSE_GEMMA.md` がある。URL は gated でない https://huggingface.co/Comfy-Org/stable-audio-3 の複製(`stable_audio_3_small_music.safetensors`・`t5gemma_b_b_ul2.safetensors`)。T5Gemma の記載は、同じファイルを使う `audio_stable_audio_3_medium` と同じ(`license_sources` の `stable-audio-3-t5gemma`) |
+| `manual:supertonic-3`(0.14.0、#127。2026-10-31 に確かめた) | `openrail`(BigScience Open RAIL-M。用途の制限付きの段) | https://huggingface.co/Supertone/supertonic-3 の版 `3cadd1ee6394` のカード(`license: openrail`、本文「The accompanying model is released under the OpenRAIL-M License」。サンプルのコードは MIT)と、同じ版の `LICENSE`(Attachment A の使用制限: 同意のないなりすまし・ディープフェイクの禁止など)。ファイルの URL は版を固定した `resolve/<版>/…`(main だと中身が変わったときに sha256 が合わなくなる)。16 個・合計 401,276,744 バイト。`.onnx` の 4 個は Range で先頭 8 MB を読み、重みがすべて float32 だったので見出しの精度 `fp32` を書いた(カードの「about 99M parameters」と合計の大きさも 1 個 4 バイトで合う)。`config.json` はダウンロード数を数えるための飾りで、SDK が使わないので入れない |
 
 手のモデルは、HF のリポジトリがあれば人気の順位(`popularity`)の Hugging Face の仲間に入るが、全期間のダウンロード数(`downloads_all_time`)を持たないので順位は 0(一番下。[scoring.ja.md](scoring.ja.md)「人気」)。
 

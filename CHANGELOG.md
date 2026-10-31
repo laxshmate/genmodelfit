@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.14.0] - Unreleased
+
+### Added
+
+- **Supertonic 3** (`manual:supertonic-3`, #127): a hand-added text-to-speech model that runs on ONNX Runtime
+  (runtime `supertonic`, a new value; SDK `supertonic`, MIT). 16 files pinned to revision `3cadd1ee…` (401,276,744
+  bytes; sizes and sha256 match the Hub API `lfs`, the small JSON files were downloaded and hashed), license
+  `openrail` (the card; `LICENSE` is BigScience Open RAIL-M with use restrictions), 31 speech languages from the card,
+  precision fp32 (the ONNX weights read with Range). It is new, so it waits for review (`review approve`) before it
+  is recommended automatically. (読み上げの Supertonic 3 を手のモデルに足した)
+- CPU-only PCs: Supertonic joins the speech models whose authors say they run in real time on a CPU
+  (`estimate.CPU_REALTIME_TTS`; the README of github.com/supertone-inc/supertonic shows it running in real time on a
+  Raspberry Pi), so on the CPU it is capped at Good instead of Marginal. Piper (`manual:tsukuyomi-chan-piper-plus`)
+  was already capped at Good since 0.11.0 (#108). The rule itself is unchanged. (CPU で実時間に動く読み上げの表に
+  Supertonic を足した)
+
 ## [0.13.2] - 2026-10-29
 
 ### Changed

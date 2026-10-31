@@ -107,7 +107,7 @@ def test_old_readers_read_the_bundled_list(monkeypatch):
         assert not hasattr(old, "nonexistent")
         assert old.id and old.source in ("comfyui-template", "huggingface", "manual")
         n_manual += m["source"] == "manual"
-    assert n_manual == 3
+    assert n_manual == len(json.loads(dbmod.bundled_text("manual.json"))["models"])
     # 新しい読み手も同じ一覧を読める(知らないキーを捨てる仕組みは ModelFile・Template にも)
     assert len(parse_db(data, "path").models) == len(data["models"])
 
@@ -303,13 +303,16 @@ def test_manual_entries_are_complete():
         "manual:tsukuyomi-chan-piper-plus",
         "manual:irodori-tts-v4.1-small",
         "manual:stable-audio-3-small-music",
+        "manual:supertonic-3",
     }
     for e in ms.values():
         assert e.source == "manual" and e.template is None and e.files_complete is True
         assert e.description.get("ja") and e.description.get("en")
         assert e.license is not None and e.license_url
         for f in e.files:
-            assert f.url.startswith("https://huggingface.co/") and "/resolve/main/" in f.url
+            assert f.url.startswith("https://huggingface.co/")
+            # main か、版を固定した 40 桁の版(Supertonic 3。#127)
+            assert re.search(r"/resolve/(main|[0-9a-f]{40})/", f.url), f.url
             assert re.fullmatch(r"[0-9a-f]{64}", f.sha256) and f.size_bytes > 0 and f.directory
             assert f.license and f.license_from and f.license_url and f.gated is False
             assert f.repo_id == "/".join(f.url.split("/")[3:5])
@@ -333,6 +336,16 @@ def test_manual_entries_are_complete():
     assert (sa.license, sa.license_name) == ("other", "stable-audio-community")  # gemma より本体が厳しい側
     assert {f.license for f in sa.files} == {"other", "gemma"}
     assert sa.languages == {"prompt": ["en"], "speech": []}
+    # Supertonic 3(#127): 16 個を版 3cadd1ee… に固定。OpenRAIL-M は用途の制限付きの段
+    st = ms["manual:supertonic-3"]
+    assert (st.runtime, st.modality, st.license, st.license_name) == ("supertonic", "tts", "openrail", None)
+    assert license_tier(st.license, st.license_name) == TIER_USE_RESTRICTED
+    assert len(st.files) == 16 and st.total_size_bytes == 401_276_744
+    assert all("/resolve/3cadd1ee6394adea1bd021217a0e650ede09a323/" in f.url for f in st.files)
+    assert [f.name for f in st.files if f.role == "main"] == ["onnx/vector_estimator.onnx"]
+    assert (st.precision, st.precision_source) == ("fp32", "header")
+    assert len(st.languages["speech"]) == 31 and "ja" in st.languages["speech"]
+    assert st.license_url.endswith("/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE")
 
 
 def test_merge_manual_replaces_and_keeps_order():
@@ -384,6 +397,7 @@ def test_verify_manual_licenses_takes_the_stricter_on_mismatch():
         "Aratako/Irodori-TTS-v4.1-Small": ("mit", None),
         "Aratako/Semantic-DACVAE-Japanese-32dim": ("mit", None),
         "stabilityai/stable-audio-3-small-music": ("other", "stable-audio-community"),
+        "Supertone/supertonic-3": ("openrail", None),  # カードどおり(license_name なし)なので警告しない
     }  # t5gemma は読めない(gated)ものとして None
     warns = appinfo.verify_manual_licenses(ms, _CardClient(cards))
     assert warns == [
@@ -566,6 +580,14 @@ def test_download_plan_lists_manual_files(tmp_path):
                 "text_encoders/t5gemma_b_b_ul2.safetensors",
             ],
         ),
+        (
+            "manual:supertonic-3",
+            sorted(
+                [f"tts/onnx/{n}" for n in ("duration_predictor.onnx", "text_encoder.onnx", "tts.json")]
+                + [f"tts/onnx/{n}" for n in ("unicode_indexer.json", "vector_estimator.onnx", "vocoder.onnx")]
+                + [f"tts/voice_styles/{g}{i}.json" for g in "FM" for i in range(1, 6)]
+            ),
+        ),
     ],
 )
 def test_download_plan_of_every_manual_model(tmp_path, mid, relpaths):
@@ -594,9 +616,9 @@ def test_fields_only_offline_updates_a_copy(tmp_path):
     out = tmp_path / "new.json"
     assert cli.main(["update", "--fields-only", "--offline", "--db", str(src), "--output", str(out)]) == 0
     new = load(out)
-    assert len(new.models) == len(data["models"]) + 3
-    assert new.sources["manual"]["models"] == 3 and new.sources["counts"]["models"] == len(new.models)
-    assert new.sources["app_fields"]["description"] == 12
+    assert len(new.models) == len(data["models"]) + 4
+    assert new.sources["manual"]["models"] == 4 and new.sources["counts"]["models"] == len(new.models)
+    assert new.sources["app_fields"]["description"] == 13
     old_by = {m["id"]: m for m in data["models"]}
     for m in new.models:  # 既存のモデルの判定に関わる項目は変えない
         if m.source == "manual":
@@ -619,8 +641,8 @@ def test_build_database_includes_manual_and_app_fields():
     )
     ids = {e.id for e in built.models}
     assert {"manual:tsukuyomi-chan-piper-plus", "manual:irodori-tts-v4.1-small"} <= ids
-    assert built.sources["manual"]["models"] == 3
-    assert built.sources["counts"]["source"]["manual"] == 3
+    n = len(appinfo.manual_entries())
+    assert built.sources["manual"]["models"] == n and built.sources["counts"]["source"]["manual"] == n
     assert built.sources["app_fields"]["runtime"] >= 3
     z = built.get("image_z_image_turbo_int8")
     assert z.runtime == "comfyui" and "ja" in z.languages["prompt"]

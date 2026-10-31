@@ -208,7 +208,7 @@ class ModelEntry:
     #   languages    {"prompt": ["en", ...], "speech": ["ja", ...]}(ISO 639-1。どちらも省略可、
     #                分からなければ省く)。prompt = 指示(プロンプト)で通じる言語、
     #                speech = 読み上げ・歌詞で出せる言語。appinfo.py が決める
-    #   runtime      動かす仕組み(comfyui / piper / irodori-tts など)。None は分からない
+    #   runtime      動かす仕組み(comfyui / piper / irodori-tts / supertonic など)。None は分からない
     #   description  {"ja": "...", "en": "..."}。手で書いたものがあるモデルだけ
     #                (data/overrides.json・manual.json)
     languages: dict[str, list[str]] = field(default_factory=dict)

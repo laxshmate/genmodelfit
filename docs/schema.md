@@ -415,7 +415,7 @@ Python `Fit.to_dict()` returns exactly this dict (`gmf.recommend()` / `gmf.fit_l
 | `name`, `modality`, `tasks` | | modality ∈ `image` `video` `music` `sfx` `tts` `3d`; `tasks` is a list (`t2i`, `i2v`, …) |
 | `content` | str | `sfw` or `uncensored` (see [README](../README.md)) |
 | `source` | str | `comfyui-template` / `huggingface` / `manual` |
-| `runtime` | str \| null | how the model runs: `comfyui` / `piper` / `irodori-tts` / … (`ModelEntry.runtime`, 0.5.0); null = unknown |
+| `runtime` | str \| null | how the model runs: `comfyui` / `piper` / `irodori-tts` / `supertonic` / … (`ModelEntry.runtime`, 0.5.0); null = unknown |
 | `languages` | object | `{"prompt": [...], "speech": [...]}` ISO 639-1 (`ModelEntry.languages`, 0.5.0); a missing key = unknown, `[]` = none (an image-to-3D model takes no prompt; a music model without vocals has no speech) |
 | `description` | object | `{"ja": "...", "en": "..."}` hand-written, only for some models (`ModelEntry.description`, 0.5.0); `{}` = none |
 | `fit_level` | str | `perfect` / `good` / `marginal` / `too_tight` (= `estimate.fit`), or `unknown` when the size is unknown and nothing was judged (0.1.1; until 0.1.0 these were `too_tight`) |
@@ -899,7 +899,7 @@ readers drop unknown keys, see "Database file"):
   (the material for `languages`, so an offline re-apply gives the same result). `[]` = the card was read and has no
   language, null = not read.
 - `runtime` (str \| null): `comfyui` for official templates and for Hugging Face image / video / music / sfx / 3D entries
-  whose files match a ComfyUI family; `piper`, `irodori-tts` for the hand-added speech models; null = not decided. A
+  whose files match a ComfyUI family; `piper`, `irodori-tts`, `supertonic` for the hand-added speech models; null = not decided. A
   runtime other than `comfyui` (and null) makes the estimator count `.onnx` and other non-ComfyUI weight files.
 - `description` (`{"ja": str, "en": str}`): a short hand-written description, only for the models that have one.
 - `source: "manual"` (id `manual:<slug>`): models added by hand in `src/genmodelfit/data/manual.json` (`template` is null). Their license

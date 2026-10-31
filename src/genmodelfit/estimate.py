@@ -2557,6 +2557,14 @@ CPU_REALTIME_TTS: tuple[CpuRealtimeTts, ...] = (
         'model card: "on CPU everything runs on ONNX Runtime", "RTF < 1, one stream"'
         " (huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Turbo)",
     ),
+    CpuRealtimeTts(
+        "Supertonic",
+        None,
+        "supertonic",
+        'README: "Watch Supertonic running on a Raspberry Pi, demonstrating on-device, real-time'
+        ' text-to-speech synthesis" (github.com/supertone-inc/supertonic/blob/'
+        "1e9799e964ea4c0dad7cde993b65c3c813a7b373/README.md)",
+    ),
 )
 # 作者が CPU について書いていない読み上げ(Kokoro・HiFi-GAN など)は入れない(生成と同じ marginal まで。#108)
 

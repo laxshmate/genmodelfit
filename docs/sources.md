@@ -640,11 +640,12 @@ The other 4 rows are Qwen-Image 2.1 (0.12.0, #81):
 - `zh` is not added: the Qwen-Image 2.1 card (https://huggingface.co/Qwen/Qwen-Image-2.1 , checked on 2026-10-28) has no
   language description.
 
-The manual models `src/genmodelfit/data/manual.json` (3 rows):
+The manual models `src/genmodelfit/data/manual.json` (4 rows):
 
 - Tsukuyomi-chan: `speech` is `ja` `en`. The card (https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan) `language` lists 6 languages (ja en zh es fr pt), but the app confirmed only Japanese and English on a real machine, so only those.
 - Irodori-TTS: `ja` (`language: ja` on the card).
 - Stable Audio 3 Small music: `prompt` is `en`, `speech` is `[]`.
+- Supertonic 3: `speech` is the 31 languages of the card (the card's `language` and the "Supported Languages" table in its body agree).
 
 ### Runtime
 
@@ -653,7 +654,7 @@ Field `runtime`.
 - From an official template: `comfyui`.
 - From HF: only items that match a ComfyUI family (`comfy_family`) and are not speech get `comfyui`.
   Speech is not decided because each model works differently (= null).
-- Manual models use the value written (`piper`, `irodori-tts`, `comfyui`).
+- Manual models use the value written (`piper`, `irodori-tts`, `supertonic`, `comfyui`).
 - For a model whose value is neither `comfyui` nor null, the estimate also counts files in formats ComfyUI does not use, such as `.onnx` (`estimate.select_files`; Tsukuyomi-chan's weights are onnx).
 - The way other models are counted is unchanged.
 
@@ -696,7 +697,7 @@ Merging with HF collection:
 
 Gate:
 
-- Manual models whose `runtime` is not `comfyui` (piper, irodori-tts) are put on hold by gate with `app_runtime`, instead of `official_workflow`, `custom_nodes` and `comfyui_version`
+- Manual models whose `runtime` is not `comfyui` (piper, irodori-tts, supertonic) are put on hold by gate with `app_runtime`, instead of `official_workflow`, `custom_nodes` and `comfyui_version`
   (this list cannot verify how they run. See [gate.md](gate.md)).
 
 Sources of the first 3 (checked on 2026-10-21 with the HF API and the card text. sha256 and size match `lfs` in the Hub API.
@@ -707,6 +708,7 @@ For small non-LFS files, the file was actually downloaded and its sha256 compute
 | `manual:tsukuyomi-chan-piper-plus` | `other` / `tsukuyomi-chan-corpus` (Tsukuyomi-chan corpus terms of use; not in SPDX) | the card https://huggingface.co/ayousanz/piper-plus-tsukuyomi-chan: `license: other`, `license_name: tsukuyomi-chan-corpus`, `license_link: https://tyc.rei-yumesaki.net/material/corpus/#terms3`. It has a credit requirement and prohibited uses of the output audio (the app's `credit` / `conditions`; not held in the schema) |
 | `manual:irodori-tts-v4.1-small` | `other` / `mit-with-ethical-restrictions` (the tier with use restrictions. The voice codec is `mit`) | The cardData of https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small is `license: mit` and the body says "released under MIT". But the same card's "Ethical Restrictions" (https://huggingface.co/Aratako/Irodori-TTS-v4.1-Small#ethical-restrictions: do not imitate a real person's voice without consent, do not make audio for deepfakes or disinformation) restricts use, so it does not go in the permissive tier (it also does not match `mit` in gate's allow-list). The voice codec https://huggingface.co/Aratako/Semantic-DACVAE-Japanese-32dim is also `license: mit` (the original facebook/dacvae-watermarked is `apache-2.0`) |
 | `manual:stable-audio-3-small-music` | `other` / `stable-audio-community`; the text-reading component `t5gemma_b_b_ul2` is `gemma` | the card https://huggingface.co/stabilityai/stable-audio-3-small-music (`license: other`, `license_name: stable-audio-community`, `gated: auto`). The same repository has `LICENSE_GEMMA.md`. The URL is a copy at the non-gated https://huggingface.co/Comfy-Org/stable-audio-3 (`stable_audio_3_small_music.safetensors`, `t5gemma_b_b_ul2.safetensors`). The T5Gemma entry is the same as `audio_stable_audio_3_medium`, which uses the same file (`stable-audio-3-t5gemma` in `license_sources`) |
+| `manual:supertonic-3` (0.14.0, #127; checked on 2026-10-31) | `openrail` (BigScience Open RAIL-M; the tier with use restrictions) | the card of https://huggingface.co/Supertone/supertonic-3 at revision `3cadd1ee6394` (`license: openrail`; the body says "The accompanying model is released under the OpenRAIL-M License"; the sample code is MIT) and `LICENSE` at the same revision (Attachment A use restrictions: no impersonation or deepfakes without consent, and others). The file URLs are pinned to the revision, `resolve/<revision>/…` (with main, the sha256 would stop matching when the content changes). 16 files, 401,276,744 bytes in total. For the 4 `.onnx` files the first 8 MB were read with Range and every weight was float32, so the header precision `fp32` is written (the card's "about 99M parameters" and the total size also match at 4 bytes each). `config.json` only exists to count downloads and the SDK does not use it, so it is left out |
 
 Manual models with a Hugging Face repository join the Hugging Face pool of the popularity rank (`popularity`), but they have no all-time download count (`downloads_all_time`), so their rank is 0 (the bottom; [scoring.md](scoring.md) "Popularity").
 
