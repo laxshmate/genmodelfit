@@ -12,9 +12,18 @@ All notable changes to this project are documented here. The format is based on
 - **Supertonic 3** (`manual:supertonic-3`, #127): a hand-added text-to-speech model that runs on ONNX Runtime
   (runtime `supertonic`, a new value; SDK `supertonic`, MIT). 16 files pinned to revision `3cadd1ee…` (401,276,744
   bytes; sizes and sha256 match the Hub API `lfs`, the small JSON files were downloaded and hashed), license
-  `openrail` (the card; `LICENSE` is BigScience Open RAIL-M with use restrictions), 31 speech languages from the card,
+  `openrail` / `openrail-m` (the card says `openrail`; the name comes from `LICENSE`, BigScience Open RAIL-M with use
+  restrictions), 31 speech languages from the card,
   precision fp32 (the ONNX weights read with Range). Marked reviewed with `review approve` (by `claude-maker-127`,
-  with the LICENSE and file-tree URLs as evidence; the owner checks it in the PR). (読み上げの Supertonic 3 を手のモデルに足した)
+  with the LICENSE and file-tree URLs as evidence; the owner checks it in the PR). The developer's GitHub repository is
+  archived ("Development and support have ended"; the weights are also at supertone-oss-archive/supertonic-3 with
+  the same LFS oids), noted in the files' `license_evidence`. (読み上げの Supertonic 3 を手のモデルに足した)
+- Hand-added models: when the card's `license` is the same and the card has no `license_name`, a written
+  `license_name` is a refinement from the LICENSE text; `update` no longer warns or rewrites it
+  (`appinfo.verify_manual_licenses`; docs/sources "Manually added models"). (#127)
+- `tests/test_review_42.py`: approvals in the bundled list must come from an allowed name (`baseline-2026-10-21`,
+  `claude-weekly`, `claude-maker-<issue>`, the owner's login), with https evidence and a date from 2026-10-21 to
+  today; docs/release says the maintainer checks `claude-maker-*` approvals in the PR.
 - CPU-only PCs: Supertonic joins the speech models whose authors say they run in real time on a CPU
   (`estimate.CPU_REALTIME_TTS`; the README of github.com/supertone-inc/supertonic shows it running in real time on a
   Raspberry Pi), so on the CPU it is capped at Good instead of Marginal. Piper (`manual:tsukuyomi-chan-piper-plus`)

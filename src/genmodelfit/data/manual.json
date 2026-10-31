@@ -316,13 +316,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -337,13 +339,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -358,13 +362,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -378,13 +384,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -398,13 +406,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "main",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -419,13 +429,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -440,13 +452,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -460,13 +474,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -480,13 +496,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -500,13 +518,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -520,13 +540,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -540,13 +562,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -560,13 +584,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -580,13 +606,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -600,13 +628,15 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
@@ -620,19 +650,22 @@
      "directory": "tts",
      "repo_id": "Supertone/supertonic-3",
      "license": "openrail",
-     "license_name": null,
+     "license_name": "openrail-m",
      "gated": false,
      "role": "other",
      "license_from": "Supertone/supertonic-3",
      "license_url": "https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE",
      "license_evidence": [
-      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)"
+      "manual: https://huggingface.co/Supertone/supertonic-3 のカード(版 3cadd1ee6394)の license: openrail(license_name なし)。同じ版の LICENSE の本文は BigScience Open RAIL-M License(2022-08-18)で、Attachment A の使用制限(同意のないなりすまし・ディープフェイクの禁止など)がある。カードの「The accompanying model is released under the OpenRAIL-M License」、サンプルのコードは MIT(2026-10-31 に確認)",
+      "manual: license_name の openrail-m は、カードの license: openrail を同じ版の LICENSE(https://huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/LICENSE。見出し「BigScience Open RAIL-M License」)の本文で細かくしたもの。カードに license_name は無い(docs/sources.md「手で足すモデル」)",
+      "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
      ],
      "license_path": [
       "Supertone/supertonic-3"
      ]
     }
-   ]
+   ],
+   "_note": "manual: 開発元の https://github.com/supertone-inc/supertonic はアーカイブ済み(README の先頭「This repository is archived. Development and support have ended.」)。更新・不具合や安全の修正は出ない。重みは https://huggingface.co/supertone-oss-archive/supertonic-3 にも置かれ、.onnx の LFS の oid は同じ(2026-10-31 に確認)"
   }
  ],
  "components": {

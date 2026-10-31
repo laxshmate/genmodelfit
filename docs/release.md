@@ -404,6 +404,7 @@ Roles are split.
      - Local tests (ruff and pytest, with the new list) passed. ci.yml does not run on PRs (the rule since 2026-10-22 is to pass locally before pushing), so CI is not awaited. ci.yml runs on main after the merge.
 
     If any check fails, do not merge. **The maintainer reads the PR and merges.** Look at the "classification" and "awaiting review" sections of the body, and at the `evidence` left by `review approve`.
+- Outside the weekly skill, a PR that fixes an issue may run `review approve` on entries of the bundled list (`decided_by` is `claude-maker-<issue number>`; from 0.14.0). It does so to leave no pending entries in the bundled list (`tests/test_review_42.py`), and **the maintainer checks that `evidence` in the PR before merging**. The test checks that `decided_by` is an allowed name (`baseline-2026-10-21`, `claude-weekly`, `claude-maker-<number>`, the owner's login), that `evidence` is https URLs with a host, and that `decided_at` is between 2026-10-21 and today.
 - Signing and publishing after the merge are done by data.yml, as before. **Entries awaiting review are removed from the list that is shipped** (`python -m genmodelfit.review publish`), because 0.5.x does not know `review` and would put them in auto-recommendations.
 
 Conditions for a safe week: the classification is safe. Entries that stay awaiting review unchanged from before may be included.

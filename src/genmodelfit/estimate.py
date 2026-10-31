@@ -2561,7 +2561,10 @@ CPU_REALTIME_TTS: tuple[CpuRealtimeTts, ...] = (
         "Supertonic",
         None,
         "supertonic",
-        'README: "Watch Supertonic running on a Raspberry Pi, demonstrating on-device, real-time'
+        'model card: "Supertonic 3 runs fast on CPU, even compared with larger baselines measured on A100'
+        ' GPU, and uses substantially less memory. It does not require a GPU"'
+        " (huggingface.co/Supertone/supertonic-3/blob/3cadd1ee6394adea1bd021217a0e650ede09a323/README.md);"
+        ' README: "Watch Supertonic running on a Raspberry Pi, demonstrating on-device, real-time'
         ' text-to-speech synthesis" (github.com/supertone-inc/supertonic/blob/'
         "1e9799e964ea4c0dad7cde993b65c3c813a7b373/README.md)",
     ),

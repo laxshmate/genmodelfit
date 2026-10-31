@@ -875,7 +875,7 @@ Python `gmf.info(model_id)` matches the exact id only and returns `None` otherwi
 uncensored), `discovered_from` (str[]: where it was found), `updated`, `homepage`, `downloads` / `likes`
 (int \| null: Hugging Face counters, set for `source: huggingface`; `downloads` is the last 30 days),
 `downloads_all_time` (int \| null: all-time downloads, used for the inclusion floor), `total_size_bytes`,
-`license_name` (the name of an `other` license, from the strictest file), `license_evidence` (str[]: why the license is
+`license_name` (the name of an `other` license, from the strictest file; for a hand-added model it can also be a refinement of the same `license` from the body, such as `openrail` / `openrail-m`; 0.14.0), `license_evidence` (str[]: why the license is
 unknown — entries start with `license_unverified:`), `files_complete`, `size_floor_bytes` (below),
 `workflow_precision` (str \| null: precision inferred from the template's main loader node, see "Models" above;
 optional, 0.2.0), `precision_source` (str \| null: `header` / `filename` / `hf_api` / `config` / `workflow`, where

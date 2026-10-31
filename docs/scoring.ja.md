@@ -141,7 +141,7 @@ CPU で実時間に動く設計の読み上げ(作者の資料の文。理由に
 | MeloTTS | `hf:myshell-ai/MeloTTS-*` | モデルカード「Fast enough for CPU real-time inference」 |
 | Piper | 動かし方が `piper` | README(タグ 2023.11.14-2。github.com/rhasspy/piper/blob/2023.11.14-2/README.md)「A fast, local neural text to speech system that sounds great and is optimized for the Raspberry Pi 4.」 |
 | VieNeu-TTS | `hf:pnnbao-ump/VieNeu-TTS*` | モデルカード「on CPU everything runs on ONNX Runtime」「RTF < 1, one stream」 |
-| Supertonic | 動かし方が `supertonic` | README(コミット 1e9799e9。github.com/supertone-inc/supertonic/blob/1e9799e964ea4c0dad7cde993b65c3c813a7b373/README.md)「Watch Supertonic running on a Raspberry Pi, demonstrating on-device, real-time text-to-speech synthesis」 |
+| Supertonic | 動かし方が `supertonic` | モデルカード(版 3cadd1ee)「Supertonic 3 runs fast on CPU, even compared with larger baselines measured on A100 GPU, and uses substantially less memory. It does not require a GPU」、README(コミット 1e9799e9。github.com/supertone-inc/supertonic/blob/1e9799e964ea4c0dad7cde993b65c3c813a7b373/README.md)「Watch Supertonic running on a Raspberry Pi, demonstrating on-device, real-time text-to-speech synthesis」 |
 
 作者が CPU で実時間に動く・CPU に向くと書いていない読み上げ(Kokoro・HiFi-GAN など)は表に入れず、生成と同じ Marginal まで。
 

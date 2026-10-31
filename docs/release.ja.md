@@ -385,6 +385,7 @@ weekly-data.yml(手動の予備。#42 から定期の実行はメンテナの PC
      - 手元の試験(ruff と pytest。新しい一覧を入れた状態)が通った。PR では ci.yml が動かないので(手元で通してから push する決まり。2026-10-22)、CI は待たない。マージの後に main で ci.yml が動く。
 
     どれかが通らなければマージせず、**メンテナが PR を見てマージする**。本文の「分類」「確認待ち」の節と、`review approve` が残した `evidence` を見る。
+- 毎週のスキル以外で、Issue を直す PR が同梱の一覧の項目に `review approve` を付けることがある(`decided_by` が `claude-maker-<Issue の番号>`。0.14.0 から)。同梱の一覧に確認待ちを残さないため(`tests/test_review_42.py`)で、**メンテナが PR でその `evidence` を確かめてからマージする**。試験は `decided_by` が許す名前(`baseline-2026-10-21`・`claude-weekly`・`claude-maker-<番号>`・オーナーのログイン名)か、`evidence` が https でホストのある URL か、`decided_at` が 2026-10-21 から今日までかを見る。
 - マージの後の署名と公開は data.yml が行う(いままでどおり)。**配る一覧からは確認待ちの項目を除く**(`python -m genmodelfit.review publish`)。0.5.x は `review` を知らず、確認待ちを自動のおすすめに出してしまうため。
 
 安全な週の条件: classification が safe。前から確認待ちのまま変わらない項目は含んでよい。

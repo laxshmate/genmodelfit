@@ -338,7 +338,8 @@ def test_manual_entries_are_complete():
     assert sa.languages == {"prompt": ["en"], "speech": []}
     # Supertonic 3(#127): 16 個を版 3cadd1ee… に固定。OpenRAIL-M は用途の制限付きの段
     st = ms["manual:supertonic-3"]
-    assert (st.runtime, st.modality, st.license, st.license_name) == ("supertonic", "tts", "openrail", None)
+    assert (st.runtime, st.modality) == ("supertonic", "tts")
+    assert (st.license, st.license_name) == ("openrail", "openrail-m")  # 名前は LICENSE の本文から
     assert license_tier(st.license, st.license_name) == TIER_USE_RESTRICTED
     assert len(st.files) == 16 and st.total_size_bytes == 401_276_744
     assert all("/resolve/3cadd1ee6394adea1bd021217a0e650ede09a323/" in f.url for f in st.files)
@@ -397,7 +398,8 @@ def test_verify_manual_licenses_takes_the_stricter_on_mismatch():
         "Aratako/Irodori-TTS-v4.1-Small": ("mit", None),
         "Aratako/Semantic-DACVAE-Japanese-32dim": ("mit", None),
         "stabilityai/stable-audio-3-small-music": ("other", "stable-audio-community"),
-        "Supertone/supertonic-3": ("openrail", None),  # カードどおり(license_name なし)なので警告しない
+        # カードは license_name なし。書いた openrail-m は本文で細かくしたもの(警告しない。#127)
+        "Supertone/supertonic-3": ("openrail", None),
     }  # t5gemma は読めない(gated)ものとして None
     warns = appinfo.verify_manual_licenses(ms, _CardClient(cards))
     assert warns == [
@@ -884,3 +886,21 @@ def test_components_require_a_unique_https_url(files):
 
 def test_bundled_components_are_valid():
     assert SFX in appinfo.components()
+
+
+def test_verify_keeps_a_license_name_that_refines_the_card():
+    """カードの license が同じで license_name が無ければ、書いた license_name(本文で細かくした名前)は
+    そのまま。警告も書き換えもしない(毎週の照合で openrail-m が消えないこと。#127)。
+    license が違えば今までどおり。"""
+    ms = [e for e in appinfo.manual_entries() if e.id == "manual:supertonic-3"]
+    card = _CardClient({"Supertone/supertonic-3": ("openrail", None)})
+    assert appinfo.verify_manual_licenses(ms, card) == []
+    st = ms[0]
+    assert {(f.license, f.license_name) for f in st.files} == {("openrail", "openrail-m")}
+    assert (st.license, st.license_name) == ("openrail", "openrail-m")
+    assert not any(x.startswith("manual_mismatch") for f in st.files for x in f.license_evidence)
+    # カードに別の名前があれば食い違い(厳しいほうに寄せて警告)
+    ms = [e for e in appinfo.manual_entries() if e.id == "manual:supertonic-3"]
+    nc = _CardClient({"Supertone/supertonic-3": ("cc-by-nc-4.0", None)})
+    warns = appinfo.verify_manual_licenses(ms, nc)
+    assert warns and ms[0].license == "cc-by-nc-4.0"

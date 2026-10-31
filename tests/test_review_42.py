@@ -9,7 +9,8 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
-from datetime import datetime, timedelta, timezone
+import re
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -79,14 +80,23 @@ def _loosen(m: ModelEntry) -> ModelEntry:
 # --- 形・後方互換 ------------------------------------------------------------------------------------
 
 
+# 同梱の一覧の承認に使ってよい名前(review approve --by)。claude-maker-<番号> は別に正規表現で見る
+APPROVERS = {review.DECIDED_BY_WEEKLY, "KoyoYeager"}
+
+
 def test_bundled_list_starts_all_ok(bundled):
     assert bundled.models
     for m in bundled.models:
         assert m.review is not None and m.review.status == "ok", m.id
         if m.review.decided_by == review.BASELINE:
             assert m.review.decided_at == "2026-10-21"
-        else:  # あとから review approve で確かめたもの(#127 から)は根拠と日付がある
-            assert m.review.evidence and m.review.decided_at and m.review.decided_by, m.id
+            continue
+        # あとから review approve で確かめたもの(#127 から)。誰が・いつ・何を根拠にしたかを確かめる。
+        # claude-maker-<Issue の番号> はメンテナが PR で根拠を見てからマージする(docs/release.md)
+        who = m.review.decided_by or ""
+        assert who in APPROVERS or re.fullmatch(r"claude-maker-\d+", who), (m.id, who)
+        assert review.check_evidence(m.review.evidence), m.id  # https でホストのある URL(1 つ以上)
+        assert "2026-10-21" <= (m.review.decided_at or "") <= date.today().isoformat(), m.id
     assert bundled.sources["review"]["pending"] == 0
 
 
