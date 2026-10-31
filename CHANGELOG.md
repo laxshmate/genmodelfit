@@ -14,9 +14,11 @@ All notable changes to this project are documented here. The format is based on
   0.095 GiB per second), instead of the constant tile value (about 1 GB). Measurements on an RTX 3070 and an RTX 5080
   are 0.81 to 0.98 times this value from 30 s up. When the untiled decode does not fit, the tiled estimate is judged
   too and capped at marginal (ComfyUI retries in tiles after an OOM; NVIDIA on Windows spills into shared memory), with
-  a note. Levels at the default lengths do not change; long songs on small GPUs go from good to marginal (e.g. 120 s on
-  8 / 12 GB). docs/accuracy "Tiles". Other VAEs are unchanged (the Wan VAE is left for a separate issue).
-  (ACE-Step 1.5 の仕上げの作業用メモリが曲の長さで増えるようにした。既定の長さの段階は変わらない)
+  a note; the table VRAM is then the tiled estimate, so it can go down as the length goes up. Long songs on small GPUs
+  go from good to marginal (e.g. 120 s on 8 / 12 GB). At the default 30 s a few VRAM sizes change too (e.g. split:
+  good → marginal at 4–5 GB, perfect → good at 20–22.5 GB; full list in docs/accuracy "Tiles"). No other model
+  changes. Other VAEs are unchanged (the Wan VAE is left for a separate issue).
+  (ACE-Step 1.5 の仕上げの作業用メモリが曲の長さで増えるようにした。既定の 30 秒でも一部の VRAM で段階が変わる)
 
 ## [0.13.2] - 2026-10-29
 

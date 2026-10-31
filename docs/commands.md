@@ -138,7 +138,7 @@ The columns of `recommend`, `fit` and `search`:
 | `Model` | one row per model (same weights); long names are cut in the middle with `…` |
 | `Use` | `gen`, `edit`, `i2v`, … (`genmodelfit types`); the row's own use (the one matching `--task`) first, then the other uses of the model's workflows, without repeats (`gen,edit`; `gen,…` when they do not fit). The workflows: `info`; one row each: `--all-workflows` |
 | `Prec` | the best precision that fits (fp16, bf16, fp8, int8, …) |
-| `VRAM` | GiB needed in that mode; `m` = measured (by the maintainer, on this PC, or the median of other users' measurements of the same GPU; number of sources: `info`, JSON `sample_count`) |
+| `VRAM` | GiB needed in that mode; `m` = measured (by the maintainer, on this PC, or the median of other users' measurements of the same GPU; number of sources: `info`, JSON `sample_count`). When the decode is split into tiles (ACE-Step 1.5 and others), the tiled estimate (it can go down as the length goes up; [accuracy.md "Tiles"](accuracy.md#tiles)) |
 | `Mem%` | share of the tightest memory used: VRAM on the GPU, RAM on CPU, the larger of the two for `GPU+RAM`; `RAM` = system RAM is short |
 | `Mode` | `GPU` all on GPU, `GPU~` parts swapped in turn, `GPU+RAM` offload (slow), `CPU` (slow), `-` does not run (`GPU req`: needs a GPU, none usable here; `RAM`: not enough system RAM) |
 | `Disk` | download size (GiB) |

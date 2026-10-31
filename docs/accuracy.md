@@ -181,15 +181,29 @@ the V put into the amounts used is the **untiled V** (`working.VaeWork.untiled`)
 - Tile fallback: when the untiled estimate does not run or is tight, the tiled estimate (min(V, V_tile)) is judged too.
   Its level is capped at **Marginal**, and the better one is taken (untiled when equal). ComfyUI retries in tiles after
   an OOM, and NVIDIA on Windows spills into shared memory by default (the RTX 3070 run at 120 s). Both are slow. The
-  reasons get one sentence. In that case the VRAM in the table is the tiled estimate.
+  reasons get one sentence. In that case the VRAM in the table is the tiled estimate, and the sentence says
+  "ComfyUI first tries X GB untiled". So the table VRAM can go down when the length goes up, and it differs
+  by GPU (e.g. the all-on-GPU value of ACE-Step 1.5 without measurements is 16.5 GB at 60 s and 11.8 GB at
+  120 s (tiled) on 8 / 12 GB, and 22.2 GB at 120 s (untiled) on 16 GB). The level never goes up with the length
+  (test `test_longer_songs_never_raise_the_level`).
 - Neither estimate drops when VRAM is added, so the better of the two does not drop either.
 - The CPU has no fallback. A failed allocation on the CPU is not a CUDA OOM, so ComfyUI stops without tiling
   (model_management.py:380, 389-395).
-- No coefficient is fitted. No factor is applied to match the measurements (0.8 to 1.0 times V). The formula is a little
-  above the measurements (the safe side).
-- Fairness: only the long settings of the 8 models with the Oobleck VAE change (6 ACE-Step 1.5, 2 Stable Audio Open).
-  At the default length (music 30 s, sound effects 10 s) no level of any bundled model changes (11 VRAM / main memory
-  pairs: CPU only 32 GB, 6 / 16, 8 / 32, 12 / 32, 16 / 32, 16 / 64, 24 / 32, 24 / 64, 24 / 96, 32 / 64, 48 / 128 GB).
+- No coefficient is fitted. No factor is applied to match the measurements (0.8 to 1.0 times V). From 30 s up the
+  formula is a little above the measurements (the safe side). Short songs around 10 s have V equal to V_tile, and
+  their measurements are not reliable ("Cross-check" below).
+- Only `audio_ace_step_1_5_checkpoint` lowers the working memory by 1.91 GB at every length, from the author
+  measurement (20 s, 10.8 GB, below the weights + fixed floor; the existing shift in "How measurements are used";
+  since V at 20 s is now 1.9 GB, the shift grew). Its level can be better than `audio_ace_step_1_5_split`, which
+  has the same contents (Good vs Marginal at 60 s on 8 GB). The behaviour is unchanged and goes to a separate issue.
+- Fairness: only the 8 models with the Oobleck VAE change (6 ACE-Step 1.5, 2 Stable Audio Open). No level of any
+  other model changes at VRAM 2 to 80 GB (0.5 GB steps), main memory 16 / 32 / 64 GB, or on AMD.
+  Even at the default length, V at 30 s (2.86 GB) is above the tile value (0.98 GB) for ACE-Step 1.5, so the level
+  changes at these VRAM sizes (for any main memory and vendor; Stable Audio Open's default 10 s does not change):
+  - `audio_ace_step_1_5_split`: Good → Marginal at 4 to 5 GB, Perfect → Good at 20 to 22.5 GB
+  - `audio_ace_step_1_5_checkpoint`: Perfect → Good at 18.5 to 19.5 GB
+  - `audio_ace_step_1_5_split_4b`: Perfect → Good at 27 to 30 GB
+  - the 3 XL models (base, sft, turbo): Perfect → Good at 35 to 38 GB
   Stable Audio Open uses the same VAE code and formula, so it is treated the same (this model cannot make songs longer
   than 47 s).
 - Left out: ACE-Step 1 (music_dcae VAE) and YuE2 have no measurements. The Wan VAE also measures 0.74 to 0.98 times V,

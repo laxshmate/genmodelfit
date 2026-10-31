@@ -70,20 +70,26 @@ def test_working_memory_grows_with_length(db):
     assert vs[3] / vs[1] == pytest.approx(4.0, rel=1e-3)  # 長さに比例(30 → 120 秒で 4 倍)
 
 
-def test_measured_points_are_within_the_formula():
-    """issue #148 と PR #141 の作業用メモリの実測(torch_reserved・動的 VRAM)は V の 0.8〜1.0 倍(30 秒以上)。
-    式を実測に合わせない(倍率は掛けない)ので、式は実測より多め(安全側)。"""
-    measured = {  # 秒: GB(RTX 3070 8 GB、ComfyUI 0.19.3)
-        30: 2.34,
-        60: 5.00,
-        120: 9.31,
-    }
-    # RTX 5080 16 GB(PR #141)。30 秒の 0.47 GB と、10 秒の点はどれも使わない
-    # (#131: 山が 0.02〜0.3 秒しか続かず、0.2 秒ごとに読む bench が取り逃がす)
-    measured_5080 = {120: 9.5}
-    for sec, gb in [*measured.items(), *measured_5080.items()]:
-        v = 1000 * round(sec * 25) * 2048 * 2 / GIB
-        assert 0.8 <= gb / v <= 1.0, (sec, gb, v)
+# 作業用メモリだけの実測(torch_reserved・動的 VRAM。GB)。10 秒の点と PR #141 の 30 秒(0.47 GB)は使わない
+# (#131: 山が 0.02〜0.3 秒しか続かず、0.2 秒ごとに読む bench が取り逃がす)
+MEASURED = [
+    ("RTX 3070 (#148)", 30, 2.34),
+    ("RTX 3070 (#131 の測り直し)", 30, 2.72),
+    ("RTX 3070 (#148)", 60, 5.00),
+    ("RTX 3070 (#148)", 120, 9.31),
+    ("RTX 5080 (#102)", 30, 2.81),
+    ("RTX 5080 (#102)", 60, 5.16),
+    ("RTX 5080 (#102)", 120, 9.78),
+    ("RTX 5080 (PR #141)", 120, 9.50),
+]
+
+
+@pytest.mark.parametrize(("gpu", "sec", "gb"), MEASURED)
+def test_measured_points_are_within_the_formula(db, gpu, sec, gb):
+    """30 秒以上の実測は、コードが出す V(タイルにしない)の 0.8〜1.0 倍。倍率は掛けないので、
+    30 秒以上では式が実測より多め(安全側)。"""
+    st = _st(db, ACE15, sec)
+    assert 0.8 <= gb / st.V_eff <= 1.0, (gpu, sec, gb, st.V_eff)
 
 
 # 実測の無い ACE-Step 1.5 の段階(NVIDIA、メインメモリ 32 GB)。#148 の前はどの長さも 8〜16 GB で good、
@@ -116,6 +122,19 @@ def test_more_vram_never_lowers_the_level(db, mid, sec):
     assert levels == sorted(levels), (mid, sec, levels)
 
 
+@pytest.mark.parametrize("mid", [ACE15, "audio_ace_step_1_5_checkpoint", "audio_ace_step_1_5_split_4b"])
+def test_longer_songs_never_raise_the_level(db, mid):
+    """表の VRAM はタイルの逃げ道で長さとともに減ることがあるが、段階は長さとともに上がらない。"""
+    m = db.get(mid)
+    order = ("too_tight", "marginal", "good", "perfect")
+    for v in [x / 2 for x in range(8, 97)]:
+        levels = [
+            order.index(E.estimate(m, nv(v), Settings(seconds=s), db.measurements).fit)
+            for s in (10, 30, 60, 90, 120, 180, 240, 600)
+        ]
+        assert levels == sorted(levels, reverse=True), (mid, v, levels)
+
+
 def test_tiled_fallback_is_capped_at_marginal_with_a_note(db):
     m = db.get(ACE15)
     e = E.estimate(m, nv(8), Settings(seconds=120))
@@ -124,6 +143,7 @@ def test_tiled_fallback_is_capped_at_marginal_with_a_note(db):
     assert e.vram_sequential_gb < 8
     joined = " ".join(e.reasons)
     assert "11.4 GB" in joined and "marginal" in joined
+    assert "13.2 GB" in joined  # ComfyUI がまず試すタイルなしの量(順に載せ替え)
     # 入るなら逃げ道は使わない(注意も出さない)
     e2 = E.estimate(m, nv(16), Settings(seconds=120))
     assert e2.fit == "good" and "marginal" not in " ".join(e2.reasons)

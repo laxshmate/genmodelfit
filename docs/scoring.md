@@ -115,7 +115,19 @@ Caps per run mode (`estimate.gpu_choice`, `cpu_top`):
 | GPU+RAM (part offloaded to system RAM) | Good | Slow, so never Perfect, but Good when there is room (as in llmfit). In the diffusers comparison (PR #11682) offloading slowed Wan by 1.14–1.5× (model-level and group offloading) and FLUX by 3.3–10.4× |
 | CPU: CPU-realtime speech (listed) and one-pass tools | Good | "Running on the CPU" below |
 | CPU: image, video, music, sound effect and 3D generation | Marginal | "Running on the CPU" below |
-| GPU, GPU~ with the decode (VAE) split into tiles (only the Oobleck VAE, which counts the untiled V; #148) | Marginal | ComfyUI retries in tiles after an OOM, and NVIDIA on Windows spills into shared memory. Both are slow ([accuracy.md "Tiles"](accuracy.md#tiles)) |
+| GPU, GPU~, GPU+RAM with the decode (VAE) split into tiles (only the Oobleck VAE, which counts the untiled V; #148) | Marginal | ComfyUI retries in tiles after an OOM, and NVIDIA on Windows spills into shared memory. Both are slow ([accuracy.md "Tiles"](accuracy.md#tiles)) |
+
+### When the decode is split into tiles (#148)
+
+**In one sentence**: the Marginal cap for an untiled decode that does not fit applies only to the Oobleck VAE (ACE-Step 1.5, Stable Audio Open).
+
+- For the Oobleck VAE the measurements are 0.8 to 1.0 times the untiled V (30 s and longer), so V goes into the
+  amounts used. Only when V does not fit is the tiled estimate judged, capped at Marginal (GPU+RAM rows too).
+- Other VAEs keep the old behaviour: the amounts use the tile value min(V, V_tile), and when V does not fit only a
+  note is shown (the level is not changed). For the image KL VAE the measurements are 0.3 to 0.65 times V, so V
+  would worsen the prediction. The Wan VAE is left for a separate issue.
+- The table VRAM is then the tiled estimate, so it can go down as the length goes up. The level does not go up
+  ([accuracy.md "Tiles"](accuracy.md#tiles)).
 
 ### When offloading is chosen
 

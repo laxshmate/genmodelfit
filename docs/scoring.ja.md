@@ -110,7 +110,18 @@
 | GPU+RAM(一部をメインメモリへ逃がす) | Good | 遅いので Perfect にはしないが、余裕があれば Good(llmfit と同じ)。diffusers の比較(PR #11682)で、逃がしたときの遅れは Wan で 1.14〜1.5 倍(モデル単位と組単位の逃がし方)、FLUX で 3.3〜10.4 倍 |
 | CPU: CPU で実時間に動く読み上げ(表にあるもの)・1 回の計算の道具 | Good | 下の「CPU で動かすとき」 |
 | CPU: 画像・動画・音楽・効果音・3D の生成 | Marginal | 下の「CPU で動かすとき」 |
-| GPU・GPU~ で、仕上げ(VAE)をタイルに分ける(タイルにしない V を使う Oobleck の VAE だけ。#148) | Marginal | ComfyUI は OOM のあとタイルに分けてやり直し、Windows の NVIDIA は共有メモリにはみ出す。どちらも遅い([accuracy.ja.md「タイル」](accuracy.ja.md#タイル)) |
+| GPU・GPU~・GPU+RAM で、仕上げ(VAE)をタイルに分ける(タイルにしない V を使う Oobleck の VAE だけ。#148) | Marginal | ComfyUI は OOM のあとタイルに分けてやり直し、Windows の NVIDIA は共有メモリにはみ出す。どちらも遅い([accuracy.ja.md「タイル」](accuracy.ja.md#タイル)) |
+
+### 仕上げをタイルに分けるとき(#148)
+
+**1 文で**: タイルにしない仕上げが入らないときの Marginal の上限は、Oobleck の VAE(ACE-Step 1.5・Stable Audio Open)だけ。
+
+- Oobleck の VAE は、実測がタイルにしない V の 0.8〜1.0 倍(30 秒以上)なので、使う量に V を入れる。V が入らないときだけ、
+  タイルの見積もりで判定して Marginal までにする(GPU+RAM の行も同じ)。
+- ほかの VAE は今までどおり、使う量はタイルの値 min(V, V_tile) で、V が入らなければ注意を出すだけ(段階は変えない)。
+  画像の KL の VAE は実測が V の 0.3〜0.65 倍で、V を入れると予測が悪くなる。Wan の VAE は別の Issue で決める。
+- 表の VRAM はタイルの見積もりの値なので、長さを延ばすと減ることがある。段階は上がらない
+  ([accuracy.ja.md「タイル」](accuracy.ja.md#タイル))。
 
 ### 逃がす動かし方を選ぶとき
 

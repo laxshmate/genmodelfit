@@ -181,14 +181,27 @@ SeedVR のように見込みが確かな VAE(`comfy_decode_estimate_is_reliable`
 - タイルの逃げ道: タイルにしない見積もりで動かない・ぎりぎりのときは、タイルに分ける見積もり(min(V, V_tile))でも判定する。
   その段階は **Marginal まで**にして、良いほうを取る(同じ段階ならタイルにしない)。ComfyUI は OOM のあとタイルに分けてやり直し、
   Windows の NVIDIA は既定で共有メモリにはみ出して動く(RTX 3070 の 120 秒の実測)。どちらも遅い。理由に 1 文が出る。
-  このとき表の VRAM はタイルの見積もりの値。
+  このとき表の VRAM はタイルの見積もりの値で、理由の 1 文に「ComfyUI はまずタイルにせずに X GB で試す」と出す。
+  そのため表の VRAM は、長さを延ばすと減ることがあり、GPU によっても違う(例: 実測の無い ACE-Step 1.5 の
+  全部載せの値は、8 / 12 GB で 60 秒 16.5 GB・120 秒 11.8 GB(タイル)、16 GB で 120 秒 22.2 GB(タイルにしない))。
+  段階は長さを延ばして上がらない(試験 `test_longer_songs_never_raise_the_level`)。
 - 2 つの見積もりは、どちらも VRAM を増やして段階が下がらない。だから良いほうも下がらない。
 - CPU には逃げ道を入れない。CPU で確保に失敗しても CUDA の OOM ではないので、ComfyUI はタイルに分けずに止まる
   (model_management.py:380・389-395)。
-- 係数は合わせない。実測(V の 0.8〜1.0 倍)に合わせる倍率は掛けない。式は実測より少し多め(安全側)。
-- フェア: 変わるのは Oobleck の VAE の 8 モデル(ACE-Step 1.5 の 6 つ・Stable Audio Open の 2 つ)の、長い設定だけ。
-  既定の長さ(音楽 30 秒・効果音 10 秒)の段階は、同梱の全モデルで変わらない(VRAM・メインメモリの 11 通り:
-  CPU だけ 32 GB、6 / 16、8 / 32、12 / 32、16 / 32、16 / 64、24 / 32、24 / 64、24 / 96、32 / 64、48 / 128 GB)。
+- 係数は合わせない。実測(V の 0.8〜1.0 倍)に合わせる倍率は掛けない。30 秒以上では式が実測より少し多め(安全側)。
+  10 秒ほどの短い曲は V と V_tile が同じで、実測は確かでない(下の「照合」)。
+- `audio_ace_step_1_5_checkpoint` だけは、作者の実測(20 秒・10.8 GB。重み + 固定分の下限を下回る)から、作業用メモリを
+  どの長さでも 1.91 GB 減らす(今までの「実測の使い方」のずらし。#148 で 20 秒の V が 1.9 GB になったので、ずらしも
+  大きくなった)。中身の同じ `audio_ace_step_1_5_split` より段階が良いことがある(60 秒・8 GB で Good と Marginal)。
+  動きは変えず、別の Issue で扱う。
+- フェア: 変わるのは Oobleck の VAE の 8 モデル(ACE-Step 1.5 の 6 つ・Stable Audio Open の 2 つ)だけ。
+  ほかのモデルの段階は、VRAM 2〜80 GB(0.5 GB 刻み)・メインメモリ 16 / 32 / 64 GB・AMD で 1 つも変わらない。
+  既定の長さでも、ACE-Step 1.5 は 30 秒の V(2.86 GB)がタイルの値(0.98 GB)より大きいので、次の VRAM で段階が変わる
+  (メインメモリ・会社によらない。Stable Audio Open の既定の 10 秒は変わらない):
+  - `audio_ace_step_1_5_split`: 4〜5 GB で Good → Marginal、20〜22.5 GB で Perfect → Good
+  - `audio_ace_step_1_5_checkpoint`: 18.5〜19.5 GB で Perfect → Good
+  - `audio_ace_step_1_5_split_4b`: 27〜30 GB で Perfect → Good
+  - XL の 3 つ(base・sft・turbo): 35〜38 GB で Perfect → Good
   Stable Audio Open は同じ VAE のコード・同じ式なので同じ扱い(47 秒より長い曲は、このモデルでは作れない)。
 - 入れなかったもの: ACE-Step 1(music_dcae の VAE)と YuE2 は実測が無い。Wan の VAE も実測は V の 0.74〜0.98 倍だが、
   Qwen Image などの画像にも使う VAE で、同じ扱いにすると既定の設定で 14 モデル・36 か所の段階が下がる

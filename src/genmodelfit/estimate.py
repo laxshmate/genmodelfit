@@ -2510,13 +2510,17 @@ def _judge_tiled(
     st = n.stages
     v = st.V if st is not None else 0.0
     vt = st.V_tile if st is not None else 0.0
+    # タイルにしないときの同じ動かし方の VRAM(ComfyUI がまず試す量)
+    untiled = n.offload if alt[1] == "offload" else min(n.sequential, n.full)
     note = tr(
         f"仕上げ(VAE)をタイルに分けずに動かすと作業用メモリが {v:.1f} GB 要り、この GPU には入らない。"
         f"ComfyUI は VRAM が足りないとタイルに分けてやり直し(タイルなら {vt:.1f} GB)、Windows の NVIDIA では"
-        "共有メモリにはみ出して動く。どちらも遅いので段階は marginal まで",
+        "共有メモリにはみ出して動く。どちらも遅いので段階は marginal まで。"
+        f"表の VRAM はタイルに分けたときの見積もり(ComfyUI はまずタイルにせずに {untiled:.1f} GB で試す)",
         f"Decoding (VAE) without tiles needs {v:.1f} GB of working memory, which does not fit this GPU."
         f" ComfyUI retries in tiles when VRAM runs out ({vt:.1f} GB tiled), and NVIDIA on Windows spills"
-        " into shared memory. Both are slow, so the level is capped at marginal",
+        " into shared memory. Both are slow, so the level is capped at marginal."
+        f" The VRAM shown is the tiled estimate (ComfyUI first tries {untiled:.1f} GB untiled)",
     )
     return level, alt[1], [*alt[2], note], alt[3], t
 
