@@ -89,7 +89,7 @@ genmodelfit update --from-release                 # 6. fetch the latest signed l
 ### Judge another PC
 
 `--vram` and `--ram` (GiB) replace the detected sizes, e.g. `genmodelfit recommend --vram 12 --ram 32`. Only the
-amount changes: with a usable NVIDIA GPU its generation is kept; otherwise `--vram` judges an NVIDIA GPU of unknown
+amount changes: with a usable NVIDIA GPU its generation is kept (reasons say "the <GPU name> generation"); otherwise `--vram` judges an NVIDIA GPU of unknown
 generation. From the RTX 30 series on (30, 40, 50) the generation does not change the estimate, so this also checks a
 GPU before you buy it. `--width`, `--height`, `--frames`, `--length` and `--precision` judge a specific setting.
 

@@ -488,7 +488,8 @@ def test_one_source_with_many_files_does_not_set_the_level(db):
     lvl, why = measured_level([m], entry, m.settings, system, prec, 0.0)
     assert lvl is None and "出どころが 1 つだけ" in why
     e = estimate(entry, system, m.settings, [m])
-    assert e.sample_count == 1 and e.fit_from == "estimate"
+    # 6 GB は全部載せの下限より小さいので、値もずらさない(sample_count なし。#151)
+    assert e.sample_count is None and e.fit_from == "estimate"
     # 別々の 2 つの PR からなら決まる
     rows = contrib.aggregate(subs, {s.sha256: f"commit-{i % 2}" for i, s in enumerate(subs)})
     m2 = Measurement.from_dict(rows[0])
@@ -603,7 +604,7 @@ def test_one_pr_split_into_two_rows_is_one_source(db, kind):
 
 def test_peak_below_the_floor_does_not_set_the_level(db):
     """そろった実測(出どころ 2 つ)でも、ピーク + 文脈の分が重み + 固定分より小さければ、重みの一部を逃がして
-    動いた記録なので段階を決めない(値をずらすのには使う)。"""
+    動いた記録なので段階を決めない(作業用メモリの情報も持たないので値もずらさない。#151)。"""
     entry = db.get("image_sdxl_simple")
     system = nvidia(RTX_3070, 8.0)
     s = Settings(width=1024, height=1024)

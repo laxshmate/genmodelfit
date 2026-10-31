@@ -88,7 +88,7 @@ genmodelfit update --from-release                 # 6. 署名付きの最新の�
 ### ほかの PC で判定する
 
 `--vram` と `--ram`(GiB)で、検出した大きさを置き換えます。例: `genmodelfit recommend --vram 12 --ram 32`。
-変わるのは量だけです。使える NVIDIA の GPU があれば、その世代のままです。無ければ `--vram` は、世代の分からない
+変わるのは量だけです。使える NVIDIA の GPU があれば、その世代のままです(理由の文には「<GPU 名> 世代の GPU」と出ます)。無ければ `--vram` は、世代の分からない
 NVIDIA の GPU として判定します。RTX 30 系以降(30・40・50 系)なら世代で見積もりは変わらないので、GPU を買う前の
 確かめにも使えます。`--width`・`--height`・`--frames`・`--length`・`--precision` で、設定を決めて判定できます。
 

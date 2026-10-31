@@ -121,6 +121,7 @@ Gpu:
 | `gfx_target` | str \| null | (0.7.0) AMD LLVM target, e.g. `gfx1100` |
 | `carveout_gb` | float \| null | (0.7.0) for `memory: shared`, the VRAM the BIOS sets aside (not part of `ram_total_gb`); the RAM check counts only GPU use above it. null otherwise |
 | `pci_id` | str \| null | (0.9.0) PCI model ID `vendor:device` (`1002:744c`) for AMD / Intel GPUs (Windows WMI `PNPDeviceID`, Linux `lspci -nn`); null for NVIDIA (nvidia-smi names match everywhere) and Apple. Used to match other users' measurements of the same GPU (`estimate.same_gpu`) |
+| `vram_overridden` | bool | (0.14.1) true when `--vram` / `vram_gb=` replaced the amount: `name`, generation and precision stay this PC's GPU, only the VRAM is assumed. Reasons and notes then say "the <name> generation" instead of the bare name; `name` itself is unchanged. false otherwise (absent before 0.14.1) |
 
 Adapter (`other_gpus`): `name`, `vendor` (`nvidia` / `amd` / `intel` / `apple` / `unknown`), `vram_gb` (Windows: registry
 `HardwareInformation.qwMemorySize`, else WMI `AdapterRAM` below 4 GiB; Linux AMD: sysfs; Intel Arc on Linux: the
@@ -518,8 +519,8 @@ can fall (for example `--vram 17` on an RTX 5080 PC). Intended: it is a judgemen
 `basis_detail` (#34), from most to least measured (`models.BASIS_DETAILS`):
 
 1. `measured`: a measurement at the same settings. The maintainer's or this PC's bench measurements and other users' submissions aggregated by `contrib aggregate` (values use **one** submission already) are not told apart. The number of sources is `sample_count`
-2. `calibrated`: shifted by a measurement at other settings (also a same-settings value clamped by the bounds below)
-3. `estimated`: formula only
+2. `calibrated`: shifted by a measurement at other settings (also a same-settings value capped by the bound below or used only as a lower bound)
+3. `estimated`: formula only (also when there is a measurement below the full-load floor: it carries no working-memory information, so nothing is shifted; #151)
 
 0.11.0 (#108) merged `measured_community` into `measured`. Apps that check for `measured_community` should check for `measured` (which source it was stays in `origin` of the `measurements` list of `info --json`; it is never used for marks).
 
@@ -527,6 +528,7 @@ Since 2026-10-22 (like llmfit) community measurements are used in **both directi
 They are bounded only physically:
 
 - The all-in value is never below weights + fixed overhead (zero working memory), and never above the measuring GPU's VRAM × 1.02 + 0.25 GiB.
+- A measurement below weights + fixed overhead (a record of running with part of the weights offloaded) does not shift the working memory (the value is the formula, `basis_detail` is `estimated`; since #151, before which it was raised to the floor). The same holds for the maintainer's measurements.
 - A value pinned at the GPU limit is a lower bound.
 - Spread to other settings, the ratio measured ÷ formula is clamped to [0.6, 1.4] (`estimate.COMMUNITY_CALIBRATION_RANGE`; llmfit uses [0.05, 3.0] for speed).
 
@@ -1622,8 +1624,8 @@ name that does not fit the name form; a maintainer checks it for personal names)
 that is not the name's nominal amount; an error unless a modified card), `batch_sizeless` (a template without a size input, `estimate.NO_SIZE_INPUT`, with `batch` other than 1:
 0.10.1's bench recorded MoGe's processing batch as the batch; judging uses batch 1, so it is not a same-settings
 measurement; #90), `deviation` (peak VRAM more than 40% away from the formula's all-in estimate for those settings),
-`below_weights` (`offload: none` but peak VRAM below the weights + fixed overhead; estimates use that floor for
-every submission below it — with dynamic VRAM / partial loading a smaller peak is normal), `fit_change` (this
+`below_weights` (`offload: none` but peak VRAM below the weights + fixed overhead; estimates do not shift the
+working memory for a submission below it and use the formula value (#151) — with dynamic VRAM / partial loading a smaller peak is normal), `fit_change` (this
 submission alone would change the level on a PC with the submitted GPU — same name, PCI model ID and vendor, VRAM =
 the submission's `vram_gb`, plus the other nominal VRAMs of the same name when known (Intel Arc
 `hardware._INTEL_XPU`; NVIDIA `estimate.NVIDIA_VRAM_VARIANTS`, 0.9.1: RTX 2060 / 3050 / 3060 / 3080 / 4060 Ti /

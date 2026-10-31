@@ -892,10 +892,11 @@ SOURCES: tuple[LicenseSource, ...] = (
         "other",
         "cc-by-nc",
         "k2-fsa/OmniVoice",
-        "公式の https://github.com/k2-fsa/OmniVoice の README「Our code is released under the Apache 2.0 "
-        "License. The pre-trained model is licensed under the CC-BY-NC due to constraints from its "
-        "training data (e.g., Emilia)」(版の記載なし。HF のカードにはライセンスの記載が無い)",
-        url="https://github.com/k2-fsa/OmniVoice#license",
+        "HF のカード(README の本文。cardData の license は空)「The pre-trained model is licensed under the "
+        "CC-BY-NC due to constraints from its training data (e.g., Emilia)」(版の記載なし。GitHub の "
+        "README の License 節は無くなったので、HF のカードの版に固定した URL にした)",
+        url="https://huggingface.co/k2-fsa/OmniVoice/blob/c5fdb5ccb189668d56333f77ba2629f4cd7535f4/README.md",
+        checked="2026-11-01",
     ),
     # --- circlestone-labs(Anima の公式 LoRA。#30 の確認で LICENSE.md があると分かった) ------------
     _s(

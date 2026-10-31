@@ -2705,6 +2705,7 @@ def detect(
                     compute_dtype=g.compute_dtype,
                     bf16=g.bf16,
                     fp8=g.fp8,
+                    vram_overridden=True,
                 )
             ]
         elif vram_gb > 0:  # GPU が無い・動かない世代: 世代の分からない仮の GPU で判定する

@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any
 
+from .i18n import tr
+
 SCHEMA_VERSION = 1
 
 # 生成の種類。music=音楽、sfx=効果音、tts=読み上げ
@@ -418,6 +420,22 @@ class Gpu:
     # PCI の型番 ID("1002:744c"。0.9.0)。Windows の PNPDeviceID・Linux の lspci -nn から。NVIDIA(nvidia-smi)は
     # None(名前がどこでも同じなので名前で照合する)。個体・差し場所は表さない
     pci_id: str | None = None
+    # --vram で VRAM だけを上書きしたか(#150)。True のとき name・世代・精度はこの PC の GPU のまま、
+    # 量だけが仮定。理由・注意の文では name でなく label を出す
+    vram_overridden: bool = False
+
+    @property
+    def label(self) -> str:
+        """理由・注意の文の GPU の表示。上書きなしは name、ありは「<name> 世代の GPU」(照合は name)。"""
+        if self.vram_overridden:
+            return tr(f"{self.name} 世代の GPU", f"the {self.name} generation")
+        return self.name
+
+    @property
+    def label_start(self) -> str:
+        """文頭に置く label(英語の "the" を大文字にする)。"""
+        lab = self.label
+        return lab[:1].upper() + lab[1:]
 
 
 @dataclass
