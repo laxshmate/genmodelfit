@@ -835,14 +835,28 @@ From the peak shapes (recorded about 60 times a second), the value read every 0.
 - bench reads `/system_stats` 0.015 s apart (`bench.POLL_INTERVAL`). With the time spent waiting for the answer, that is about every 0.03 s in practice (30 to 36 reads a second). The resident memory is still read every 0.2 s.
   Reading this often did not change the step or decode times (SDXL 0.4 s/step, ACE-Step 0.125 s/step).
 - A peak too short to be read 3 times (the third-largest value is more than 0.1 GiB and more than 10% below the maximum)
-  is not a standard measurement (`standard: false`; the value is kept; used neither for the cross-check nor for levels). A peak read 3 times
+  is not a standard measurement (`standard: false`; used neither for the cross-check nor for levels). A peak read 3 times
   lasted at least twice the polling interval, so every run reads it at least once.
+  - The peak value is shown in the result (the display and `--json`), but `measure` and `share` neither save nor send
+    non-standard results. `bench` saves it only with `--save-nonstandard` or `--output`.
+  - Only runs that finished (`outcome: ok`) are checked. Out-of-memory results and failure records are kept and sent as before.
+  - `measure` and `share` remember a run that was non-standard only because of a brief spike as "tried" in `brief_peaks.json` in the cache (not sent).
+    The same model and settings on the same GPU with the same list files are not suggested again (so a model whose peak is always brief, like ACE-Step 10 s, is not measured over and over).
+    **Limitation**: such runs cannot be used for the cross-check or for levels. For now they are not suggested again even when this PC's ComfyUI version changes
+    (the marker keeps the ComfyUI version, so once re-measuring on a new ComfyUI version exists (#147) it can treat them like other measurements).
+    Deleting the marker (`brief_peaks.json`) makes them suggested again.
+- 4 submissions measured every 0.2 s that probably missed the peak (RTX 3070 SDXL 512 px, RTX 5080 SDXL 512 px,
+  ACE-Step 10 s and 30 s) are listed with reasons in the bundled `contrib_nonstandard.json`, and `contrib aggregate` does not use their values
+  (the submission files are not edited, because their sha256 would change). The RTX 3070 SDXL 512 px row (0.31 GB) is gone from the bundled summary.
+  The RTX 5080 submissions are not in the summary yet (they are left out when the next release adds them).
+  Refitting (`python -m genmodelfit.calibrate`) does not change the coefficients or LOO (the summary row was not consistent, so it was not in the cross-check either).
 
 Measurements after the change (RTX 3070, ComfyUI 0.19.3):
 
 | Run | Runs | Peak VRAM | Reads at the peak | Standard |
 |---|---:|---|---|---|
 | SDXL 1024 px | 15 (including 2 with `measure`) | all 2.28 GB | 5 to 7 | yes |
+| SDXL 512 px | 3 | all 0.59 GB | 2 | no (brief spike; the 0.31 GB in the bundled summary missed the peak) |
 | SDXL 768 px | 6 | all 1.34 GB | 3 to 4 | yes |
 | SDXL 1536 px | 3 | all 4.97 GB | 9 to 13 | yes |
 | ACE-Step 30 s | 4 | 2.34 / 2.34 / 2.34 / 2.72 GB | 4 to 9 | yes |

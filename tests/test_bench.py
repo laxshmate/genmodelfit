@@ -1320,6 +1320,11 @@ def test_steady_peak_and_brief_peak():
     # 差が小さい(0.1 GiB 以下・最大値の 10% 以下)なら揺れても照合に効かないので決めない
     small = [int(x * GIB) for x in [0.5] * 20 + [0.55, 0.58, 0.6]]
     assert bench.brief_peak(small) is None
+    # 境目: 差が 0.1 GiB を超えても最大値の 10% 以下なら、10% を超えても 0.1 GiB 以下なら、一瞬の山にしない
+    base = [int(0.3 * GIB)] * 20
+    assert bench.brief_peak(base + [int(1.85 * GIB)] * 3 + [2 * GIB]) is None  # 差 0.15 GiB・7.5%
+    assert bench.brief_peak(base + [int(0.42 * GIB)] * 3 + [int(0.5 * GIB)]) is None  # 差 0.08 GiB・16%
+    assert bench.brief_peak(base + [int(1.7 * GIB)] * 3 + [2 * GIB]) is not None  # 差 0.3 GiB・15%
     # 読めた回が少なければ決めない(実行が読む間隔の数回分より短い)
     assert bench.brief_peak([0, 5 * GIB]) is None
     assert bench.steady_peak([]) == 0 and bench.steady_peak([3, 1]) == 1
@@ -1373,11 +1378,11 @@ class _SlowFake(FakeComfy):
         return super()._history()
 
 
-def _peak_run(monkeypatch, spike_reads: set[int]):
+def _peak_run(monkeypatch, spike_reads: set[int], behavior: str = "ok"):
     """実行中の /system_stats の spike_reads 回目(1 から)だけ torch を 7 GB にして測る。"""
     monkeypatch.setattr(bench.time, "sleep", lambda s: _REAL_SLEEP(0.01))
     real = bench.ComfyClient.system_stats
-    with _SlowFake() as fake:
+    with _SlowFake(behavior) as fake:
         n = {"run": 0}
 
         def stats(self):
@@ -1402,6 +1407,16 @@ def test_brief_peak_is_kept_but_not_standard(monkeypatch):
     assert "一瞬だけの山(7.00 GB。3 回以上読めた最大は 5.00 GB)" in m.note
     assert any("brief spike" in s or "一瞬" in s for s in res.nonstandard)
     assert any("7.00 GB" in w for w in res.warnings)
+    assert res.brief_peak is True
+
+
+@pytest.mark.parametrize("behavior", ["oom", "error"])
+def test_brief_peak_does_not_touch_failed_runs(monkeypatch, behavior):
+    # メモリ不足・失敗は今までどおり標準のまま(OOM の提出・失敗の記録を残して送る。#131)
+    res = _peak_run(monkeypatch, {5}, behavior)
+    m = res.measurement
+    assert m.outcome == behavior and m.standard is True and res.brief_peak is False
+    assert "一瞬" not in m.note
 
 
 def test_peak_read_several_times_stays_standard(monkeypatch):

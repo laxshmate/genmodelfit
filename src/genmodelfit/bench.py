@@ -1197,6 +1197,8 @@ class BenchResult:
     # 時間の内訳(#132。timing_breakdown)と、失敗の種類(_history_error_kind。文は入れない)
     timing: dict[str, Any] | None = None
     error_kind: dict[str, Any] | None = None
+    # 最大 VRAM が一瞬だけの山だった(#131。brief_peak)。measure はこれだけで標準でない回を「試した」と覚える
+    brief_peak: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         m = asdict(self.measurement)
@@ -1752,9 +1754,11 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
     vram_total = int(dev0.get("vram_total") or 0)
     torch_peak = peaks.torch_vram if peaks.samples else 0
     dev_delta = max(0, peaks.device_used - base_dev)
+    brief: tuple[int, int] | None = None
     if torch_peak > 0:
         peak_vram = torch_peak / GIB
-        brief = brief_peak(mon.torch_values)
+        # 最後まで動いた回だけ見る(メモリ不足・失敗の記録は今までどおり残し、送る。#131)
+        brief = brief_peak(mon.torch_values) if outcome == "ok" else None
         if brief:
             # #131: 最大値が読む間隔より短い山だった。測るたびに揺れるので標準にしない(値は残す)
             top, steady = brief[0] / GIB, brief[1] / GIB
@@ -1861,6 +1865,7 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
             steps=sampler_steps(wf),
         ),
         error_kind=_history_error_kind(entry, wf) if entry else None,
+        brief_peak=brief is not None,
     )
 
 

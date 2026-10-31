@@ -14,8 +14,13 @@ All notable changes to this project are documented here. The format is based on
   and ComfyUI frees it when the run ends, so reading `/system_stats` every 0.2 s missed it in some runs (SDXL 1024 px
   2.28 GB or 1.28 GB; ACE-Step 10 s 0.59 to 1.06 GB). bench now reads it 0.015 s apart (`bench.POLL_INTERVAL`, about
   every 0.03 s with the answer; the resident memory still every 0.2 s), and a peak too short to be read 3 times (the
-  third-largest value more than 0.1 GiB and 10% below the maximum) is kept but marked non-standard, so it is used
-  neither for the cross-check nor for levels. With the change, 15 SDXL 1024 px runs all gave 2.28 GB; ACE-Step 10 s is
+  third-largest value more than 0.1 GiB and 10% below the maximum) is marked non-standard in finished runs (the
+  value is shown, but measure / share neither save nor send it; out-of-memory and failure records are unchanged), so
+  it is used neither for the cross-check nor for levels. measure / share remember such runs as "tried" in
+  `brief_peaks.json` in the cache (not sent) and do not suggest them again. The 4 submissions that probably missed the
+  peak (RTX 3070 SDXL 512 px; RTX 5080 SDXL 512 px, ACE-Step 10 s and 30 s) are listed in the bundled
+  `contrib_nonstandard.json`, which `contrib aggregate` leaves out; the RTX 3070 SDXL 512 px row (0.31 GB) is gone
+  from the bundled community data (calibration unchanged). With the change, 15 SDXL 1024 px runs all gave 2.28 GB; ACE-Step 10 s is
   flagged. Details in docs/accuracy "Measurement variance (#131)".
   (最大 VRAM の山を読み落とさないよう速く読み、読み切れない一瞬の山は標準の実測にしない)
 

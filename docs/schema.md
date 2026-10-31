@@ -1034,10 +1034,13 @@ How bench fills Measurement:
   device memory (not on Apple's unified memory), then measures, with a warning and a `note` sentence;
   `standard` is not changed ([accuracy.md](accuracy.md)). A remote ComfyUI still needs `--force`.
   - Brief spike (0.14.0, #131): when the third-largest value is more than 0.1 GiB and more than 10% below the
-    maximum, the maximum was a spike shorter than the polling interval and varies from run to run. The value is
-    kept, `standard` becomes false and the non-standard conditions in `note` say that the peak was a brief spike,
+    maximum, the maximum was a spike shorter than the polling interval and varies from run to run. Only runs that
+    finished (`outcome: ok`) are checked. The peak is shown in the result, `standard` becomes false and the non-standard conditions in `note` say that the peak was a brief spike,
     with the highest value read at least 3 times (used neither for the cross-check nor for levels). With fewer than 10 reads
-    this is not decided. Why: [accuracy.md "Measurement variance (#131)"](accuracy.md#measurement-variance-131).
+    this is not decided. measure and share neither save nor send such a run; they remember it as "tried" in
+    `brief_peaks.json` in the cache and do not suggest the same one again (not sent). bench saves it only with
+    `--save-nonstandard` or `--output`. Submissions that probably missed the peak with 0.2 s polling are listed in the
+    bundled `contrib_nonstandard.json` (content sha256 → reason), and `contrib aggregate` does not use their values. Why: [accuracy.md "Measurement variance (#131)"](accuracy.md#measurement-variance-131).
 - `peak_ram_gb`: max resident memory of the process listening on the port (and its children), only when its
   command line contains `main.py` or `comfy`; null when remote or not identified.
 - `seconds`: wall time from submit to completion, including model loading. `/free` is sent first only with `--free`;

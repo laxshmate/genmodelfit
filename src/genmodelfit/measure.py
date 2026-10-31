@@ -34,6 +34,9 @@ TYPICAL_SECONDS = {"image": 60, "video": 300, "music": 90, "sfx": 60, "tts": 60,
 DEFAULT_TYPICAL_SECONDS = 120
 SUBMISSIONS_DIR = "submissions"  # キャッシュの中の、送る前の提出の置き場所(bench --share と同じ)
 SHARED_FILE = "submissions_shared.json"  # 送った印(内容の sha256 → 日付)
+# 最大 VRAM が一瞬だけの山で標準にならなかった回の印(#131。キャッシュの中。送らない)。同じモデル・設定を
+# 同じ GPU・同じ一覧のファイルで何度も提案しないための「試した」の記録
+BRIEF_PEAKS_FILE = "brief_peaks.json"
 
 # 設定を変えた測定(#116)。#102 の台本の組み合わせ(SDXL 512〜1536 px、Wan 2.1 1.3B 17〜81 コマ、
 # ACE-Step 10〜120 秒)にならう。予測式の段ごとの作業用メモリ(画素数・コマ数・長さで変わる部分)を、
@@ -361,7 +364,8 @@ def suggestions(
     ms = [*db.measurements, *extra]
     # 「測ってある」はこの PC の実測だけで決める(キャッシュ・送る前の提出)。同梱の作者の実測・ほかの利用者の
     # まとめは時間の目安・見積もりには使うが、提案からは外さない
-    here = measured_by_this_pc(list(db.measurements)) + list(extra)
+    # 一瞬の山で標準にならなかった回(#131)も「試した」として数える(同じものを何度も提案しない)
+    here = measured_by_this_pc(list(db.measurements)) + list(extra) + brief_peak_tried()
     per_key: dict[tuple, list[Suggestion]] = {}
     for f in evaluate(db, system, content=content, policy=policy, coefficients=c):
         m, e = f.model, f.estimate
@@ -489,6 +493,46 @@ def submissions_dir() -> Path:
 
 def shared_path() -> Path:
     return cache_dir() / SHARED_FILE
+
+
+def brief_peaks_path() -> Path:
+    return cache_dir() / BRIEF_PEAKS_FILE
+
+
+def save_brief_peak(m: Measurement) -> Path:
+    """一瞬の山だけで標準にならなかった回(#131)を「試した」と覚える。同じ内容の行は 1 つ。"""
+    path = brief_peaks_path()
+    rows = _read_brief_peaks(path)
+    row = asdict(m)
+    if row not in rows:
+        rows.append(row)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"measurements": rows}, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return path
+
+
+def _read_brief_peaks(path: Path) -> list[dict[str, Any]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    rows = data.get("measurements") if isinstance(data, dict) else None
+    return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
+
+
+def brief_peak_tried() -> list[Measurement]:
+    """「試した」印の回(#131)。提案(suggestions)の「この GPU で測ってあるか」にだけ足すので、標準の行と
+    して返す(見積もり・照合・段階には使わない。キャッシュの measurements とは別のファイル)。
+    読めなければ空。"""
+    from dataclasses import replace
+
+    from .db import parse_measurements
+
+    try:
+        ms = parse_measurements({"measurements": _read_brief_peaks(brief_peaks_path())})
+    except (ValueError, TypeError, KeyError):
+        return []
+    return [replace(m, standard=True) for m in ms]
 
 
 def load_shared() -> dict[str, dict[str, Any]]:
