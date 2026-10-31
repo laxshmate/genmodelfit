@@ -60,6 +60,11 @@ All notable changes to this project are documented here. The format is based on
   `license_from`, the files' `license_url` and the templates' `base_model` follow. `apply_license_sources` also
   re-derives a template's `base_model` when a row changes its main file's origin, like a rebuild does.
   (Wan Fun の本体の元を直した)
+- **A model's `license_url` points at its main file** (#144): with several files under the same license, the URL came
+  from the first file by name, often a component (`video_wan2_2_14B_fun_control` showed the VAE's
+  Wan2.1-T2V-14B page). `set_entry_license` now takes the URL of the largest main file with the same license; 80
+  entries in the list changed (licenses themselves do not change). This replaces the hand-added models' own rule.
+  (一式の license_url を本体のものにした)
 
 ## [0.13.2] - 2026-10-29
 

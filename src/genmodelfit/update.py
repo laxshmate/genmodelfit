@@ -541,7 +541,9 @@ def apply_license(
 
 def set_entry_license(e: ModelEntry) -> None:
     """一式のライセンスは、すべてのファイル(LoRA・アップスケーラ・clip_vision なども)の中で一番厳しいもの。
-    ファイルが無ければ不明。"""
+    ファイルが無ければ不明。原文の場所(license_url)は、同じライセンスの本体のファイル(大きいもの)が
+    あればそのもの(同じ段階のファイルが複数あるとき、名前の順で部品(VAE・テキストエンコーダ)の URL を
+    出していた。#144)。"""
     if not e.files:
         e.license, e.license_name, e.license_url = None, None, None
         e.license_evidence = [f"{UNVERIFIED}: 使うファイルが分かりません"]
@@ -557,6 +559,13 @@ def set_entry_license(e: ModelEntry) -> None:
     )
     e.license, e.license_name = worst.license, worst.license_name
     e.license_url = worst.license_url if worst.license else None
+    same_main = [
+        f
+        for f in e.files
+        if f.role == "main" and f.license_url and (f.license, f.license_name) == (e.license, e.license_name)
+    ]
+    if e.license and same_main:
+        e.license_url = min(same_main, key=lambda f: (-(f.size_bytes or 0), f.name)).license_url
     ev: list[str] = []
     for f in e.files:
         for x in f.license_evidence:

@@ -298,20 +298,11 @@ def manual_entries(data: dict[str, Any] | None = None) -> list[ModelEntry]:
                 parts = f.url.split("/")
                 f.repo_id = "/".join(parts[3:5])
         set_entry_license(e)
-        _prefer_main_license_url(e)
         set_completeness(e)
         set_precision(e)
         assign(e)
         out.append(e)
     return out
-
-
-def _prefer_main_license_url(e: ModelEntry) -> None:
-    """一式のライセンスが本体のファイルと同じなら、原文の場所も本体のもの(同じ段階のファイルが複数あるとき、
-    set_entry_license はファイル名の順で選ぶので、部品の URL になってしまう)。"""
-    main = next((f for f in e.files if f.role == "main"), None)
-    if main and main.license_url and (main.license, main.license_name) == (e.license, e.license_name):
-        e.license_url = main.license_url
 
 
 _MEASURED_FILE_FIELDS = (
@@ -495,5 +486,4 @@ def verify_manual_licenses(entries: list[ModelEntry], client: Any) -> list[str]:
                 f"手のモデル {e.id}: {f.name} のライセンスがカードと違います(書いた値 {mine}、カード {card})"
             )
         set_entry_license(e)
-        _prefer_main_license_url(e)
     return warnings

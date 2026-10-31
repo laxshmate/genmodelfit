@@ -549,7 +549,7 @@ Applying the table to the list built on 2026-10-20 (the bundled one at that time
 
 It is the strictest among **all files** (main file, text encoder, VAE, LoRA, clip_vision, upscaler, ControlNet and so on, everything the template uses).
 If no file is written at all, it is unknown.
-`license_name` is that of the strictest file, and `license_url` is where that file's license entry is.
+`license_name` is that of the strictest file, and `license_url` is where that file's license entry is. But if a main file (`role: main`; the largest if several) has the same license, its entry is used (0.14.0, #144: with several files at the same tier the choice went by name, so a component's place showed, such as the VAE's Wan2.1-T2V-14B as the `license_url` of Wan 2.2 Fun Control; 80 entries changed to the main file's place).
 `license_evidence` collects the reasons from the files' `license_unverified` (up to 10).
 
 ## Language, runtime, description, and manually added models
