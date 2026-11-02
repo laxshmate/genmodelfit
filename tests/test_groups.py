@@ -143,10 +143,11 @@ def test_precision_rank_and_label():
 def test_precision_auto_selection(db):
     """逃がさずに載る(good 以上で GPU / GPU~)ものがあれば、その中で精度の高いもの(#28)。無ければ良い段階が
     先、同じ段階なら逃がさないほう、それも同じなら高い精度。
-    8 GB: int8(載せ替えて marginal)と bf16(逃がして marginal)→ int8。24 GB: int8 は perfect、bf16 は
-    載せ替えて good → bf16(0.1.0 は int8)。48 GB: どちらも perfect → bf16。"""
+    8 GB / RAM 64 GB: 動的 VRAM の式(2026-11-02)で bf16 は逃がして good → bf16(RTX 3070 の実測で bf16 が
+    int8 より速く、絵はほぼ同じ)。24 GB: int8 は perfect、bf16 は載せ替えて good → bf16(0.1.0 は int8)。
+    48 GB: どちらも perfect → bf16。RAM が足りない PC は test_z_image_turbo_ram_short_prefers_int8。"""
     for v, want, other in (
-        (8, "image_z_image_turbo_int8", "image_z_image_turbo"),
+        (8, "image_z_image_turbo", "image_z_image_turbo_int8"),
         (24, "image_z_image_turbo", "image_z_image_turbo_int8"),
     ):
         ids = {f.model.id for f in recommend(db, pc(v, 64), modality="image", limit=None)}
@@ -269,7 +270,7 @@ def test_representative_prefers_generation_over_tools(db):
     assert _row(sel, idx.key_of["image_qwen_image_edit_2509"]).model.id.startswith(("image_qwen", "template"))
     assert not _row(sel, idx.key_of["image_qwen_image_edit_2509"]).model.id.startswith("image_marigold")
     z = _row(sel, idx.key_of["image_z_image_turbo"])
-    assert z.use == "gen" and z.model.id == "image_z_image_turbo_int8"
+    assert z.use == "gen" and z.model.id == "image_z_image_turbo"  # 8 GB / RAM 32 GB は bf16(動的 VRAM の式)
     # 道具だけのモデルは道具のまま出る
     assert _row(sel, idx.key_of["utility_seedvr2_3b_int8_upscale_image"]).use == "upscale"
     music = recommend(db, pc(12), modality="music", limit=3)
@@ -388,9 +389,9 @@ def test_model_names_are_unique_and_readable(db):
 def test_info_accepts_the_model_name(capsys):
     assert cli.main(["info", "z-image-turbo", "--vram", "8", "--ram", "32", "--no-cache", "--json"]) == 0
     d = json.loads(capsys.readouterr().out)
-    assert d["model_name"] == "Z-Image-Turbo" and d["model"]["id"] == "image_z_image_turbo_int8"
+    assert d["model_name"] == "Z-Image-Turbo" and d["model"]["id"] == "image_z_image_turbo"
     assert {w["id"] for w in d["same_model"]} >= {
-        "image_z_image_turbo",
+        "image_z_image_turbo_int8",  # 代表が bf16 になったので、int8 はほかのワークフローの側に出る
         "image_z_image_turbo_fun_union_controlnet",
     }
 
@@ -565,3 +566,16 @@ def test_name_rules_and_overrides(db):
     for mid, name in NAME_OVERRIDES.items():  # 上書きの表の ID が一覧にあり、その名前になっている
         assert by_id[mid] == name, mid
     assert len({n.lower() for n in idx.name_of.values()}) == len(idx.name_of)
+
+
+def test_z_image_turbo_ram_short_prefers_int8(db):
+    """同じ段階なら、メインメモリに収まる版を選ぶ(2026-11-02)。RAM 16 GB では bf16(要るメインメモリ 約 22 GB)
+    より int8(約 14 GB)。RAM 32 GB の 8 GB では bf16(実測で速い)。"""
+    for v, ram, want in (
+        (8, 16, "image_z_image_turbo_int8"),
+        (6, 16, "image_z_image_turbo_int8"),
+        (4, 16, "image_z_image_turbo_int8"),
+        (8, 32, "image_z_image_turbo"),
+    ):
+        ids = {f.model.id for f in recommend(db, pc(v, ram), modality="image", limit=None)}
+        assert want in ids, (v, ram, ids & {"image_z_image_turbo", "image_z_image_turbo_int8"})
