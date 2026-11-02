@@ -368,6 +368,10 @@ class Measurement:
     source_ids: list[str] | None = None
     n_error: int | None = None  # 同じ構成で ok・oom 以外(error)で終わった提出の数(行の値には使わない)
     runs_evidence: bool | None = None  # False = OOM の出どころが ok の出どころ以上(「動く」根拠にしない)
+    # VRAM を物理的に占めて減らして測った回の、使えた VRAM(GPU の総量に当たる量。生成エンジンを起動する前の
+    # 空き + 画面などほかのアプリの分。GiB)。None は減らしていない(gpu_vram_gb がそのまま使えた)。
+    # 記録だけ(1 つの出どころでは段階を上げない。docs/accuracy.md「動的 VRAM で逃がすとき」)
+    vram_available_gb: float | None = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Measurement:
@@ -491,6 +495,11 @@ class SystemInfo:
     other_gpus: list[Adapter] = field(default_factory=list)  # NVIDIA 以外も含めた画面の部品(知らせるだけ)
     other_gpus_checked: bool = False  # other_gpus を調べたか(NVIDIA の GPU があれば既定では調べない)
     notes: list[str] = field(default_factory=list)  # 検出で分かったこと・分からなかった理由
+    # 使う ComfyUI・PyTorch の版と起動の引数(逃がすときに ComfyUI の動的 VRAM を使うかを決める。
+    # estimate.dynamic_vram)。None は分からない(使えると仮定して、そう理由に書く)
+    comfyui_version: str | None = None
+    torch_version: str | None = None
+    comfyui_args: list[str] | None = None
 
     @property
     def best_gpu(self) -> Gpu | None:
@@ -558,6 +567,10 @@ class Estimate:
     # 同じ選び方)と段階。switch_off が無ければ None。GPU が無い・大きさ不明なら VRAM は None
     vram_gb_all_options: float | None = None
     fit_all_options: str | None = None
+    # 逃がすときの VRAM(vram_offload_gb)の式。dynamic_vram = ComfyUI の動的 VRAM(画像・NVIDIA。
+    # 固定分 + 段の作業用メモリ + 小さな常駐)、legacy = 重みの offload_fraction を GPU に残す今までの式。
+    # GPU が無い・大きさが分からないときは None
+    offload_method: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """JSON の形。大きさが分からず判定していないとき、VRAM・RAM の値は分からない(null)にする

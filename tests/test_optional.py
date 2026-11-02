@@ -298,10 +298,15 @@ def db():
     return load(use_cache=False)
 
 
-def rtx3070(vram=8.0, ram=32):
-    return genmodelfit.system_from(
+def rtx3070(vram=8.0, ram=32, comfyui_version="0.15.0"):
+    """既定は動的 VRAM の無い ComfyUI(逃がすときは重みの 0.4 を GPU に残す今までの式)。#81 の数は
+    その式で決めたもの。0.15 から画像は動的 VRAM の式で逃がす量が小さく、8 GB では任意の部品の有無で
+    段階が変わらない(docs/accuracy.md「動的 VRAM で逃がすとき」)。"""
+    s = genmodelfit.system_from(
         [{"name": "NVIDIA GeForce RTX 3070", "vram_gb": vram}], ram_gb=ram, gpu_usable=True, windows=True
     )
+    s.comfyui_version = comfyui_version
+    return s
 
 
 def stripped(e):

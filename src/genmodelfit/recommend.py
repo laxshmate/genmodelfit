@@ -451,8 +451,8 @@ def runs_clean(e: Estimate) -> bool:
 def variant_key(f: Fit) -> tuple:
     """同じモデルの中で表に出す 1 件を選ぶ順: 用途(--task があればそれに合う用途の中で、生成 → 編集 → …
     → 高解像度化 → 補助ツール)→ GPU に逃がさずに載る(good 以上で GPU / GPU~)ものがあれば、その中で
-    精度が高い → 段階が良い → … / 無ければ 段階が良い → 逃がさない載せ方(GPU → GPU+RAM → CPU)
-    → 精度が高い → おすすめ順。
+    精度が高い → 段階が良い → … / 無ければ 段階が良い → メインメモリに収まる → 逃がさない載せ方
+    (GPU → GPU+RAM → CPU)→ 精度が高い → おすすめ順。
 
     llmfit と同じく「逃がさずに載る中で一番品質の高い精度」を選ぶ(#28。24 GB の Z-Image Turbo は int8 の
     perfect より bf16 の good)。逃がさないと載らないときだけ段階を優先する。"""
@@ -462,12 +462,20 @@ def variant_key(f: Fit) -> tuple:
     slow = {"gpu": 0, "offload": 1, "cpu": 2}.get(f.estimate.run_mode, 3)  # 同じ段階なら逃がさないほう(速い)
     clean = runs_clean(f.estimate)
     prec = precision_rank(f.model.precision)
+    # 動く行どうしで同じ段階なら、メインメモリの足りない量(GB を切り上げた整数。0.1 GB 程度の差で精度を
+    # 落とさない)が小さいほう(収まらないとページファイルを使い、とても遅くなる)。両方収まれば 0 で差は無い。
+    # 動かない行(too_tight)の代表は変えない。2026-11-02(#166): 動的 VRAM の式で 8・6 GB の bf16 も
+    # 逃がして動く判定になり、RAM 16 GB でも bf16 を選んでいた
+    ram_short = 0
+    if f.system is not None and f.system.ram_total_gb and f.estimate.fit != "too_tight":
+        ram_short = math.ceil(round(max(0.0, f.estimate.ram_gb - f.system.ram_total_gb), 2))
     return (
         community,
         use,
         not clean,
         prec if clean else 0,
         fit_rank(f.estimate.fit),
+        ram_short,
         slow,
         prec,
         *sort_key(f),

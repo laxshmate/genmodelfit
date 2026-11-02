@@ -176,9 +176,11 @@ def test_z_image_turbo_picks_bf16_on_24_gb(db):
     assert int8["fit_level"] == "perfect"
 
 
-def test_z_image_turbo_picks_int8_when_bf16_needs_offload(db):
+def test_z_image_turbo_picks_bf16_when_offload_is_dynamic(db):
+    """8 GB(RAM 96 GB): 動的 VRAM の式(2026-11-02)で bf16 も逃がして good になり、精度の高い bf16。
+    RTX 3070 の実測で bf16 は int8 より速く(16.7 秒 / 21.1 秒)、絵はほぼ同じ。"""
     row = _row(db, 8, "image_z_image_turbo")
-    assert row.model.precision == "int8"
+    assert row.model.precision == "bf16"
 
 
 def test_precision_choice_falls_back_to_level_without_clean_variant(db):

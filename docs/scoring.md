@@ -134,11 +134,24 @@ Caps per run mode (`estimate.gpu_choice`, `cpu_top`):
 **In one sentence**: offloading is chosen only when it raises the level (on a tie the model stays on the GPU).
 
 - If all-on-GPU or swapping parts is Good or better, nothing is offloaded. A row switches to offloading only when all-on-GPU and swapping parts both exceed 98%, or when they are at 85–98% (Marginal, close to OOM) and offloading makes it Good. The reason for the latter reads like "On the GPU alone it is tight at 91% (…), so part of the weights is offloaded to main memory (slow; …)". ComfyUI on NVIDIA also offloads weights with Dynamic VRAM in that situation.
-- The level of an offloaded row is the band of the tighter of the offloaded VRAM use and RAM needed ÷ system RAM (the same as the table's Mem%), capped at Good. So it is often set by the amount of system RAM. The offloaded share is a chosen value (40% of the weights stay on the GPU; `Coefficients.offload_fraction`). Above 98% of system RAM the page-file check applies as before (Marginal or does not run).
+- The level of an offloaded row is the band of the tighter of the offloaded VRAM use and RAM needed ÷ system RAM (the same as the table's Mem%), capped at Good. So it is often set by the amount of system RAM. The offloaded amount follows "When the offload amount uses the dynamic-VRAM formula" below for image models that can use dynamic VRAM, and is otherwise a chosen value (40% of the weights stay on the GPU; `Coefficients.offload_fraction`). Above 98% of system RAM the page-file check applies as before (Marginal or does not run).
 - llmfit offloads only when all-on-GPU exceeds 98%. genmodelfit does not, because of the promise that more VRAM never lowers the level ([schema.md](schema.md)): with that rule a Good offloaded row would become a Marginal swapped row with slightly more VRAM (136 models in the bundled list, NVIDIA 4–32 GB).
 - GPUs other than NVIDIA lack ComfyUI's Dynamic VRAM (comfy-aimdo; NVIDIA on Windows and Linux only per the ComfyUI blog "Dynamic VRAM in ComfyUI"; WSL is not planned), so the reasons for their offloaded rows say "slower still". The level is not changed.
 - The limits (the largest resolution and length that are Good on this PC; `limits`) count only rows that are Good or better on the GPU without offloading.
 - Impact (0.11.0; bundled list, 32 GB system RAM (64 GB for 24 GB)): rows that switched from GPU / GPU~ Marginal to GPU+RAM Good: 8 at 6 GB, 6 at 8 GB, 18 at 12 GB, 19 at 16 GB, 49 at 24 GB. A GPU Perfect or Good row never switches to offloading (test `test_gpu_perfect_or_good_rows_never_switch_to_offload`).
+
+### When the offload amount uses the dynamic-VRAM formula (#166)
+
+**In one sentence**: when an image model runs on ComfyUI and NVIDIA with dynamic VRAM, offloading needs only the fixed part, the stage's working memory and a small resident part on the GPU, so the offload amount uses that formula (never above the old one).
+
+- Conditions: images, run by ComfyUI, NVIDIA with dedicated VRAM (not WSL), ComfyUI 0.16+, PyTorch 2.8+, no launch argument that turns dynamic VRAM off (`--disable-dynamic-vram`, `--highvram`, `--gpu-only`, `--novram`, `--cpu`). An unknown version is assumed available and, when the result is offload, the reasons say so (the same idea as gate taking the latest version when none is given). Formula and measurements: [accuracy.md "Offloading with dynamic VRAM"](accuracy.md#offloading-with-dynamic-vram).
+- The level cap does not change (offloaded rows up to Good). Offloading is still chosen only when it raises the level ("When offloading is chosen" above). The main-memory amount (fixed + all parts) and its check do not change.
+- Four checks:
+  - Explanation ○: the sentence above.
+  - Evidence △: ComfyUI 0.40.0's code (`main.py:284-315`, `comfy/cli_args.py:334-337`; dynamic VRAM came in PR #11845 on 2026-02-01) and the author's single RTX 3070, on which five image models ran with VRAM physically reduced to 2-4 GB free. One GPU model, PCIe 4.0 x16 and Windows only; larger models, slower PCIe and Linux are extrapolated (the limits in accuracy).
+  - Fair ○: the formula applies to every PC alike. 0.5 GiB (`Coefficients.offload_resident_gb`) was set from the author's PC, but like the calibration coefficients it is a bundled value, and the author's measurements do not change a level. Runs with reduced VRAM (`Measurement.vram_available_gb`) are recorded only and not used for levels ("When measurements set the level").
+  - Test ○: `test_dynamic_vram_scope` (scope), `test_dynamic_offload_never_above_legacy` (never above the old formula and no level falls for any image model), `test_dynamic_offload_notes`.
+- Effect (bundled list, VRAM 4, 6, 8, 12, 16 GB × main memory 16, 32 GB under the RTX 3070's name, 3,300 pairs): 366 pairs of 117 image models go up, none go down. Video, audio and 3D do not change.
 
 ### Running on the CPU
 
@@ -365,7 +378,7 @@ Why (difference from llmfit): llmfit only puts models that do not run last and o
 
 ## One row per model: the representative
 
-Unchanged ([schema.md](schema.md) "Models"): use order → among entries that fit without offloading, the highest precision → otherwise the best level → on the same level, the run mode without offloading (`recommend.variant_key`). The precision order agrees with "16-bit ≳ 8-bit > 4-bit".
+[schema.md](schema.md) "Models": use order → among entries that fit without offloading, the highest precision → otherwise the best level → on the same level, for rows that run, the smaller main-memory shortfall (#166) → the run mode without offloading (`recommend.variant_key`). The precision order agrees with "16-bit ≳ 8-bit > 4-bit".
 
 For #108 (offloaded rows up to Good) the representative changes were counted (bundled list; NVIDIA 6 / 8 / 12 / 16 / 24 GB, AMD 16 GB, Apple 16 / 32 GB, DGX Spark, CPU-only 32 / 64 GB). Four models changed (Z-Image at 8 GB: bf16 Marginal → int8 Good; FLUX.1 schnell at 12 GB: bf16 Marginal → fp8 Good; Wan 2.2 14B at 24 GB: i2v GPU~ Marginal → flf2v Good; SCAIL at 24 GB: fp16 Marginal → int8 Good; each to a better level among offloaded rows), and a bf16 offloaded row beating an int8 GPU row never happened. A Good offloaded row placed above a GPU Marginal row also never happened on these PCs (a GPU Marginal row becomes an offloaded row when offloading makes it Good). Nothing looked unnatural, so the selection is unchanged.
 

@@ -18,6 +18,7 @@ The coefficients are in `src/genmodelfit/data/calibration.json`; rebuild them wi
   - [Tiles](#tiles)
   - [How families are mapped](#how-families-are-mapped)
   - [Models without a per-stage formula](#models-without-a-per-stage-formula)
+  - [Offloading with dynamic VRAM](#offloading-with-dynamic-vram)
   - [Main memory (RAM)](#main-memory-ram)
   - [Models of unknown size](#models-of-unknown-size)
 - [How files are counted (agreement with #2)](#how-files-are-counted-agreement-with-2)
@@ -43,8 +44,10 @@ The coefficients are in `src/genmodelfit/data/calibration.json`; rebuild them wi
 - **The 3 pinned measurements (Z-Image bf16, Wan2.2 5B × 2) carry no information.**
   - The weights alone already exceed the measurement, so "prediction ≥ measurement" holds by construction and cannot fail.
 - As a baseline, predicting from "the sum of file sizes only" misses by 22.8% on average over the 6 unpinned measurements.
-- **The swapped-in-turn (`vram_sequential_gb`) and offload (`vram_offload_gb`) values and main memory (`ram_gb`) have no measurements and are not verified.**
-  A bench that measures per-stage peaks is needed (future work).
+- **The swapped-in-turn (`vram_sequential_gb`) values and main memory (`ram_gb`) have no measurements and are not verified.**
+  A bench that measures per-stage peaks is needed (future work). The offload values (`vram_offload_gb`) were matched in 0.15 to
+  measurements of five image models on an RTX 3070 with VRAM physically reduced ("Offloading with dynamic VRAM" below; other
+  types are not verified).
 - The RTX 3070 sweep (2026-10-27) is not used as evidence: the GPU was pinned at its limit and other work used it in some runs
   ("Cross-check" below; to be measured again).
 
@@ -59,7 +62,8 @@ three quantities are computed (`estimate.py`, `working.py`).
 | `vram_gb` (all on GPU) | fixed + weights of all parts + max(S, V_eff, T) | all weights stay loaded, plus the working memory of the heaviest stage |
 | `vram_resident_gb` (kept loaded) | fixed + weights of all parts + max(S, V, T) (V untiled) | used only to decide whether all-on-GPU can be chosen (it is not chosen above 98%; "Tiles" below, #102) |
 | `vram_sequential_gb` (swapped in turn) | fixed + max(text-stage weights + T, denoise-stage weights + S, decode-stage weights + V_eff, other) | parts are unloaded between stages. A bit slower but usable |
-| `vram_offload_gb` (offload) | fixed + max(weights of each stage × 0.4 + working memory of that stage) | runs with part of the weights left in main memory (lowvram / dynamic VRAM). Slow |
+| `vram_offload_gb` (offload, images with dynamic VRAM) | fixed + max(working memory of each stage + min(weights of the stage, 0.5)), up to the next row's value | 0.15. Images, NVIDIA, ComfyUI 0.16+, PyTorch 2.8+ ("Offloading with dynamic VRAM" below). Slow |
+| `vram_offload_gb` (offload, otherwise) | fixed + max(weights of each stage × 0.4 + working memory of that stage) | runs with part of the weights left in main memory (lowvram). Slow |
 | `ram_gb` (running on the GPU) | 3.0 + weights of the largest stage | for all on GPU and swapped in turn (see "Main memory (RAM)" below) |
 | `ram_gb` (offload, or CPU) | 3.0 + weights of all parts | the offloaded weights stay in main memory |
 
@@ -317,6 +321,69 @@ Mapping more families is future work ("Known limits" below).
 - If offload still does not fit on the GPU, the result is compared with the no-GPU judgment (Marginal for small types that run on CPU), and the better one is taken.
   - Before, adding a small GPU could turn a CPU-capable model into "does not run", so adding VRAM lowered the level (#17).
 
+### Offloading with dynamic VRAM
+
+0.15 (from measurements on an RTX 3070 on 2026-11-02; homework 5 under "Known limits" below).
+
+- From ComfyUI 0.16, dynamic VRAM (comfy-aimdo) is the default on NVIDIA. It puts as many weights as fit in free VRAM and sends
+  the rest from main memory (or from disk when they do not fit) as they are needed. So the GPU needs the fixed part, the stage's
+  working memory and a small resident part in transit, not "0.4 of the weights".
+  Dynamic VRAM came in ComfyUI PR #11845 on 2026-02-01.
+  The conditions were read in ComfyUI 0.40.0 (`main.py:284-315`: on NVIDIA with PyTorch 2.8+; `comfy/cli_args.py:334-337`:
+  off with `--disable-dynamic-vram`, `--highvram`, `--gpu-only`, `--novram`, `--cpu`).
+- **Narrow scope**: images (`modality: image`) run by ComfyUI, NVIDIA with dedicated VRAM (not WSL), ComfyUI 0.16+, PyTorch 2.8+, no launch
+  argument that turns dynamic VRAM off. The measurements cover only this.
+  - When a version is unknown it is assumed available, and when the result is offload the reasons say it was assumed
+    (`SystemInfo.comfyui_version`, `torch_version`, `comfyui_args`; the CLI uses the ComfyUI version only for commands given
+    `--comfyui-version` (`system`, `recommend`, `fit`, `search`, `info`, `download`, `gate`) and has no way to pass the PyTorch version).
+  - Video, audio, 3D, non-NVIDIA GPUs, WSL (no comfy-aimdo) and old ComfyUI keep the old formula (weights × 0.4).
+- **Formula**: offload = fixed + max(working memory of each stage + min(weights of the stage, 0.5 GiB)), never above the old
+  formula's value (when a stage with small weights is the peak, e.g. the Flux2 VAE stage, the new formula is about 0.2 GB larger,
+  and no measurement backs that). `Estimate.offload_method` is `dynamic_vram`. Main memory (fixed + all parts) is unchanged.
+- **How 0.5 GiB (the small resident part, `Coefficients.offload_resident_gb`) was chosen**: with VRAM physically taken by another
+  process so that 2 GB was free before the engine started (a GPU of 2.35-2.5 GB in total with the desktop's share), all five below
+  ran to the end. They used 2.22-2.43 GB (desktop + added), and the engine spilled at most 0.40 GB into shared memory (sysmem
+  fallback; 0.27 GB was there with 3 and 4 GB free too, so pressure added 0.11-0.13 GB). For every model the formula gives at
+  least the amount used plus what pressure added (never more optimistic than the measurements; adding all of the shared memory,
+  only SDXL falls 0.12 GB short). The fixed part 1.472 GiB plus the decode working memory 1.06 GiB already make 2.53 GiB, so on a
+  2.35-2.5 GB GPU the formula stays Too tight (the runs with 2 GB free are still missed; see "Measurements do not raise the level" below).
+- **Measurements** (RTX 3070 8GB, PCIe 4.0 x16, NVMe, 32 GB main memory, Windows 11, ComfyUI 0.40.0 + comfy-aimdo, PyTorch 2.11;
+  1024×1024; the AI generation kit's engine; `--disable-pinned-memory`). Levels are the fixed estimate (32 GB main memory,
+  measurements not used):
+
+| Model | Offload (before → after, GiB) | 4 GB free (4.35-4.5 total) | 3 GB free (3.35-3.5) | 2 GB free (2.35-2.5) | Time per image vs 8 GB VRAM (4 / 3 / 2 GB free) |
+|---|---|---|---|---|---|
+| SDXL 1.0 (fp16) | 3.64 → 2.69 | ran / Good | ran / Good | ran / Marginal (CPU) | 1.40 / 1.51 / 1.74 |
+| Z-Image Turbo bf16 | 6.95 → 2.87 | ran / Good | ran / Good | ran / Too tight | 0.92 / 0.94 / 1.35 |
+| FLUX.1 schnell fp8 | 7.28 → 3.04 | ran / Good | ran / Marginal | ran / Too tight | 1.05 / 1.07 / 1.12 |
+| FLUX.1 schnell bf16 | 11.32 → 2.96 | ran / Marginal (main memory) | ran / Marginal | ran / Too tight | 1.36 / 1.41 / 1.65 |
+| Z-Image Turbo + Fun ControlNet | 8.11 → 2.87 | (not measured) | ran / Marginal | ran / Too tight | — |
+
+- Continued from the table:
+  - Before the fix, 11 of the 15 runs with 2-4 GB free were called Too tight (all of Z-Image bf16, both FLUX and ControlNet);
+    after it, 4 (the four with 2 GB free). Runs that failed but were called Good or better: 0 before and after.
+  - Runs limited with `--reserve-vram` cap only the weights; working memory goes 1.3-1.6 GB on top (about 3 GB physical at an
+    effective 0.95 GB). They are not used for the boundary (speed reference only).
+  - At 8 GB as is (78 runs pinned at the limit), 11 were Too tight before (FLUX bf16 etc.) and 0 after.
+- **Measurements do not raise the level**: the runs with 2 GB free are one PC and one source (the maintainer), so they are not used
+  to raise a level ([scoring.md "When measurements set the level"](scoring.md#when-measurements-set-the-level): two or more separate
+  sources on the same GPU; the maintainer alone does not change a level). `Measurement.vram_available_gb` only records such a run.
+- **Speed**: when the result is offload, the reasons give a guide, marked as this PC's measurements since that is the only basis
+  (with 2-4 GB of free VRAM one image took 0.9-1.8x the time with 8 GB). When the offload main-memory amount does not fit in
+  free main memory, the weights are re-read from disk for each image, so the reasons add "a slow disk makes it much slower
+  (a SATA SSD took about 3x the time of NVMe)". Measured: Z-Image bf16 re-read about 16-18 GB per image and took 2.9x on SATA.
+  The level is not changed.
+- **Main memory is not relaxed**: offloaded with dynamic VRAM, the engine process used 2.2-3.0 GB (the weights are read by mapping
+  the files), but a 16 GB PC was not measured, so the offload amount (fixed + all parts) stays.
+  - With pinned memory on (ComfyUI's default; on Windows up to 40% of main memory, leaving about 2 GB free), the process used
+    19.3 GB for Z-Image bf16 and 19.9-20.7 GB for FLUX bf16, with at least 1.9 GB free on the PC. The estimates (22.27 and
+    34.81 GiB) are larger, and on a 32 GB PC they are Good (Z-Image bf16) and Marginal (FLUX bf16, page file), which does not
+    contradict the runs. Runs stopped by the script's safety stop (2 GB free) are not failures.
+- **Change over the whole list** (VRAM 4, 6, 8, 12, 16 GB × main memory 16, 32 GB: 3,300 pairs, VRAM overridden on the RTX 3070
+  name): 366 pairs of 117 image models changed level, all upward (Too tight → Marginal 228, Too tight → Good 99,
+  Marginal → Good 35, Marginal (CPU) → Good 4). None went down; video, audio and 3D change neither level nor offload amount.
+  By VRAM: 4 GB 163, 6 GB 112, 8 GB 85, 12 GB 6, 16 GB 0.
+
 ### Main memory (RAM)
 
 - When running on the GPU (all on GPU, swapped in turn), main memory is **fixed 3.0 + the weights of the largest stage**.
@@ -559,8 +626,14 @@ How to read it:
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used
   3. Reduce the models without a per-stage formula (86): the Flux3 size, the Stable Audio 3 VAE, the SeedVR2 and Ming VAEs, and so on
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
-  5. The share of weights kept on the GPU when offloading (now 0.4). ComfyUI on NVIDIA uses `MIN_WEIGHT_MEMORY_RATIO = 0` (model_management.py:458-460@426f5ee).
-     A likely reason why reports of Wan 14B fp8 running on 12 GB disagree
+  5. **Done (0.15, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
+     `MIN_WEIGHT_MEMORY_RATIO = 0` (model_management.py:458-460@426f5ee), and dynamic VRAM is the default from 0.16. Images now use
+     the formula in "Offloading with dynamic VRAM" above. Remaining: video (a likely reason why reports of Wan 14B fp8 running on
+     12 GB disagree), audio and 3D were not measured and keep 0.4. VRAM below 2 GB free, Linux (no spill into shared memory),
+     other GPUs and PCs with 16 GB of main memory were not measured either. Only models with up to 22 GB of weights on a
+     PCIe 4.0 x16 RTX 3070 were measured; larger models (such as Qwen-Image-Edit 2511, 51 GB of main memory, which is Good on
+     4 GB of VRAM and 64 GB of main memory) and PCIe x8 or 3.0 GPUs are extrapolated. On Linux what spilled into shared memory
+     in the 2 GB-free runs also needs GPU memory, so SDXL may need up to 0.12 GB more than the formula
   6. Measurements at the edges of the levels: Klein 9B and Flux3 Klein on 6 GB, Z-Image bf16 on 16 GB (swapped-in-turn use 0.864), and so on
   7. What the CPU working memory (doubled in main memory) really contains
 - **Models with an unknown all-in-one breakdown** (such as the HF models that #2 adds) are split by general shares, so the swapped-in-turn and offload values can be far off.

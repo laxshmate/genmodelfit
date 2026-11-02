@@ -86,12 +86,16 @@ def _out(obj: Any) -> None:
 
 
 def _system(args: argparse.Namespace) -> SystemInfo:
-    return detect(
+    s = detect(
         disk_path=getattr(args, "disk_path", None),
         vram_gb=args.vram,
         ram_gb=args.ram,
         other_gpus=True if getattr(args, "all_gpus", False) else None,
     )
+    # --comfyui-version を渡したコマンドでは、逃がすときに動的 VRAM を使うかもその版で決める
+    # (estimate.dynamic_vram)
+    s.comfyui_version = getattr(args, "comfyui_version", None) or None
+    return s
 
 
 def _wrapped(text: str, first: str = "  - ", rest: str = "    ", width: int = 100) -> list[str]:
@@ -9771,9 +9775,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--comfyui-version",
         metavar="VER",
         help=tr(
-            "使う ComfyUI の版。アプリは自分の版を必ず渡す(既定は update が記録した最新のリリース)",
-            "the ComfyUI version in use; apps should always pass theirs"
-            " (default: the latest release recorded by update)",
+            "使う ComfyUI の版。自動のおすすめの条件と、画像を逃がすときの VRAM の式"
+            "(0.16 以上は動的 VRAM)に使う。アプリは自分の版を必ず渡す"
+            "(既定は update が記録した最新のリリース。式は使えると仮定)",
+            "the ComfyUI version in use, for the auto-recommendation checks and the VRAM formula when images"
+            " are offloaded (dynamic VRAM from 0.16); apps should always pass theirs"
+            " (default: the latest release recorded by update; the formula assumes dynamic VRAM)",
         ),
     )
     _doc(cver, "一覧が記録した最新のリリース", "the latest release recorded in the list")
