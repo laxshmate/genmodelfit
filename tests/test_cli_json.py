@@ -18,6 +18,9 @@ HW = ["--vram", "8", "--ram", "32", "--no-cache"]
 ENVELOPE = {"genmodelfit", "command"}
 SYSTEM = {
     "os",
+    "comfyui_version",  # 0.15(後から足した項目)
+    "torch_version",
+    "comfyui_args",
     "cpu",
     "cpu_cores",
     "ram_total_gb",
@@ -107,6 +110,7 @@ FIT = {
 SCORE_COMPONENTS = {"memory_fit"}  # #95: Score = 収まり(docs/scoring.md)
 ESTIMATE = {
     "vram_gb",
+    "offload_method",  # 0.15(後から足した項目)
     "vram_sequential_gb",
     "vram_offload_gb",
     "ram_gb",
@@ -267,6 +271,7 @@ TEMPLATE = {
 }
 MEASUREMENT = {
     "model_id",
+    "vram_available_gb",  # 0.15(後から足した項目)
     "gpu_name",
     "gpu_vram_gb",
     "peak_vram_gb",

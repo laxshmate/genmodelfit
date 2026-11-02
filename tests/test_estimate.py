@@ -11,6 +11,7 @@ from genmodelfit.estimate import (
     Coefficients,
     _role_of,
     components,
+    dynamic_vram,
     estimate,
     is_censored,
     limits_for,
@@ -133,7 +134,16 @@ def test_levels_full_sequential_offload():
     assert off.fit == "good" and off.run_mode == "offload"  # 逃がすのは good まで(#108)
     assert "段階は good まで" in off.reasons[0]
     assert off.vram_offload_gb <= 8 < off.vram_sequential_gb <= off.vram_gb
-    assert estimate(e, pc(4), s, coefficients=c).fit == "too_tight"
+    # 動的 VRAM の無い ComfyUI(0.16 より前)では、逃がしても重みの 0.4 を GPU に残すので 4 GB に入らない
+    old = pc(4)
+    old.comfyui_version = "0.15.0"
+    legacy = estimate(e, old, s, coefficients=c)
+    assert legacy.fit == "too_tight" and legacy.offload_method == "legacy"
+    # 動的 VRAM(版が分からなければ使えると仮定)では 固定分 + 段の作業用メモリ + 小さな常駐 で動く
+    dyn = estimate(e, pc(4), s, coefficients=c)
+    assert dyn.fit == "good" and dyn.run_mode == "offload" and dyn.offload_method == "dynamic_vram"
+    assert dyn.vram_offload_gb < legacy.vram_offload_gb
+    assert any("使えると仮定した" in r for r in dyn.reasons)
 
 
 def test_ram_depends_on_run_mode():
@@ -319,8 +329,15 @@ def test_curated_8gb_and_4gb(db):
     ):
         assert on8[mid] != "too_tight", mid
     assert estimate(db.get("image_z_image_turbo"), pc(16), None, db.measurements).fit != "too_tight"
-    # 4 GB で bf16 の Z-Image(重み 20.7 GB)は、逃がしても生成の段に 6 GB ほど要るので too_tight
-    assert estimate(db.get("image_z_image_turbo"), pc(4), None, db.measurements).fit == "too_tight"
+    # 4 GB で bf16 の Z-Image(重み 20.7 GB): RTX 3070 で VRAM を物理的に占めて空きを 3 GB・2 GB にしても
+    # 最後まで動いた(2026-11-02。docs/accuracy.md「動的 VRAM で逃がすとき」)。動的 VRAM なら逃がして動く
+    z4 = estimate(db.get("image_z_image_turbo"), pc(4), None, db.measurements)
+    assert z4.fit != "too_tight" and z4.run_mode == "offload" and z4.offload_method == "dynamic_vram"
+    # 0.15 まで(重みの 0.4 を GPU に残す式)は逃がしても生成の段に 6 GB ほど要るとしていた。
+    # 古い ComfyUI はそのまま
+    old = pc(4)
+    old.comfyui_version = "0.15.0"
+    assert estimate(db.get("image_z_image_turbo"), old, None, db.measurements).fit == "too_tight"
 
 
 # --- 合わせ直しの再現 ----------------------------------------------------------------------------
@@ -681,3 +698,65 @@ def test_incomplete_entry_uses_size_floor_not_listed_files():
     e.size_floor_bytes = None
     e.template = None
     assert est(e, pc4).unknown_size
+
+
+# --- 動的 VRAM で逃がすとき(docs/accuracy.md「動的 VRAM で逃がすとき」) ---------------------------------
+
+
+def test_dynamic_vram_scope(db):
+    """動的 VRAM の式は 画像・NVIDIA・ComfyUI 0.16 以上・PyTorch 2.8 以上・切る引数なし だけ。"""
+    z = db.get("image_z_image_turbo")
+    assert dynamic_vram(z, pc(8)) == (True, ("comfyui", "torch"))  # 版が分からない: 仮定
+    known = pc(8)
+    known.comfyui_version, known.torch_version = "0.40.0", "2.11.0+cu130"
+    assert dynamic_vram(z, known) == (True, ())
+    for attr, value in (("comfyui_version", "0.15.2"), ("torch_version", "2.7.1")):
+        old = pc(8)
+        setattr(old, attr, value)
+        assert dynamic_vram(z, old)[0] is False, attr
+    for arg in ("--disable-dynamic-vram", "--highvram", "--gpu-only", "--novram", "--cpu"):
+        off = pc(8)
+        off.comfyui_args = ["--listen", arg]
+        assert dynamic_vram(z, off)[0] is False, arg
+    amd = SystemInfo(
+        os="t",
+        cpu="t",
+        cpu_cores=8,
+        ram_total_gb=32,
+        ram_available_gb=32,
+        gpus=[Gpu(name="AMD Radeon RX 7800 XT", vendor="amd", vram_total_gb=16, backend="rocm")],
+    )
+    assert dynamic_vram(z, amd)[0] is False
+    assert dynamic_vram(z, pc(0))[0] is False
+    # 動画・音声・3D は今までの式のまま(判定も逃がす量も変わらない)
+    for m in db.models:
+        if m.modality != "image":
+            assert dynamic_vram(m, pc(8))[0] is False, m.id
+
+
+def test_dynamic_offload_never_above_legacy(db):
+    """新しい式は今までの式(重み × 0.4)より大きくしない: 画像のどのモデルも段階が下がらない。"""
+    old = pc(6)
+    old.comfyui_version = "0.15.0"
+    levels = ("perfect", "good", "marginal", "too_tight", "unknown")
+    for m in db.models:
+        if m.modality != "image":
+            continue
+        new = estimate(m, pc(6), None, db.measurements)
+        was = estimate(m, old, None, db.measurements)
+        assert new.vram_offload_gb <= was.vram_offload_gb + 1e-9, m.id
+        assert levels.index(new.fit) <= levels.index(was.fit), m.id
+
+
+def test_dynamic_offload_notes(db):
+    """逃がすときは遅さの目安(この PC の実測)と、重みがメインメモリの空きに入りきらないときの
+    ディスクの注意を出す。"""
+    z = db.get("image_z_image_turbo")
+    e32 = estimate(z, pc(8, ram=32), None, db.measurements)
+    assert e32.run_mode == "offload"
+    assert any("この PC の実測" in r and "倍" in r for r in e32.reasons)
+    assert not any("ディスクから読み直す" in r for r in e32.reasons)
+    e16 = estimate(z, pc(8, ram=16), None, db.measurements)
+    assert any("ディスクから読み直す" in r and "SATA" in r for r in e16.reasons)
+    # メインメモリの判定は緩めない(逃がすときは固定分 + 全部品のまま。16 GB では仮想メモリで marginal)
+    assert e16.ram_gb == e32.ram_gb and e16.fit == "marginal"

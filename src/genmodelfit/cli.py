@@ -86,12 +86,16 @@ def _out(obj: Any) -> None:
 
 
 def _system(args: argparse.Namespace) -> SystemInfo:
-    return detect(
+    s = detect(
         disk_path=getattr(args, "disk_path", None),
         vram_gb=args.vram,
         ram_gb=args.ram,
         other_gpus=True if getattr(args, "all_gpus", False) else None,
     )
+    # --comfyui-version を渡したコマンドでは、逃がすときに動的 VRAM を使うかもその版で決める
+    # (estimate.dynamic_vram)
+    s.comfyui_version = getattr(args, "comfyui_version", None) or None
+    return s
 
 
 def _wrapped(text: str, first: str = "  - ", rest: str = "    ", width: int = 100) -> list[str]:

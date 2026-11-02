@@ -414,9 +414,16 @@ def test_size_bins(db):
 # --- 下限と実測のずらし(#100 のチェッカーの M1・S1・S3) -------------------------------------------
 
 
-def _floor_need(entry, s):
+def _floor_need(entry, s, system=None):
+    """重み + 固定分(作業用メモリ 0)の 3 つの量。逃がす量は、その PC で動的 VRAM の式を使うなら同じ式で出す
+    (0.15。docs/accuracy.md「動的 VRAM で逃がすとき」)。"""
     c = E.load_coefficients()
-    return E.need(E.apply_precision(E.components(entry), entry, s), 0.0, c)
+    n = E.need(E.apply_precision(E.components(entry), entry, s), 0.0, c)
+    if system is not None:
+        dyn, assumed = E.dynamic_vram(entry, system)
+        if dyn:
+            n = E.dynamic_offload(n, c, assumed)
+    return n
 
 
 @pytest.mark.parametrize(
@@ -435,8 +442,8 @@ def test_shift_never_goes_below_the_floor(db, mid, kw):
     値を下回らない(#95 の下限)。"""
     e = db.get(mid)
     s = E.settings_for(e, Settings(**kw) if kw else None)
-    fl = _floor_need(e, s)
     for vram in (6.0, 8.0, 16.0, 24.0):
+        fl = _floor_need(e, s, nv(vram))
         est = E.estimate(e, nv(vram), Settings(**kw) if kw else None, db.measurements)
         assert est.vram_gb >= round(fl.full, 2) - 0.005, (mid, vram)
         assert est.vram_sequential_gb >= round(fl.sequential, 2) - 0.005, (mid, vram)
@@ -448,7 +455,7 @@ def test_all_staged_models_respect_the_floor(db):
         s = E.settings_for(m, None, sized=not E.no_size_input(m))
         if E.stages_for(m, s) is None or E.components(m).unknown:
             continue
-        fl = _floor_need(m, s)
+        fl = _floor_need(m, s, nv(12.0))
         est = E.estimate(m, nv(12.0), None, db.measurements)
         assert est.vram_gb >= round(fl.full, 2) - 0.005, m.id
         assert est.vram_sequential_gb >= round(fl.sequential, 2) - 0.005, m.id

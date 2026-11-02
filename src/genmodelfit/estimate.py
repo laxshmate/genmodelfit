@@ -274,7 +274,11 @@ class Coefficients:
     weight_factor: float = 1.0  # ファイルの大きさ → VRAM 上の大きさ
     act_video_ref_frames: int = 49
     act_video_frame_exponent: float = 0.5  # コマ数への効き方(docs/accuracy.md)
-    offload_fraction: float = 0.4  # 逃がすときに GPU に残す重みの割合
+    offload_fraction: float = 0.4  # 逃がすときに GPU に残す重みの割合(動的 VRAM を使わないとき)
+    # 動的 VRAM で逃がすとき、段の重みのうち GPU に置いておく小さな常駐の量(GiB。段の重みより小さければ
+    # その重み)。RTX 3070 で VRAM を物理的に 2 GB の空きまで減らして画像の 5 モデルが動いた実測より、
+    # 見積もりが小さくならない値(docs/accuracy.md「動的 VRAM で逃がすとき」)
+    offload_resident_gb: float = 0.5
     ram_extra_gb: float = 3.0  # メインメモリの固定分(Python・ComfyUI)
     good_margin: float = 0.90  # 使わない(段階は FIT_BANDS。calibration.json の互換のため残す)
     source: str = "default"
@@ -878,6 +882,14 @@ class Need:
     # タイルにしない V を使う量に入れる VAE(#148)で、タイルに分けて仕上げるときの必要量。
     # 判定は両方を比べる(_judge_tiled)
     tiled: Need | None = None
+    # 段ごとの重み(生成の段は同時に要る組)と作業用メモリ(GiB)。動的 VRAM の逃がす量(dynamic_offload)に使う
+    stage_w: dict[str, float] = field(default_factory=dict)
+    stage_work: dict[str, float] = field(default_factory=dict)
+    # 逃がす量を動的 VRAM の式で出したか、そのとき分からなかったので仮定したこと(DYNAMIC_ASSUMED の鍵)、
+    # 今までの式(offload_fraction)の値
+    dynamic: bool = False
+    dynamic_assumed: tuple[str, ...] = ()
+    offload_legacy: float | None = None
 
 
 def need_staged(
@@ -918,6 +930,8 @@ def need_staged(
         stages=st,
         resident=max(resident, full),
         tiled=None if tiled_st is None else need_staged(parts, tiled_st, c, delta, full_only=full_only),
+        stage_w={s: peak[s] * w for s in STAGES},
+        stage_work=dict(stage_work),
     )
 
 
@@ -962,7 +976,78 @@ def need(parts: Parts, act: float, c: Coefficients) -> Need:
         act=act,
         main=parts.denoise * w,
         vae=parts.decode * w,
+        stage_w={st: peak[st] * w for st in STAGES},
+        stage_work=dict(stage_act),
     )
+
+
+# --- 動的 VRAM で逃がすとき(docs/accuracy.md「動的 VRAM で逃がすとき」) ------------------------------
+# ComfyUI 0.16 から、NVIDIA では動的 VRAM(comfy-aimdo)が既定。空いている VRAM に入るだけ重みを載せ、
+# 残りは計算のたびにメインメモリ(かディスク)から送る。GPU に要るのは 固定分 + 段の作業用メモリ + 小さな常駐
+# で、重みの割合(offload_fraction)ではない。条件は ComfyUI 0.40.0(AIGenKit の生成エンジン)で読んだ:
+#   main.py:284-315 enables_dynamic_vram() かつ NVIDIA(dynamic_vram_supported)かつ torch 2.8 以上で有効
+#   comfy/cli_args.py:334-337 --disable-dynamic-vram・--highvram・--gpu-only・--novram・--cpu で無効
+# 実測は RTX 3070 8GB・Windows 11・torch 2.11 の画像の 5 モデルだけなので、当てるのは画像だけ
+# (動画・音声・3D・一語ずつ作る段・NVIDIA 以外・古い ComfyUI は今までの式)
+DYNAMIC_VRAM_COMFYUI = (0, 16)
+DYNAMIC_VRAM_TORCH = (2, 8)
+DYNAMIC_VRAM_OFF_ARGS = ("--disable-dynamic-vram", "--highvram", "--gpu-only", "--novram", "--cpu")
+DYNAMIC_VRAM_MODALITIES = ("image",)
+# 仮定したこと(分からなかったもの)の鍵
+DYNAMIC_ASSUMED = ("comfyui", "torch")
+
+
+def _version_tuple(v: str | None) -> tuple[int, ...] | None:
+    """ "0.40.0" → (0, 40, 0)、"2.11.0+cu130" → (2, 11, 0)。読めなければ None。"""
+    if not v:
+        return None
+    nums = re.findall(r"\d+", str(v).split("+")[0])
+    return tuple(int(x) for x in nums[:3]) if len(nums) >= 2 else None
+
+
+def dynamic_vram(entry: ModelEntry, system: SystemInfo) -> tuple[bool, tuple[str, ...]]:
+    """(逃がすときに ComfyUI の動的 VRAM の式を使うか, 仮定したこと)。画像のモデル(ComfyUI で動かすもの)を、
+    専用の VRAM の NVIDIA の GPU で、ComfyUI 0.16 以上・torch 2.8 以上・動的 VRAM を切る引数なしで動かすとき。
+    版が分からなければ使えると仮定し、その鍵(DYNAMIC_ASSUMED)を返す。"""
+    g = system.best_gpu
+    if g is None or system.vram_gb <= 0 or entry.modality not in DYNAMIC_VRAM_MODALITIES:
+        return False, ()
+    if getattr(entry, "runtime", None) not in (None, "comfyui"):
+        return False, ()
+    if g.vendor != "nvidia" or g.backend != "cuda" or getattr(g, "memory", "dedicated") != "dedicated":
+        return False, ()
+    if any(a in DYNAMIC_VRAM_OFF_ARGS for a in (getattr(system, "comfyui_args", None) or [])):
+        return False, ()
+    assumed: list[str] = []
+    for key, have, need_v in (
+        ("comfyui", getattr(system, "comfyui_version", None), DYNAMIC_VRAM_COMFYUI),
+        ("torch", getattr(system, "torch_version", None), DYNAMIC_VRAM_TORCH),
+    ):
+        v = _version_tuple(have)
+        if v is None:
+            assumed.append(key)
+        elif v[:2] < need_v:
+            return False, ()
+    return True, tuple(assumed)
+
+
+def dynamic_offload(n: Need, c: Coefficients, assumed: tuple[str, ...] = ()) -> Need:
+    """逃がすときの VRAM を動的 VRAM の式にする:
+    固定分 + max(各段の作業用メモリ + min(段の重み, 小さな常駐))。
+    全部載せ・順に載せ替え・今までの式(offload_fraction)より大きくはしない(重みの小さい段が山のとき、
+    たとえば Flux2 の VAE は、新しい式のほうが 0.2 GB ほど大きくなるが、それを裏づける実測は無い。
+    判定を根拠なく下げない)。メインメモリの量(n.ram。逃がした重みを全部数える)は変えない。"""
+    if not n.stage_w:
+        return n
+    r = c.offload_resident_gb
+    per = [n.stage_work.get(st, 0.0) + min(n.stage_w.get(st, 0.0), r) for st in STAGES]
+    n.offload_legacy = n.offload
+    n.offload = min(c.overhead_gb + max(per), n.offload)
+    n.dynamic = True
+    n.dynamic_assumed = assumed
+    if n.tiled is not None:
+        dynamic_offload(n.tiled, c, assumed)
+    return n
 
 
 def raw_estimate(entry: ModelEntry, s: Settings, c: Coefficients) -> tuple[float, float, float]:
@@ -1382,9 +1467,15 @@ class _Model:
         return apply_precision(replace(self.parts, notes=list(self.parts.notes)), self.entry, s)
 
     def need(self, s: Settings, prec: GpuPrecision | None = None) -> Need:
+        n = self._need(s, prec)
+        if prec is not None and prec.dynamic_vram:
+            n = dynamic_offload(n, self.c, prec.dynamic_assumed)
+        return n
+
+    def _need(self, s: Settings, prec: GpuPrecision | None = None) -> Need:
         m = self.measurement
         if self.own is not None and m is not None and _precision_changed(m, s, self.entry):
-            return self.own.need(s, prec)  # 精度を変えたら、ほかの利用者の実測は使わない(own のまま)
+            return self.own._need(s, prec)  # 精度を変えたら、ほかの利用者の実測は使わない(own のまま)
         parts = self.parts_for(s)
         delta = 0.0
         if m is not None and not _precision_changed(m, s, self.entry):
@@ -1552,6 +1643,9 @@ class GpuPrecision:
     # ComfyUI がこの GPU で SDPA(pytorch の注意機構)を使うか。False は分割式(Apple・CPU・対応外の AMD)で、
     # 作業用メモリが見積もりより多くなることがある(注意だけ。model_management.py:462-475・527-538@426f5ee)
     sdpa: bool = True
+    # 逃がすときに ComfyUI の動的 VRAM の式を使うか・仮定したこと(dynamic_vram)
+    dynamic_vram: bool = False
+    dynamic_assumed: tuple[str, ...] = ()
 
 
 def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrecision:
@@ -1581,8 +1675,9 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
     vendor = getattr(g, "vendor", "nvidia")
     amd = vendor == "amd"
     sdpa = sdpa_attention(g)
+    dyn, assumed = dynamic_vram(entry, system)
     if g.compute_dtype is None:
-        return GpuPrecision(amd=amd, sdpa=sdpa)
+        return GpuPrecision(amd=amd, sdpa=sdpa, dynamic_vram=dyn, dynamic_assumed=assumed)
     prec = norm_precision(s.precision) or source_precision(entry)
     notes: list[str] = []
     fam_key = getattr(entry, "comfy_family", None) or family_of(entry)
@@ -1683,7 +1778,17 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
                 " otherwise keeps fp8 and converts at every step (slow). The estimate keeps the fp8 size",
             )
         )
-    return GpuPrecision(act, vae, tuple(notes), gpu_fp32=gpu_fp32, no_bf16=no_bf16, amd=amd, sdpa=sdpa)
+    return GpuPrecision(
+        act,
+        vae,
+        tuple(notes),
+        gpu_fp32=gpu_fp32,
+        no_bf16=no_bf16,
+        amd=amd,
+        sdpa=sdpa,
+        dynamic_vram=dyn,
+        dynamic_assumed=assumed,
+    )
 
 
 # ComfyUI が AMD で SDPA(pytorch の注意機構)を使う GPU(model_management.py:527-532@426f5ee。aotriton が使えて
@@ -2069,6 +2174,7 @@ def _estimate(
             if promoted is not None
             else (_sample_count(m) if m is not None and detail != "estimated" else None)
         ),
+        offload_method=(None if system.vram_gb <= 0 else ("dynamic_vram" if n.dynamic else "legacy")),
     )
     if with_limits:
         est.limits = limits(prep, system, s)
@@ -2797,6 +2903,58 @@ OFFLOAD_NO_DYNAMIC_VRAM = (
     " so offloading is slower still",
 )
 _LEVELS = ("perfect", "good", "marginal", "too_tight")
+# 動的 VRAM で逃がしたときの遅さの目安。根拠はこの PC(RTX 3070 8GB・PCIe 4.0 x16・NVMe・メインメモリ 32 GB・
+# ComfyUI 0.40.0・torch 2.11)の実測だけ(2026-11-02。VRAM を物理的に減らして空き 4・3・2 GB。
+# SDXL・Z-Image bf16・FLUX.1 schnell の fp8 と bf16)。1 枚の秒の、VRAM 8 GB のときに対する倍率
+DYNAMIC_SLOWDOWN_RANGE = (0.9, 1.8)  # 最大は SDXL の 1.74(切り上げ)
+# 重みがメインメモリに入りきらず毎回ディスクから読み直すときの、SATA の SSD の NVMe に対する倍率(同じ PC。
+# Z-Image bf16 で 2.9 倍、1 枚ごとに約 16〜18 GB を読み直した)
+DISK_SATA_SLOWDOWN = 3
+
+
+def _dynamic_notes(n: Need, system: SystemInfo) -> list[str]:
+    """動的 VRAM で逃がすときの注意: 仮定したこと・遅さの目安・ディスクから読み直すとき。"""
+    out: list[str] = []
+    if n.dynamic_assumed:
+        what_ja = "・".join(
+            {"comfyui": "ComfyUI の版", "torch": "PyTorch の版"}[k] for k in n.dynamic_assumed
+        )
+        what_en = " and ".join({"comfyui": "ComfyUI", "torch": "PyTorch"}[k] for k in n.dynamic_assumed)
+        out.append(
+            tr(
+                f"逃がす量は ComfyUI の動的 VRAM(ComfyUI 0.16 以上・PyTorch 2.8 以上の NVIDIA で既定)の式。"
+                f"{what_ja}が分からないので、使えると仮定した(古い版や --disable-dynamic-vram では"
+                f"逃がしても {n.offload_legacy or n.offload:.1f} GB 要る)",
+                "The offload amount uses ComfyUI's dynamic VRAM (default on NVIDIA with ComfyUI 0.16+ and"
+                f" PyTorch 2.8+). The {what_en} version is unknown, so it is assumed to be available"
+                f" (older versions or --disable-dynamic-vram need {n.offload_legacy or n.offload:.1f} GB"
+                " even with offload)",
+            )
+        )
+    lo, hi = DYNAMIC_SLOWDOWN_RANGE
+    out.append(
+        tr(
+            "重みは計算のたびにメインメモリから GPU へ送るので遅くなる。"
+            "この PC の実測(RTX 3070・PCIe 4.0 x16・NVMe)では、空き VRAM を 2〜4 GB に減らすと"
+            f" 1 枚の時間は VRAM 8 GB のときの {lo:g}〜{hi:g} 倍だった",
+            "The weights are sent from main memory to the GPU as they are needed, so it is slower. On this"
+            " PC's measurements (RTX 3070, PCIe 4.0 x16, NVMe), with 2-4 GB of free VRAM one image took"
+            f" {lo:g}-{hi:g}x the time with 8 GB of VRAM",
+        )
+    )
+    free = system.ram_available_gb if system.ram_available_gb else system.ram_total_gb
+    if free and n.ram > free:
+        out.append(
+            tr(
+                f"重みなど約 {n.ram:.1f} GB がメインメモリの空き({free:.1f} GB)に入りきらないので、"
+                "1 枚ごとにディスクから読み直す。ディスクが遅いと大きく遅くなる"
+                f"(この PC の実測で、SATA の SSD は NVMe の約 {DISK_SATA_SLOWDOWN} 倍の時間)",
+                f"About {n.ram:.1f} GB (weights etc.) does not fit in free main memory ({free:.1f} GB),"
+                " so the weights are re-read from disk for each image. A slow disk makes it much slower"
+                f" (on this PC, a SATA SSD took about {DISK_SATA_SLOWDOWN}x the time of NVMe)",
+            )
+        )
+    return out
 
 
 def fit_band(used: float, available: float) -> str:
@@ -2982,6 +3140,8 @@ def _judge_gpu(n: Need, system: SystemInfo, c: Coefficients) -> tuple[str, str, 
         reasons = [first]
         if g is not None and g.vendor != "nvidia":
             reasons.append(tr(*OFFLOAD_NO_DYNAMIC_VRAM))
+        if n.dynamic:
+            reasons.extend(_dynamic_notes(n, system))
     ram_need = n.ram_gpu if mode == "gpu" else n.ram
     fit, mode, reasons = _ram_check(fit, mode, reasons, ram_need, system)
     return fit, mode, reasons, ram_need

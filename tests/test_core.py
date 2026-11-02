@@ -58,8 +58,13 @@ def test_fit_levels_by_vram():
     c = Coefficients()
     e = entry([4.0, 2.0])
     assert estimate(e, pc(24), coefficients=c).fit == "perfect"
-    assert estimate(e, pc(4), coefficients=c).fit in ("marginal", "too_tight")
-    assert estimate(e, pc(2), coefficients=c).fit == "too_tight"
+    # 動的 VRAM の無い ComfyUI(0.16 より前)では 4 GB でぎりぎりか入らない
+    old = pc(4)
+    old.comfyui_version = "0.15.0"
+    assert estimate(e, old, coefficients=c).fit in ("marginal", "too_tight")
+    # 動的 VRAM(画像・NVIDIA。版が分からなければ使えると仮定)では逃がして動く
+    assert estimate(e, pc(4), coefficients=c).run_mode == "offload"
+    assert estimate(e, pc(1), coefficients=c).fit == "too_tight"
     assert estimate(entry([0.1], "tts"), pc(0), coefficients=c).run_mode == "cpu"
     assert estimate(entry([10.0]), pc(0), coefficients=c).fit == "too_tight"
 
