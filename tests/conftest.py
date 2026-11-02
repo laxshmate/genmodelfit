@@ -49,6 +49,17 @@ def _no_real_hardware(monkeypatch):
     monkeypatch.setattr(hardware, "_sysfs_slots", lambda: [])
     monkeypatch.setattr(hardware, "kfd_gfx_targets", lambda: {})
     monkeypatch.setattr(hardware, "wsl_state", lambda: None)
+    # #166: WSL で流すとき、OS の名前(カーネルの microsoft-standard-WSL2)で動的 VRAM の式が外れ、
+    # 判定が変わらないようにする(WSL の扱いを見る試験は SystemInfo.os を直に書く)
+    real_os_name = hardware.os_name
+
+    def _os_name(system=None, release=None, version=None):
+        name = real_os_name(system, release, version)
+        if system is None and "microsoft" in name.lower():
+            return "Linux"
+        return name
+
+    monkeypatch.setattr(hardware, "os_name", _os_name)
 
 
 @pytest.fixture(autouse=True)
