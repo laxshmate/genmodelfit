@@ -718,6 +718,16 @@ def test_dynamic_vram_scope(db):
         off = pc(8)
         off.comfyui_args = ["--listen", arg]
         assert dynamic_vram(z, off)[0] is False, arg
+    # WSL2 には comfy-aimdo が無い
+    wsl = pc(8)
+    wsl.os = "Linux 5.15.167.4-microsoft-standard-WSL2"
+    assert dynamic_vram(z, wsl)[0] is False
+    # 「数.数」で始まらない版(git のコミット)は分からないとして仮定する。v の付いた版は読む
+    commit = pc(8)
+    commit.comfyui_version = "426f5ee"
+    assert dynamic_vram(z, commit) == (True, ("comfyui", "torch"))
+    commit.comfyui_version = "v0.15.0"
+    assert dynamic_vram(z, commit)[0] is False
     amd = SystemInfo(
         os="t",
         cpu="t",
@@ -754,7 +764,7 @@ def test_dynamic_offload_notes(db):
     z = db.get("image_z_image_turbo")
     e32 = estimate(z, pc(8, ram=32), None, db.measurements)
     assert e32.run_mode == "offload"
-    assert any("この PC の実測" in r and "倍" in r for r in e32.reasons)
+    assert any("作者の RTX 3070 1 台" in r and "倍" in r for r in e32.reasons)
     assert not any("ディスクから読み直す" in r for r in e32.reasons)
     e16 = estimate(z, pc(8, ram=16), None, db.measurements)
     assert any("ディスクから読み直す" in r and "SATA" in r for r in e16.reasons)

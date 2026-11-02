@@ -572,6 +572,7 @@ def test_z_image_turbo_ram_short_prefers_int8(db):
     """同じ段階なら、メインメモリに収まる版を選ぶ(2026-11-02)。RAM 16 GB では bf16(要るメインメモリ 約 22 GB)
     より int8(約 14 GB)。RAM 32 GB の 8 GB では bf16(実測で速い)。"""
     for v, ram, want in (
+        (6, 16, "image_z_image_int8"),  # 両方足りないときは、足りない量の小さい int8
         (8, 16, "image_z_image_turbo_int8"),
         (6, 16, "image_z_image_turbo_int8"),
         (4, 16, "image_z_image_turbo_int8"),

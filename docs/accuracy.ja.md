@@ -323,13 +323,14 @@ SAM3・Depth Anything・フレーム補間などの拡散でない道具が過�
 - ComfyUI 0.16 から、NVIDIA では動的 VRAM(comfy-aimdo)が既定。空いている VRAM に入るだけ重みを載せ、残りは計算のたびに
   メインメモリ(入りきらなければディスク)から送る。だから GPU に要るのは「重みの 4 割」ではなく、固定分と段の作業用メモリと、
   送っている途中の小さな常駐だけ。
-  条件は ComfyUI 0.40.0 で読んだ(`main.py:275-315`: NVIDIA で、PyTorch 2.8 以上で有効。`comfy/cli_args.py:334-337`:
+  動的 VRAM は 2026-02-01 の ComfyUI の PR #11845 で入った。
+  条件は ComfyUI 0.40.0 で読んだ(`main.py:284-315`: NVIDIA で、PyTorch 2.8 以上で有効。`comfy/cli_args.py:334-337`:
   `--disable-dynamic-vram`・`--highvram`・`--gpu-only`・`--novram`・`--cpu` で無効)。
-- **当てる範囲を絞った**: 画像(`modality: image`)のうち ComfyUI で動かすモデル・専用の VRAM の NVIDIA・ComfyUI 0.16 以上・
+- **当てる範囲を絞った**: 画像(`modality: image`)のうち ComfyUI で動かすモデル・専用の VRAM の NVIDIA(WSL を除く)・ComfyUI 0.16 以上・
   PyTorch 2.8 以上・動的 VRAM を切る起動の引数が無い。実測がこの範囲だけだから。
   - 版が分からないときは使えると仮定し、逃がすと判定したときは理由に「仮定した」と書く(`SystemInfo.comfyui_version`・
-    `torch_version`・`comfyui_args`。CLI は `--comfyui-version` を渡したコマンドだけ版を使う。`info` には無い)。
-  - 動画・音声・3D・一語ずつ作る段・NVIDIA 以外・古い ComfyUI は今までの式(重み × 0.4)のまま。
+    `torch_version`・`comfyui_args`。CLI は `--comfyui-version` を渡したコマンド(`system`・`recommend`・`fit`・`search`・`info`・`download`・`gate`)だけ ComfyUI の版を使い、PyTorch の版を渡す手段は無い)。
+  - 動画・音声・3D・NVIDIA 以外・WSL(comfy-aimdo が無い)・古い ComfyUI は今までの式(重み × 0.4)のまま。
 - **式**: 逃がす = 固定分 + max(各段の作業用メモリ + min(段の重み, 0.5 GiB))。ただし今までの式の値を超えない
   (重みの小さい段が山のとき、たとえば Flux2 の VAE の段では新しい式のほうが 0.2 GB ほど大きいが、それを裏づける実測は無い)。
   `Estimate.offload_method` が `dynamic_vram`。メインメモリ(固定分 + 全部品)は変えない。
@@ -619,7 +620,10 @@ music・video は張り付いていない実測が 1 件以下のため評価で
   5. **対応した(0.15、画像だけ)**: 逃がすときに GPU に残す割合(0.4)。ComfyUI の NVIDIA は `MIN_WEIGHT_MEMORY_RATIO = 0`
      (model_management.py:458-460@426f5ee)で、0.16 からは動的 VRAM が既定。画像は上の「動的 VRAM で逃がすとき」の式にした。
      残り: 動画(Wan 14B fp8 が 12 GB で動く報告と合わない原因)・音声・3D は測っていないので 0.4 のまま。
-     空き 2 GB より小さい VRAM、Linux(共有メモリへ逃げられない)、ほかの GPU、メインメモリ 16 GB の PC も測っていない
+     空き 2 GB より小さい VRAM、Linux(共有メモリへ逃げられない)、ほかの GPU、メインメモリ 16 GB の PC も測っていない。
+     測ったのは重み 22 GB までのモデルを PCIe 4.0 x16 の RTX 3070 で動かしたときだけで、それより大きなモデル(VRAM 4 GB・
+     メインメモリ 64 GB で Good になる Qwen-Image-Edit 2511(メインメモリ 51 GB)など)や、PCIe x8・3.0 の GPU へは外挿している。
+     Linux では空き 2 GB の回で共有メモリへ逃げた分も GPU に要るので、SDXL は式より最大 0.12 GB 多く要りうる
   6. Klein 9B・Flux3 Klein の 6 GB、Z-Image bf16 の 16 GB(順に載せ替えの使用率 0.864)など、境目の判定の実測
   7. CPU のときの作業用メモリ(メインメモリで 2 倍する分)の中身
 - **全部入りの内訳を知らないモデル**(#2 で増える HF のものなど)は一般的な割合で分けており、順に載せ替え・逃がすの値の誤差は大きい。

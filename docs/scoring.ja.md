@@ -128,11 +128,24 @@
 **1 文で**: 逃がすのは、逃がしたほうが段階が上がるときだけ(同じ段階なら逃がさない)。
 
 - 全部載せ・順に載せ替えが Good 以上なら逃がさない。逃がす行に替わるのは、全部載せ・順に載せ替えでも 98% を超える行と、85〜98%(Marginal、OOM の手前)で逃がせば Good になる行だけ。後者は理由に「GPU だけでは 91% でぎりぎりなので、一部をメインメモリへ逃がす(遅い。…)」のように出る。NVIDIA の ComfyUI もこの状況では Dynamic VRAM で重みを逃がす。
-- 逃がす行の段階は、逃がしたときの VRAM の使用率と、要るメモリ ÷ メインメモリ(表の Mem% と同じ)のきついほうの帯で、Good まで。逃がす行の段階はメインメモリの量で決まることが多い。逃がす量は決めの値(重みの 4 割を GPU に残す。`Coefficients.offload_fraction`)。メインメモリが 98% を超える分は、今までどおりページファイルの判定(Marginal か動かない)。
+- 逃がす行の段階は、逃がしたときの VRAM の使用率と、要るメモリ ÷ メインメモリ(表の Mem% と同じ)のきついほうの帯で、Good まで。逃がす行の段階はメインメモリの量で決まることが多い。逃がす量は、動的 VRAM の使える画像のモデルでは下の「逃がす量を動的 VRAM の式にするとき」、ほかは決めの値(重みの 4 割を GPU に残す。`Coefficients.offload_fraction`)。メインメモリが 98% を超える分は、今までどおりページファイルの判定(Marginal か動かない)。
 - llmfit は「全部載せが 98% を超えるときだけ逃がす」。genmodelfit がそうしないのは、VRAM を増やして段階が下がらない約束([schema.ja.md](schema.ja.md))のため。98% を超えるときだけ逃がすと、Good の逃がす行が VRAM を少し増やすと Marginal の順に載せ替えになる(同梱の一覧で 136 モデル。NVIDIA 4〜32 GB)。
 - NVIDIA 以外の GPU には ComfyUI の Dynamic VRAM(comfy-aimdo)が無い(NVIDIA の Windows・Linux だけ。ComfyUI のブログ「Dynamic VRAM in ComfyUI」。WSL は予定なし)ので、逃がす行の理由に「さらに遅い」と書く。段階は変えない。
 - 限界(この PC で Good になる最大の解像度・長さ。`limits`)は、逃がさずに GPU で Good 以上になる行だけで数える。
 - 影響(0.11.0。同梱の一覧、メインメモリ 32 GB(24 GB は 64 GB)): GPU・GPU~ の Marginal から GPU+RAM の Good に替わった行は 6 GB で 8、8 GB で 6、12 GB で 18、16 GB で 19、24 GB で 49。GPU の Perfect・Good の行が逃がす行に替わることは無い(試験 `test_gpu_perfect_or_good_rows_never_switch_to_offload`)。
+
+### 逃がす量を動的 VRAM の式にするとき(#166)
+
+**1 文で**: 画像のモデルを動的 VRAM の使える ComfyUI と NVIDIA で動かすときは、逃がしても GPU に要るのは固定分と段の作業用メモリと小さな常駐だけなので、逃がす量をその式にする(今までの式は超えない)。
+
+- 条件: 画像・ComfyUI で動かすモデル・専用の VRAM の NVIDIA(WSL を除く)・ComfyUI 0.16 以上・PyTorch 2.8 以上・動的 VRAM を切る起動の引数(`--disable-dynamic-vram`・`--highvram`・`--gpu-only`・`--novram`・`--cpu`)なし。版が分からなければ使えると仮定し、逃がすと判定したら理由に書く(gate も版が無ければ最新と見なすのと同じ考え)。式・実測は [accuracy.ja.md「動的 VRAM で逃がすとき」](accuracy.ja.md#動的-vram-で逃がすとき)。
+- 段階の上限は変えない(逃がす行は Good まで)。逃がすのは段階が上がるときだけ(上の「逃がす動かし方を選ぶとき」)。メインメモリの量(固定分 + 全部品)と判定も変えない。
+- 4 つの確認:
+  - 説明○: 上の 1 文。
+  - 根拠△: ComfyUI 0.40.0 のコード(`main.py:284-315`・`comfy/cli_args.py:334-337`。動的 VRAM は 2026-02-01 の PR #11845 で入った)と、作者の RTX 3070 1 台で VRAM を物理的に減らして空き 2〜4 GB でも画像の 5 モデルが動いた実測。GPU は 1 機種・PCIe 4.0 x16・Windows だけで、それより大きなモデル・遅い PCIe・Linux へは外挿している(accuracy の「限界」)。
+  - フェア○: 式はどの PC にも同じに当たる。0.5 GiB(`Coefficients.offload_resident_gb`)は作者の PC の実測から決めたが、係数(calibration)と同じく同梱の値で、作者の実測で段階は変わらない。VRAM を減らした回の実測(`Measurement.vram_available_gb`)は記録だけで、段階に使わない(「実測で段階を決める条件」)。
+  - 試験○: `test_dynamic_vram_scope`(範囲)・`test_dynamic_offload_never_above_legacy`(画像の全モデルで今までの式を超えない・段階が下がらない)・`test_dynamic_offload_notes`。
+- 影響(同梱の一覧、RTX 3070 の名前で VRAM 4・6・8・12・16 GB × メインメモリ 16・32 GB の 3,300 組): 画像の 117 モデルの 366 組が上がり、下がった組は 0。動画・音声・3D は変わらない。
 
 ### CPU で動かすとき
 
@@ -360,7 +373,7 @@ r(動かし方ごと。表の Mem% と JSON の `utilization_pct` はこの r):
 
 ## 1 モデル 1 行の代表
 
-変えていません([schema.ja.md](schema.ja.md)「Models / モデルのまとめ方」)。用途の順 → 逃がさずに載るものがあればその中で精度の高いもの → 無ければ段階の良いもの → 同じ段階なら逃がさない動かし方(`recommend.variant_key`)。精度の順は「16 ビット ≳ 8 ビット > 4 ビット」の資料と矛盾しません。
+[schema.ja.md](schema.ja.md)「Models / モデルのまとめ方」。用途の順 → 逃がさずに載るものがあればその中で精度の高いもの → 無ければ段階の良いもの → 同じ段階なら、動く行ではメインメモリの足りない量の小さいもの(#166) → 逃がさない動かし方(`recommend.variant_key`)。精度の順は「16 ビット ≳ 8 ビット > 4 ビット」の資料と矛盾しません。
 
 #108(逃がす行が Good まで)で代表が替わったかを数えました(同梱の一覧。NVIDIA 6 / 8 / 12 / 16 / 24 GB・AMD 16 GB・Apple 16 / 32 GB・DGX Spark・CPU だけ 32 / 64 GB)。替わったのは 4 モデル(8 GB の Z-Image は bf16 の Marginal → int8 の Good、12 GB の FLUX.1 schnell は bf16 の Marginal → fp8 の Good、24 GB の Wan 2.2 14B は i2v の GPU~ Marginal → flf2v の Good、24 GB の SCAIL は fp16 の Marginal → int8 の Good。どれも逃がす行の中で段階の良いほうへ)で、bf16 の逃がす行が int8 の GPU の行に勝つ例は 0 です。逃がす Good の行が GPU の Marginal の行より上に来る組も、これらの PC では 0 でした(GPU の Marginal の行は、逃がせば Good になるなら逃がす行になるため)。不自然な並びは無いので、選び方は変えていません。
 

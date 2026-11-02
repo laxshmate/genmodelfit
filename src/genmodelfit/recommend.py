@@ -462,10 +462,13 @@ def variant_key(f: Fit) -> tuple:
     slow = {"gpu": 0, "offload": 1, "cpu": 2}.get(f.estimate.run_mode, 3)  # 同じ段階なら逃がさないほう(速い)
     clean = runs_clean(f.estimate)
     prec = precision_rank(f.model.precision)
-    # 同じ段階なら、要るメインメモリが搭載量に収まるほう(収まらないとページファイルを使い、とても遅くなる)。
-    # 2026-11-02: 動的 VRAM の式で 6・4 GB の bf16 も逃がして marginal になり、
-    # RAM 16 GB でも bf16 を選んでいた
-    ram_short = f.system is not None and f.estimate.ram_gb > f.system.ram_total_gb
+    # 動く行どうしで同じ段階なら、メインメモリの足りない量(GB を切り上げた整数。0.1 GB 程度の差で精度を
+    # 落とさない)が小さいほう(収まらないとページファイルを使い、とても遅くなる)。両方収まれば 0 で差は無い。
+    # 動かない行(too_tight)の代表は変えない。2026-11-02(#166): 動的 VRAM の式で 8・6 GB の bf16 も
+    # 逃がして動く判定になり、RAM 16 GB でも bf16 を選んでいた
+    ram_short = 0
+    if f.system is not None and f.system.ram_total_gb and f.estimate.fit != "too_tight":
+        ram_short = math.ceil(round(max(0.0, f.estimate.ram_gb - f.system.ram_total_gb), 2))
     return (
         community,
         use,

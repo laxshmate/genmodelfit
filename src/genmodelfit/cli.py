@@ -9775,9 +9775,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--comfyui-version",
         metavar="VER",
         help=tr(
-            "使う ComfyUI の版。アプリは自分の版を必ず渡す(既定は update が記録した最新のリリース)",
-            "the ComfyUI version in use; apps should always pass theirs"
-            " (default: the latest release recorded by update)",
+            "使う ComfyUI の版。自動のおすすめの条件と、画像を逃がすときの VRAM の式"
+            "(0.16 以上は動的 VRAM)に使う。アプリは自分の版を必ず渡す"
+            "(既定は update が記録した最新のリリース。式は使えると仮定)",
+            "the ComfyUI version in use, for the auto-recommendation checks and the VRAM formula when images"
+            " are offloaded (dynamic VRAM from 0.16); apps should always pass theirs"
+            " (default: the latest release recorded by update; the formula assumes dynamic VRAM)",
         ),
     )
     _doc(cver, "一覧が記録した最新のリリース", "the latest release recorded in the list")

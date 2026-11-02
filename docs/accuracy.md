@@ -328,14 +328,15 @@ Mapping more families is future work ("Known limits" below).
 - From ComfyUI 0.16, dynamic VRAM (comfy-aimdo) is the default on NVIDIA. It puts as many weights as fit in free VRAM and sends
   the rest from main memory (or from disk when they do not fit) as they are needed. So the GPU needs the fixed part, the stage's
   working memory and a small resident part in transit, not "0.4 of the weights".
-  The conditions were read in ComfyUI 0.40.0 (`main.py:275-315`: on NVIDIA with PyTorch 2.8+; `comfy/cli_args.py:334-337`:
+  Dynamic VRAM came in ComfyUI PR #11845 on 2026-02-01.
+  The conditions were read in ComfyUI 0.40.0 (`main.py:284-315`: on NVIDIA with PyTorch 2.8+; `comfy/cli_args.py:334-337`:
   off with `--disable-dynamic-vram`, `--highvram`, `--gpu-only`, `--novram`, `--cpu`).
-- **Narrow scope**: images (`modality: image`) run by ComfyUI, NVIDIA with dedicated VRAM, ComfyUI 0.16+, PyTorch 2.8+, no launch
+- **Narrow scope**: images (`modality: image`) run by ComfyUI, NVIDIA with dedicated VRAM (not WSL), ComfyUI 0.16+, PyTorch 2.8+, no launch
   argument that turns dynamic VRAM off. The measurements cover only this.
   - When a version is unknown it is assumed available, and when the result is offload the reasons say it was assumed
-    (`SystemInfo.comfyui_version`, `torch_version`, `comfyui_args`; the CLI uses the version only for commands given
-    `--comfyui-version`; `info` has none).
-  - Video, audio, 3D, token-by-token stages, non-NVIDIA GPUs and old ComfyUI keep the old formula (weights × 0.4).
+    (`SystemInfo.comfyui_version`, `torch_version`, `comfyui_args`; the CLI uses the ComfyUI version only for commands given
+    `--comfyui-version` (`system`, `recommend`, `fit`, `search`, `info`, `download`, `gate`) and has no way to pass the PyTorch version).
+  - Video, audio, 3D, non-NVIDIA GPUs, WSL (no comfy-aimdo) and old ComfyUI keep the old formula (weights × 0.4).
 - **Formula**: offload = fixed + max(working memory of each stage + min(weights of the stage, 0.5 GiB)), never above the old
   formula's value (when a stage with small weights is the peak, e.g. the Flux2 VAE stage, the new formula is about 0.2 GB larger,
   and no measurement backs that). `Estimate.offload_method` is `dynamic_vram`. Main memory (fixed + all parts) is unchanged.
@@ -629,7 +630,10 @@ How to read it:
      `MIN_WEIGHT_MEMORY_RATIO = 0` (model_management.py:458-460@426f5ee), and dynamic VRAM is the default from 0.16. Images now use
      the formula in "Offloading with dynamic VRAM" above. Remaining: video (a likely reason why reports of Wan 14B fp8 running on
      12 GB disagree), audio and 3D were not measured and keep 0.4. VRAM below 2 GB free, Linux (no spill into shared memory),
-     other GPUs and PCs with 16 GB of main memory were not measured either
+     other GPUs and PCs with 16 GB of main memory were not measured either. Only models with up to 22 GB of weights on a
+     PCIe 4.0 x16 RTX 3070 were measured; larger models (such as Qwen-Image-Edit 2511, 51 GB of main memory, which is Good on
+     4 GB of VRAM and 64 GB of main memory) and PCIe x8 or 3.0 GPUs are extrapolated. On Linux what spilled into shared memory
+     in the 2 GB-free runs also needs GPU memory, so SDXL may need up to 0.12 GB more than the formula
   6. Measurements at the edges of the levels: Klein 9B and Flux3 Klein on 6 GB, Z-Image bf16 on 16 GB (swapped-in-turn use 0.864), and so on
   7. What the CPU working memory (doubled in main memory) really contains
 - **Models with an unknown all-in-one breakdown** (such as the HF models that #2 adds) are split by general shares, so the swapped-in-turn and offload values can be far off.

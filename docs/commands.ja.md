@@ -84,7 +84,7 @@
 | `--db` | `PATH` | update で取った一覧、無ければ同梱の一覧 | この一覧のファイル(db.json)を使う | `system`・`recommend`・`fit`・`search`・`types`・`info`・`download`・`measure`・`gate`・`bench` |
 | `--no-cache` |  |  | update で取った一覧を使わず、同梱のデータを使う | `system`・`recommend`・`fit`・`search`・`types`・`info`・`download`・`measure`・`share`・`gate`・`review list`・`bench` |
 | `--license-allowlist` | `LIST\|FILE` | [gate.ja.md](gate.ja.md) の許可リスト | 自動のおすすめに許すライセンス(「mit,apache-2.0」か、1 行に 1 つ書いたファイル)。既定は [gate.ja.md](gate.ja.md)。空の文字("")は指定なしと同じ | `system`・`recommend`・`fit`・`search`・`info`・`update`・`download`・`gate` |
-| `--comfyui-version` | `VER` | 一覧が記録した最新のリリース | 使う ComfyUI の版。アプリは自分の版を必ず渡す(既定は update が記録した最新のリリース) | `system`・`recommend`・`fit`・`search`・`info`・`update`・`download`・`gate` |
+| `--comfyui-version` | `VER` | 一覧が記録した最新のリリース | 使う ComfyUI の版。自動のおすすめの条件と、画像を逃がすときの VRAM の式(0.16 以上は動的 VRAM)に使う。アプリは自分の版を必ず渡す(既定は update が記録した最新のリリース。式は使えると仮定) | `system`・`recommend`・`fit`・`search`・`info`・`update`・`download`・`gate` |
 | `--max-head-age-days` | `DAYS` | `30` | HEAD の確認をこの日数まで信じる(既定 30。none で期限なし) | `system`・`recommend`・`fit`・`search`・`info`・`update`・`download`・`gate` |
 | `--allow-uncensored-auto` |  |  | 無検閲のモデルも自動のおすすめ(Verified)に出してよい(表示の絞り込み・download の同意とは別) | `system`・`recommend`・`fit`・`search`・`info`・`update`・`download`・`gate` |
 | `--modality`, `-m` | `TYPE[,TYPE]` |  | 種類で絞る(カンマ区切り可): image, video, music, sfx, tts, 3d | `recommend`・`fit`・`search` |

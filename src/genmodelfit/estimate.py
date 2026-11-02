@@ -987,8 +987,9 @@ def need(parts: Parts, act: float, c: Coefficients) -> Need:
 # で、重みの割合(offload_fraction)ではない。条件は ComfyUI 0.40.0(AIGenKit の生成エンジン)で読んだ:
 #   main.py:284-315 enables_dynamic_vram() かつ NVIDIA(dynamic_vram_supported)かつ torch 2.8 以上で有効
 #   comfy/cli_args.py:334-337 --disable-dynamic-vram・--highvram・--gpu-only・--novram・--cpu で無効
+# comfy-aimdo は NVIDIA の Windows・Linux だけ(WSL は予定なし。ComfyUI のブログ「Dynamic VRAM in ComfyUI」)。
 # 実測は RTX 3070 8GB・Windows 11・torch 2.11 の画像の 5 モデルだけなので、当てるのは画像だけ
-# (動画・音声・3D・一語ずつ作る段・NVIDIA 以外・古い ComfyUI は今までの式)
+# (動画・音声・3D・NVIDIA 以外・WSL・古い ComfyUI は今までの式)
 DYNAMIC_VRAM_COMFYUI = (0, 16)
 DYNAMIC_VRAM_TORCH = (2, 8)
 DYNAMIC_VRAM_OFF_ARGS = ("--disable-dynamic-vram", "--highvram", "--gpu-only", "--novram", "--cpu")
@@ -998,16 +999,18 @@ DYNAMIC_ASSUMED = ("comfyui", "torch")
 
 
 def _version_tuple(v: str | None) -> tuple[int, ...] | None:
-    """ "0.40.0" → (0, 40, 0)、"2.11.0+cu130" → (2, 11, 0)。読めなければ None。"""
-    if not v:
+    """ "0.40.0" → (0, 40, 0)、"v2.11.0+cu130" → (2, 11, 0)。「数.数」で始まらないもの(git のコミット
+    "426f5ee" など)は読めないとして None。"""
+    m = re.match(r"v?(\d+)\.(\d+)(?:\.(\d+))?", str(v or "").strip())
+    if m is None:
         return None
-    nums = re.findall(r"\d+", str(v).split("+")[0])
-    return tuple(int(x) for x in nums[:3]) if len(nums) >= 2 else None
+    return tuple(int(x) for x in m.groups() if x is not None)
 
 
 def dynamic_vram(entry: ModelEntry, system: SystemInfo) -> tuple[bool, tuple[str, ...]]:
     """(逃がすときに ComfyUI の動的 VRAM の式を使うか, 仮定したこと)。画像のモデル(ComfyUI で動かすもの)を、
-    専用の VRAM の NVIDIA の GPU で、ComfyUI 0.16 以上・torch 2.8 以上・動的 VRAM を切る引数なしで動かすとき。
+    専用の VRAM の NVIDIA の GPU で(WSL を除く)、ComfyUI 0.16 以上・torch 2.8 以上・動的 VRAM を切る引数なしで
+    動かすとき。
     版が分からなければ使えると仮定し、その鍵(DYNAMIC_ASSUMED)を返す。"""
     g = system.best_gpu
     if g is None or system.vram_gb <= 0 or entry.modality not in DYNAMIC_VRAM_MODALITIES:
@@ -1016,6 +1019,8 @@ def dynamic_vram(entry: ModelEntry, system: SystemInfo) -> tuple[bool, tuple[str
         return False, ()
     if g.vendor != "nvidia" or g.backend != "cuda" or getattr(g, "memory", "dedicated") != "dedicated":
         return False, ()
+    if "microsoft" in (system.os or "").lower() or "wsl" in (system.os or "").lower():
+        return False, ()  # WSL2(カーネルの名前に microsoft-standard-WSL2)には comfy-aimdo が無い
     if any(a in DYNAMIC_VRAM_OFF_ARGS for a in (getattr(system, "comfyui_args", None) or [])):
         return False, ()
     assumed: list[str] = []
@@ -2903,9 +2908,10 @@ OFFLOAD_NO_DYNAMIC_VRAM = (
     " so offloading is slower still",
 )
 _LEVELS = ("perfect", "good", "marginal", "too_tight")
-# 動的 VRAM で逃がしたときの遅さの目安。根拠はこの PC(RTX 3070 8GB・PCIe 4.0 x16・NVMe・メインメモリ 32 GB・
-# ComfyUI 0.40.0・torch 2.11)の実測だけ(2026-11-02。VRAM を物理的に減らして空き 4・3・2 GB。
-# SDXL・Z-Image bf16・FLUX.1 schnell の fp8 と bf16)。1 枚の秒の、VRAM 8 GB のときに対する倍率
+# 動的 VRAM で逃がしたときの遅さの目安。根拠は作者の PC 1 台(RTX 3070 8GB・PCIe 4.0 x16・NVMe・
+# メインメモリ 32 GB・ComfyUI 0.40.0・torch 2.11)の実測だけ(2026-11-02。VRAM を物理的に減らして
+# 空き 4・3・2 GB。SDXL・Z-Image bf16・FLUX.1 schnell の fp8 と bf16)。
+# 1 枚の秒の、VRAM 8 GB のときに対する倍率
 DYNAMIC_SLOWDOWN_RANGE = (0.9, 1.8)  # 最大は SDXL の 1.74(切り上げ)
 # 重みがメインメモリに入りきらず毎回ディスクから読み直すときの、SATA の SSD の NVMe に対する倍率(同じ PC。
 # Z-Image bf16 で 2.9 倍、1 枚ごとに約 16〜18 GB を読み直した)
@@ -2934,12 +2940,14 @@ def _dynamic_notes(n: Need, system: SystemInfo) -> list[str]:
     lo, hi = DYNAMIC_SLOWDOWN_RANGE
     out.append(
         tr(
-            "重みは計算のたびにメインメモリから GPU へ送るので遅くなる。"
-            "この PC の実測(RTX 3070・PCIe 4.0 x16・NVMe)では、空き VRAM を 2〜4 GB に減らすと"
-            f" 1 枚の時間は VRAM 8 GB のときの {lo:g}〜{hi:g} 倍だった",
-            "The weights are sent from main memory to the GPU as they are needed, so it is slower. On this"
-            " PC's measurements (RTX 3070, PCIe 4.0 x16, NVMe), with 2-4 GB of free VRAM one image took"
-            f" {lo:g}-{hi:g}x the time with 8 GB of VRAM",
+            "重みは計算のたびにメインメモリから GPU へ送るので遅くなる。目安: 作者の RTX 3070 1 台"
+            "(PCIe 4.0 x16・NVMe)の実測では、空き VRAM を 2〜4 GB に減らすと 1 枚の時間は"
+            f" VRAM 8 GB を全部使えるときの {lo:g}〜{hi:g} 倍だった。"
+            "PCIe の世代・レーン数が少ない GPU では、さらに遅いことがある",
+            "The weights are sent from main memory to the GPU as they are needed, so it is slower."
+            " As a guide, on the author's single RTX 3070 (PCIe 4.0 x16, NVMe), with 2-4 GB of free VRAM"
+            f" one image took {lo:g}-{hi:g}x the time with all 8 GB of VRAM."
+            " GPUs on an older PCIe generation or fewer lanes can be slower still",
         )
     )
     free = system.ram_available_gb if system.ram_available_gb else system.ram_total_gb
@@ -2948,10 +2956,10 @@ def _dynamic_notes(n: Need, system: SystemInfo) -> list[str]:
             tr(
                 f"重みなど約 {n.ram:.1f} GB がメインメモリの空き({free:.1f} GB)に入りきらないので、"
                 "1 枚ごとにディスクから読み直す。ディスクが遅いと大きく遅くなる"
-                f"(この PC の実測で、SATA の SSD は NVMe の約 {DISK_SATA_SLOWDOWN} 倍の時間)",
+                f"(作者の PC の実測で、SATA の SSD は NVMe の約 {DISK_SATA_SLOWDOWN} 倍の時間)",
                 f"About {n.ram:.1f} GB (weights etc.) does not fit in free main memory ({free:.1f} GB),"
                 " so the weights are re-read from disk for each image. A slow disk makes it much slower"
-                f" (on this PC, a SATA SSD took about {DISK_SATA_SLOWDOWN}x the time of NVMe)",
+                f" (on the author's PC, a SATA SSD took about {DISK_SATA_SLOWDOWN}x the time of NVMe)",
             )
         )
     return out
