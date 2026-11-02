@@ -80,7 +80,8 @@ genmodelfit update --from-release                 # 6. fetch the latest signed l
    (`genmodelfit types` lists them).
 3. `fit`: all models that run here (Perfect / Good / Marginal). `--all` adds tools and models that do not run,
    `--sort score` ranks across types, `--fit good` keeps one level.
-4. `info`: files, licenses, memory in each mode, limits, and why it is or is not Verified.
+4. `info`: first the verdict for this PC (level, mode, the VRAM it was judged on, measured or estimate) and the
+   measurements; then files, licenses, memory in each mode, limits, and why it is or is not Verified.
 5. `download`: asks first, puts the files into your ComfyUI folders and checks every sha256. Without `--comfyui-dir`
    it looks for your ComfyUI and shows where it found it.
 6. `update --from-release`: the list is rebuilt weekly. A model whose link check is older than 30 days stops being

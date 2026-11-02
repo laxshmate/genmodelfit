@@ -767,12 +767,21 @@ def cmd_info(args: argparse.Namespace) -> int:
     if i18n.get_language() == "ja":
         _emit(
             _info_lines_ja(
-                m, e, gate, same, index_for(db).name_of.get(key, m.name), is_community(m), verified
+                m,
+                e,
+                gate,
+                same,
+                index_for(db).name_of.get(key, m.name),
+                is_community(m),
+                verified,
+                system=s,
+                measurements=db.measurements_for(m.id),
             )
         )
         return 0
     n = len(same) + 1
-    out = [f"{m.name}  [{m.id}]"]
+    meas = _info_measurements(m, e, db.measurements_for(m.id), s)
+    out = [f"{m.name}  [{m.id}]", f"  this PC:  {_info_verdict(e, s)}", f"  measured: {meas[0]}", *meas[1:]]
     out.append(
         f"  model:    {index_for(db).name_of.get(key, m.name)}"
         f"  ({n} workflow{'s' if n > 1 else ''} use{'' if n > 1 else 's'} these weights)"
@@ -782,7 +791,7 @@ def cmd_info(args: argparse.Namespace) -> int:
     out.append(f"  modality: {m.modality}  tasks: {', '.join(m.tasks) or '?'}  content: {m.content}")
     out.append(f"  license:  {m.license or '? (unknown)'}  source: {m.source}")
     if m.runtime:
-        out.append(f"  runtime:  {m.runtime}")
+        out.append(f"  runs with: {m.runtime}")
     if m.languages:
         out.append(
             "  languages: " + "; ".join(f"{k} {', '.join(v) or '(none)'}" for k, v in m.languages.items())
@@ -806,14 +815,10 @@ def cmd_info(args: argparse.Namespace) -> int:
         f"  fit:      {e.fit}  ({basis}{', on ' + e.measured_on if e.measured_on else ''})"
         + ("  ✓ verified GPU kind" if verified else "")
     )
-    seq = f" / {e.vram_sequential_gb:.1f} GB swapping parts" if e.vram_sequential_gb is not None else ""
     if e.unknown_size:
         out.append("  VRAM:     ? (unknown: weight sizes are not known)")
     else:
-        out.append(
-            f"  VRAM:     {e.vram_gb:.1f} GB all-in-GPU{seq} / {e.vram_offload_gb:.1f} GB with offload;"
-            f" RAM {e.ram_gb:.1f} GB"
-        )
+        out.append(f"  VRAM:     {_vram_line(e, s)}")
     if e.limits:
         out.append(f"  limits:   {format_limits(e.limits)}")
     out += [f"  - {r}" for r in e.reasons]
@@ -864,19 +869,251 @@ def _ja_label(name: str, width: int = 12) -> str:
     return "  " + text + " " * max(1, width - cell_len(text))
 
 
+# info の結論の 1 行(結論・どの VRAM で判定したか・実測の有無を先に出す。見積もりの値は変えない)。
+# 判定に使った VRAM・使用率は表の VRAM・Mem% と同じ関数(recommend.vram_need・usage_ratio と同じ分かれ方)
+_VERDICT_HOW = {
+    # 表の Mode → (日本語, 英語, 速さの注意 日本語, 英語)。言い方は README「列」の Mode(GPU+RAM・CPU は遅い)と
+    # docs/scoring.md「段階の上限」に合わせる
+    "GPU": ("全部 GPU に載せて動く見込み", "runs with everything on the GPU", "", ""),
+    "GPU~": (
+        "部品を順に GPU へ載せ替えて動く見込み",
+        "runs by loading the parts onto the GPU in turn",
+        "",
+        "",
+    ),
+    "GPU+RAM": (
+        "重みの一部をメインメモリに逃がして動く見込み",
+        "runs by offloading part of the weights to main memory",
+        "遅くなる",
+        "slower",
+    ),
+    "CPU": ("GPU を使わず CPU で動く見込み", "runs on the CPU without the GPU", "とても遅い", "very slow"),
+}
+# VRAM の行の 3 つの値(と実測で決めた量)の名前。結論の行の括弧と VRAM の行で同じ言葉を使う
+_VRAM_KIND = {
+    "full": ("全部 GPU に載せて", "all-in-GPU"),
+    "seq": ("部品を載せ替えて", "swapping parts"),
+    "offload": ("逃がして", "with offload"),
+    "measured": ("実測から", "from measurements"),
+}
+
+
+def _judged_vram(e, s: SystemInfo) -> str | None:
+    """判定に使った VRAM の値がどれか(full / seq / offload / measured)。GPU で判定していなければ None。
+    recommend.vram_need と同じ分かれ方(値はそちらから取る)。"""
+    from .recommend import _how, _ram_short, vram_need
+
+    if vram_need(e, s) is None:
+        return None
+    by_measurement = getattr(e, "fit_from", "estimate") == "measurement" and e.fit != "too_tight"
+    if by_measurement and (getattr(e, "measured_level_vram_gb", None) or e.measured_peak_vram_gb):
+        return "measured"
+    level, how = _how(e, s.vram_gb, s)
+    if e.fit == "too_tight":
+        return how if _ram_short(e, s) and level != "too_tight" else "offload"
+    return "offload" if e.run_mode == "offload" else how
+
+
+def _basis_words(e) -> str:
+    """結論の行の根拠の種類(実測 / 推定)。basis_detail と fit_from(docs/schema.md「basis_detail」)から。"""
+    if getattr(e, "fit_from", "estimate") == "measurement":
+        n = f"別々の出どころ {e.sample_count} つの" if e.sample_count else ""
+        n_en = f" from {e.sample_count} sources" if e.sample_count else ""
+        return tr(f"同じ GPU の{n}実測で決めた", f"decided by measurements on the same GPU{n_en}")
+    if e.basis_detail == "measured":
+        on = e.measured_on or "?"
+        return tr(f"{on} の実測に基づく", f"measured on {on}")
+    if e.basis_detail == "calibrated":
+        return tr("別の設定の実測で補正した推定", "estimate adjusted by a measurement at other settings")
+    return tr("推定", "estimate")
+
+
+def _info_verdict(e, s: SystemInfo) -> str:
+    """info の結論の 1 行の値(名前の行のすぐ下。見出しは呼ぶ側)。段階・動かし方(表の Mode)・
+    判定に使った量と %・根拠。"""
+    from .recommend import FIT_LABEL, _ram_short, mode_label, vram_need
+
+    level = FIT_LABEL.get(e.fit, e.fit)
+    if e.unknown_size:
+        return tr("? — 判定できない(重みの大きさが分からない)", "? — not judged (weight sizes are not known)")
+    vram, ram_total = s.vram_gb, s.ram_total_gb
+    key = _judged_vram(e, s)
+    need = vram_need(e, s)
+    nums: list[str] = []
+    if key is not None and need is not None and vram:
+        ja, en = _VRAM_KIND[key]
+        pct = round(round(100 * need / vram, 1))
+        nums.append(
+            tr(f"{ja} {need:.1f} GB / {vram:.1f} GB、{pct}%", f"{need:.1f} GB {en} / {vram:.1f} GB, {pct}%")
+        )
+    ram_short = _ram_short(e, s)
+    tight = e.fit == "too_tight"
+    vram_short = bool(tight and key == "offload" and need is not None and vram and need / vram > 0.98)
+    # GPU が要るモデルを GPU の無い PC で判定した(estimate._judge_one の「GPU なし」の枝。メインメモリは
+    # 判定に使っていない。CPU で動く系統がメモリ不足で動かないときは、最初の理由が「メモリ不足」になる)
+    needs_gpu = bool(tight and vram <= 0 and e.reasons and i18n.ja_of(e.reasons[0]).startswith("GPU なし"))
+    # 逃がしても VRAM に入らないときは、その 1 つの数だけ(メインメモリの数は判定に効いていない)
+    show_ram = e.run_mode in ("offload", "cpu") or ram_short or key is None
+    if ram_total and not vram_short and not needs_gpu and show_ram:
+        rpct = round(round(100 * e.ram_gb / ram_total, 1))
+        nums.append(
+            tr(
+                f"メインメモリ {e.ram_gb:.1f} / {ram_total:.1f} GB、{rpct}%",
+                f"RAM {e.ram_gb:.1f} / {ram_total:.1f} GB, {rpct}%",
+            )
+        )
+    label = mode_label(e, s)
+    mode = ""
+    notes: list[str] = []
+    if tight:
+        if vram_short:
+            what = tr("逃がしても VRAM に入らない見込み", "does not fit in VRAM even with offloading")
+        elif needs_gpu:
+            what = tr(
+                "GPU が無いので動かない見込み。このモデルは GPU が要る",
+                "no GPU, so it does not run; this model needs a GPU",
+            )
+        elif ram_short:
+            what = tr("メインメモリが足りず動かない見込み", "not enough main memory to run")
+        else:
+            what = tr("動かない見込み", "does not run")
+    else:
+        ja, en, slow_ja, slow_en = _VERDICT_HOW.get(label, (label, label, "", ""))
+        if label == "GPU" and getattr(e, "fit_from", "estimate") == "measurement":
+            ja = "全部 GPU に載せて動く"  # 同じ GPU の実測で動いた記録がある(見込みではない)
+        what = tr(ja, en)
+        if slow_ja:
+            notes.append(tr(slow_ja, slow_en))
+        if ram_short:
+            notes.append(
+                tr(
+                    "メインメモリの足りない分は仮想メモリを使うので遅い",
+                    "the RAM shortfall goes to the page file (slow)",
+                )
+            )
+        if label not in ("-", "?"):
+            mode = tr(f"({label})", f" ({label})")
+    sep = tr("。", "; ")
+    detail = sep.join(
+        [tr("、", ", ").join(nums), _basis_words(e), *notes] if nums else [_basis_words(e), *notes]
+    )
+    return tr(f"{level}{mode} — {what}({detail})", f"{level}{mode} — {what} ({detail})")
+
+
+def _info_measurements(m, e, rows, s: SystemInfo, limit: int = 3) -> list[str]:
+    """info の実測の行の値(結論の次。1 行目の見出しは呼ぶ側)。
+    判定と同じ設定 → この PC と同じ名前の GPU → ほかの順に limit 件。
+    同じ値の行(ほかの利用者のまとめと bench の行など)は 1 つにする。無ければ「なし(推定だけ)」。"""
+    from .estimate import _describe, working_only
+
+    if not rows:
+        return [tr("なし(推定だけ)", "none (estimate only)")]
+    keys = ("width", "height", "frames", "seconds", "batch")
+    want = {k: v for k, v in (e.settings or {}).items() if k in keys}
+    gpu = s.best_gpu.name if s.best_gpu is not None else None
+
+    def same_settings(r) -> bool:
+        return all(getattr(r.settings, k, None) == v for k, v in want.items())
+
+    seen, uniq = set(), []
+    for r in rows:
+        sig = (
+            r.gpu_name,
+            *(getattr(r.settings, k, None) for k in keys),
+            r.peak_vram_gb,
+            r.seconds,
+            r.outcome,
+        )
+        if sig not in seen:
+            seen.add(sig)
+            uniq.append(r)
+    uniq.sort(key=lambda r: (not same_settings(r), r.gpu_name != gpu, r.outcome != "ok"))
+    same, shown = sum(1 for r in uniq if same_settings(r)), min(limit, len(uniq))
+    out = [
+        tr(
+            f"{len(uniq)} 件(判定と同じ設定 {same} 件)。上から {shown} 件:",
+            f"{len(uniq)} ({same} at the judged settings); first {shown}:",
+        )
+    ]
+    for r in uniq[:limit]:
+        desc = _describe(m, r.settings) or "-"
+        if r.outcome != "ok":
+            peak = tr(f"失敗({r.outcome})", f"failed ({r.outcome})")
+        else:
+            peak = tr(f"ピーク {r.peak_vram_gb:.2f} GB", f"peak {r.peak_vram_gb:.2f} GB")
+            if working_only(r):
+                peak += tr(
+                    "(作業用の分だけ。重みは Dynamic VRAM で出し入れ)",
+                    " (working memory only; weights streamed by Dynamic VRAM)",
+                )
+        secs = tr(f"、{r.seconds:g} 秒", f", {r.seconds:g} s") if r.seconds else ""
+        if r.origin == "community":
+            src = tr(f"ほかの利用者 {r.n_submissions or 1} 件", f"other users, {r.n_submissions or 1}")
+        elif r.source and (r.source.isascii() or i18n.get_language() == "ja"):
+            src = r.source
+        else:
+            # 作者の実測の出どころは日本語の自由な文(英語の画面に日本語を出さない。test_i18n)
+            src = tr(r.source or "?", "maintainer" if r.source else "?")
+        when = f"、{r.date}" if r.date else ""
+        when_en = f", {r.date}" if r.date else ""
+        out.append(
+            tr(
+                f"    - {r.gpu_name}({r.gpu_vram_gb:.0f} GB): {desc}、{peak}{secs}(出どころ: {src}{when})",
+                f"    - {r.gpu_name} ({r.gpu_vram_gb:.0f} GB): {desc}, {peak}{secs} (source: {src}{when_en})",
+            )
+        )
+    return out
+
+
+def _vram_line(e, s: SystemInfo) -> str:
+    """info の VRAM の行の値。3 つの値に表の Mode の名前を添え、判定に使った値に印を付ける。"""
+    key = _judged_vram(e, s)
+    mark = tr(" ←判定", " ← judged")
+
+    def item(k: str, gb: float, mode: str) -> str:
+        ja, en = _VRAM_KIND[k]
+        m = mark if k == key else ""
+        return tr(f"{ja} {gb:.1f} GB({mode}){m}", f"{gb:.1f} GB {en} ({mode}){m}")
+
+    parts = [item("full", e.vram_gb, "GPU")]
+    if e.vram_sequential_gb is not None:
+        parts.append(item("seq", e.vram_sequential_gb, "GPU~"))
+    parts.append(item("offload", e.vram_offload_gb, "GPU+RAM"))
+    if key == "measured":
+        from .recommend import vram_need
+
+        parts.append(item("measured", vram_need(e, s) or 0.0, "GPU"))
+    return tr(
+        " / ".join(parts) + f"、メインメモリ {e.ram_gb:.1f} GB(判定した動かし方で)",
+        " / ".join(parts) + f"; RAM {e.ram_gb:.1f} GB (for the judged mode)",
+    )
+
+
 def _info_lines_ja(
-    m, e, gate, same: list[dict[str, Any]], model_name: str, community: bool, verified: bool = False
+    m,
+    e,
+    gate,
+    same: list[dict[str, Any]],
+    model_name: str,
+    community: bool,
+    verified: bool = False,
+    *,
+    system: SystemInfo,
+    measurements: list | None = None,
 ) -> list[str]:
-    """info の日本語(#76)。英語と同じ項目を同じ順に。機械の値(ID・段階・用途・精度・コード)は訳さない。"""
+    """info の日本語(#76)。英語と同じ項目を同じ順に。機械の値(ID・段階・用途・精度・コード)は訳さない。
+    名前の行のすぐ下に結論の 1 行と実測の行を出す。"""
     L = _ja_label
     out = [f"{m.name}  [{m.id}]"]
+    meas = _info_measurements(m, e, measurements or [], system)
+    out += [f"{L('この PC')}{_info_verdict(e, system)}", f"{L('実測')}{meas[0]}", *meas[1:]]
     out.append(f"{L('モデル')}{model_name}(この重みを使うワークフロー {len(same) + 1} 件)")
     if community:
         out.append(f"  利用者のテンプレート(作者 {m.template.username}。ComfyUI の公式ではない)")
     out.append(f"{L('種類')}{m.modality}  用途: {', '.join(m.tasks) or '?'}  内容: {m.content}")
     out.append(f"{L('ライセンス')}{m.license or '?(不明)'}  出どころ: {m.source}")
     if m.runtime:
-        out.append(f"{L('動かし方')}{m.runtime}")
+        out.append(f"{L('動かす道具')}{m.runtime}")
     if m.languages:
         langs = "; ".join(
             f"{_diff_label(_DIFF_LANG_LABELS, k)} {', '.join(v) or '(なし)'}" for k, v in m.languages.items()
@@ -902,11 +1139,7 @@ def _info_lines_ja(
     if e.unknown_size:
         out.append(f"{L('VRAM')}?(重みの大きさが分からない)")
     else:
-        seq = f" / 部品を載せ替えて {e.vram_sequential_gb:.1f} GB" if e.vram_sequential_gb is not None else ""
-        out.append(
-            f"{L('VRAM')}全部 GPU に載せて {e.vram_gb:.1f} GB{seq} / 逃がして {e.vram_offload_gb:.1f} GB、"
-            f"メモリ {e.ram_gb:.1f} GB"
-        )
+        out.append(f"{L('VRAM')}{_vram_line(e, system)}")
     if e.limits:
         out.append(f"{L('限界')}{format_limits(e.limits)}")
     out += [f"  - {r}" for r in e.reasons]
@@ -8330,6 +8563,9 @@ AGENT USAGE:
   Details: docs/schema.md""",
     "info": """Show one model: files, licenses, estimate, limits on this PC, the gate checks, and the
 other workflows that use the same model.
+The line under the name is the verdict for this PC: the level, the mode (GPU / GPU~ / GPU+RAM / CPU),
+the VRAM value the level was judged on and its %, and whether it is measured or an estimate; the next
+line lists the measurements (or none). In the VRAM line, "← judged" marks that value.
 An exact id always matches (uncensored included). When the id does not match, a part of the id or name is
 searched within --content; several matches are an error that lists the candidates.
 
@@ -8875,6 +9111,8 @@ Score 0〜100 はメモリの余裕(使用率 70% までは 100。速さでは�
   詳しくは docs/schema.md""",
     "info": """1 つのモデルの詳細(ファイル・ライセンス・見積もり・この PC での限界・自動のおすすめの条件・
 同じモデルのほかのワークフロー)を出す。
+名前の下の行がこの PC での結論: 段階・動かし方(GPU / GPU~ / GPU+RAM / CPU)・判定に使った VRAM の量と %・
+実測か推定か。次の行が実測(無ければ「なし」)。VRAM の行では判定に使った値に「←判定」を付ける。
 ID がそのまま合えば必ずそのモデル(無検閲も)。
 ID がそのまま合わなければ、ID・名前の一部を --content の中で探す。
 2 件以上合えば失敗にして候補を並べる。

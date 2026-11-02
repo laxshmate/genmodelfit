@@ -546,7 +546,7 @@ def test_manual_models_show_in_recommend_and_info(capsys):
     }
     assert cli.main(["info", "manual:irodori-tts-v4.1-small", "--vram", "8", "--ram", "16"]) == 0
     out = capsys.readouterr().out
-    assert "動かし方:   irodori-tts" in out and "言語:       読み上げ ja" in out and "出どころ: manual" in out
+    assert "動かす道具: irodori-tts" in out and "言語:       読み上げ ja" in out and "出どころ: manual" in out
     assert cli.main(["info", "manual:irodori-tts-v4.1-small", "--json"]) == 0
     m = json.loads(capsys.readouterr().out)["model"]
     assert m["runtime"] == "irodori-tts" and m["languages"] == {"speech": ["ja"]} and m["source"] == "manual"

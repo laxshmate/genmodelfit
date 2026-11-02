@@ -605,6 +605,8 @@ genmodelfit info [-h] [--lang {en,ja}] [--json] [--vram GB] [--ram GB] [--db PAT
 ```
 
 - Show one model: files, licenses, estimate, limits on this PC, the gate checks, and the other workflows that use the same model.
+- The line under the name is the verdict for this PC: the level, the mode (GPU / GPU\~ / GPU+RAM / CPU), the VRAM value the level was judged on and its %, and whether it is measured or an estimate; the next line lists the measurements (or none).
+- In the VRAM line, "← judged" marks that value.
 - An exact id always matches (uncensored included).
 - When the id does not match, a part of the id or name is searched within `--content`; several matches are an error that lists the candidates.
 
