@@ -79,7 +79,8 @@ genmodelfit update --from-release                 # 6. 署名付きの最新の�
    選べます(一覧は `genmodelfit types`)。
 3. `fit`: この PC で動くモデル(Perfect / Good / Marginal)を全部出します。`--all` で補助ツールと動かないものも、
    `--sort score` で種類をまたいだ順位、`--fit good` で 1 つの段階だけ。
-4. `info`: ファイル・ライセンス・動かし方ごとのメモリ・限界と、Verified になる/ならない理由を出します。
+4. `info`: 最初にこの PC での結論(段階・動かし方・判定に使った VRAM・実測か推定か)と実測を、続けてファイル・
+   ライセンス・動かし方ごとのメモリ・限界と、Verified になる/ならない理由を出します。
 5. `download`: 先に確認してから ComfyUI のフォルダへ落とし、どのファイルも sha256 で確かめます。`--comfyui-dir`
    が無ければ ComfyUI を探し、見つけた場所を出します。
 6. `update --from-release`: 一覧は毎週作り直しています。リンクの確認から 30 日を過ぎたモデルは、新しい一覧を
