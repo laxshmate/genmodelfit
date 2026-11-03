@@ -45,7 +45,7 @@ The coefficients are in `src/genmodelfit/data/calibration.json`; rebuild them wi
   - The weights alone already exceed the measurement, so "prediction ≥ measurement" holds by construction and cannot fail.
 - As a baseline, predicting from "the sum of file sizes only" misses by 22.8% on average over the 6 unpinned measurements.
 - **The swapped-in-turn (`vram_sequential_gb`) values and main memory (`ram_gb`) have no measurements and are not verified.**
-  A bench that measures per-stage peaks is needed (future work). The offload values (`vram_offload_gb`) were matched in 0.15 to
+  A bench that measures per-stage peaks is needed (future work). The offload values (`vram_offload_gb`) were matched in 0.15.0 to
   measurements of five image models on an RTX 3070 with VRAM physically reduced ("Offloading with dynamic VRAM" below; other
   types are not verified).
 - The RTX 3070 sweep (2026-10-27) is not used as evidence: the GPU was pinned at its limit and other work used it in some runs
@@ -323,7 +323,7 @@ Mapping more families is future work ("Known limits" below).
 
 ### Offloading with dynamic VRAM
 
-0.15 (from measurements on an RTX 3070 on 2026-11-02; homework 5 under "Known limits" below).
+0.15.0 (from measurements on an RTX 3070 on 2026-11-02; homework 5 under "Known limits" below).
 
 - From ComfyUI 0.16, dynamic VRAM (comfy-aimdo) is the default on NVIDIA. It puts as many weights as fit in free VRAM and sends
   the rest from main memory (or from disk when they do not fit) as they are needed. So the GPU needs the fixed part, the stage's
@@ -626,7 +626,7 @@ How to read it:
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used
   3. Reduce the models without a per-stage formula (86): the Flux3 size, the Stable Audio 3 VAE, the SeedVR2 and Ming VAEs, and so on
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
-  5. **Done (0.15, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
+  5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
      `MIN_WEIGHT_MEMORY_RATIO = 0` (model_management.py:458-460@426f5ee), and dynamic VRAM is the default from 0.16. Images now use
      the formula in "Offloading with dynamic VRAM" above. Remaining: video (a likely reason why reports of Wan 14B fp8 running on
      12 GB disagree), audio and 3D were not measured and keep 0.4. VRAM below 2 GB free, Linux (no spill into shared memory),

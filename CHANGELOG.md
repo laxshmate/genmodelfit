@@ -5,6 +5,40 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.15.0] - 2026-11-03
+
+### Changed
+
+- **Offloading (GPU+RAM) for image models follows ComfyUI's dynamic VRAM** (#166). Since ComfyUI 0.16, NVIDIA GPUs
+  load weights to fit the free VRAM and stream the rest from main memory at each step, so the old formula (fixed part
+  + max(weights of each stage × 0.4 + working memory)) called models that run fine on 8 GB, such as Z-Image Turbo bf16
+  and FLUX.1 schnell bf16, Too tight or Marginal (homework 5 in docs/accuracy). For image models run with ComfyUI on
+  an NVIDIA GPU with dedicated VRAM, ComfyUI 0.16+, PyTorch 2.8+ and no launch argument that turns dynamic VRAM off
+  (`--disable-dynamic-vram`, `--highvram`, `--gpu-only`, `--novram`, `--cpu`; not under WSL), `vram_offload_gb` is now
+  fixed + max(working memory of each stage + min(weights of the stage, 0.5 GiB)), never above the old value. Unknown
+  versions are assumed to qualify and the reasons say so when the result is offload. Video, audio, 3D, non-NVIDIA
+  GPUs and older ComfyUI keep the old formula. In the bundled list (330 models × VRAM 4 to 24 GB × RAM 8 to 64 GB)
+  levels only go up, for image models only (e.g. 366 of 3,300 combinations at VRAM 4 to 16 GB and RAM 16 / 32 GB);
+  none goes down. Calibration unchanged. Based on RTX 3070 8 GB runs with VRAM physically reduced to 4, 3 and 2 GB
+  free (five image models, no failure). Details in docs/accuracy "Offloading with dynamic VRAM" and docs/scoring.
+  New fields: `Estimate.offload_method` (`dynamic_vram` / `legacy`), `SystemInfo.comfyui_version`, `torch_version`
+  and `comfyui_args` (the CLI fills `comfyui_version` only for commands given `--comfyui-version`), and
+  `Measurement.vram_available_gb` (a record of runs with VRAM physically reduced; not used for levels).
+  Offload notes now give the expected slowdown (0.9 to 1.8 times on the author's RTX 3070) and warn when the weights do
+  not fit in free main memory (slow disks slow it down a lot).
+  (画像の逃がす量を ComfyUI の動的 VRAM の式にした。段階は上がる向きだけ)
+- **Choosing the variant shown for a model** (#166): among variants that run at the same level, the one with less main
+  memory missing (`ram_short`, rounded up to whole GB) comes first. With the new offload formula Z-Image Turbo on
+  8 GB / 32 GB shows bf16 instead of int8, but on 16 GB of main memory it stays int8 (bf16 needs about 22 GB).
+  (同じ段階なら、メインメモリに収まる版を代表にする)
+- **`info` starts with the verdict for this PC** (#167): a line with the level, mode, the VRAM it was judged on and its
+  share (the same numbers as the table's VRAM and Mem%), whether it is measured or estimated and any slowdown note;
+  then up to 3 measurements (same settings first, then the same GPU; "none (estimate only)" when there are none).
+  The VRAM line names the mode of each of its 3 values and marks the one used with "← judged". The runtime heading is
+  now "runs with" (Japanese 「動かす道具:」), so it no longer clashes with the modes. Text only: the JSON and the
+  estimates are unchanged.
+  (info の先頭にこの PC での結論の 1 行・実測の行・VRAM の行の「←判定」・見出し「動かす道具:」)
+
 ## [0.14.1] - 2026-11-01
 
 ### Changed
@@ -1611,6 +1645,7 @@ First public release. / 最初の公開版。
 - License: MPL-2.0 for the code and the bundled data (was MIT before the first release).
   Attribution for the upstream data is in `THIRD_PARTY_NOTICES`.
 
+[0.15.0]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.15.0
 [0.14.1]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.14.1
 [0.14.0]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.14.0
 [0.13.2]: https://github.com/laxshmate/genmodelfit/releases/tag/v0.13.2

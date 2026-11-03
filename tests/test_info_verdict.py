@@ -19,7 +19,7 @@ def _info(capsys, *args: str) -> list[str]:
 
 
 def test_too_tight_names_the_offload_value_and_percent(capsys):
-    # 0.15 から画像は動的 VRAM の式で逃がす量が小さい(8 GB では動く)ので、入らない 2 GB で見る
+    # 0.15.0 から画像は動的 VRAM の式で逃がす量が小さい(8 GB では動く)ので、入らない 2 GB で見る
     out = _info(capsys, "flux_schnell_full_text_to_image", "--vram", "2", "--ram", "32", "--lang", "ja")
     text = "\n".join(out)
     # 名前の行のすぐ下に結論、次に実測
@@ -33,7 +33,7 @@ def test_too_tight_names_the_offload_value_and_percent(capsys):
 
 
 def test_offload_row_says_slow_and_mode(capsys):
-    # 0.15 から画像は動的 VRAM の式で逃がす量が小さい(8 GB では Good)ので、ぎりぎりの 3.5 GB で見る
+    # 0.15.0 から画像は動的 VRAM の式で逃がす量が小さい(8 GB では Good)ので、ぎりぎりの 3.5 GB で見る
     out = _info(capsys, "flux_schnell", "--vram", "3.5", "--ram", "32", "--lang", "en")
     head = " ".join(line.strip() for line in out[1:4])
     assert head.startswith(
