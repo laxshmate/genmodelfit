@@ -416,7 +416,7 @@ def test_size_bins(db):
 
 def _floor_need(entry, s, system=None):
     """重み + 固定分(作業用メモリ 0)の 3 つの量。逃がす量は、その PC で動的 VRAM の式を使うなら同じ式で出す
-    (0.15。docs/accuracy.md「動的 VRAM で逃がすとき」)。"""
+    (0.15.0。docs/accuracy.md「動的 VRAM で逃がすとき」)。"""
     c = E.load_coefficients()
     n = E.need(E.apply_precision(E.components(entry), entry, s), 0.0, c)
     if system is not None:

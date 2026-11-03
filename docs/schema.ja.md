@@ -94,8 +94,8 @@ User-Agent は `genmodelfit/<version> (+https://github.com/laxshmate/genmodelfit
 | `other_gpus` | Adapter[] | どのベンダーのものでも、ディスプレイアダプタ。AMD / Intel / Apple のものは分類する(`usable`、`reason`)。使える NVIDIA の GPU が無いときは、使えるものを `gpus` にも入れる。調べなかったときは空 |
 | `other_gpus_checked` | bool | `other_gpus` を調べたか。既定では、`nvidia-smi` が NVIDIA の GPU を見つけず `--vram` も無いときだけ。`system --all-gpus` では常に調べる |
 | `notes` | str[] | 検出で分かったこと・分からなかったこと(表示の言語 `en` / `ja`): GPU を CPU として判定する理由、古いドライバ、NVIDIA 以外の GPU、ページファイル、WSL / コンテナの制限 |
-| `comfyui_version`、`torch_version` | str \| null | (0.15)使う ComfyUI・PyTorch の版。逃がすときに ComfyUI の動的 VRAM の式を使うか(ComfyUI 0.16 以上・PyTorch 2.8 以上)を決める([accuracy.ja.md「動的 VRAM で逃がすとき」](accuracy.ja.md#動的-vram-で逃がすとき))。null は分からない(使えると仮定し、逃がすと判定したら理由に書く)。検出はしない。CLI は `--comfyui-version` を渡したコマンドだけ `comfyui_version` を入れる。ライブラリは `SystemInfo` に入れて渡す |
-| `comfyui_args` | str[] \| null | (0.15)ComfyUI の起動の引数。`--disable-dynamic-vram`・`--highvram`・`--gpu-only`・`--novram`・`--cpu` があれば動的 VRAM の式を使わない。null は分からない(無いとみなす) |
+| `comfyui_version`、`torch_version` | str \| null | (0.15.0)使う ComfyUI・PyTorch の版。逃がすときに ComfyUI の動的 VRAM の式を使うか(ComfyUI 0.16 以上・PyTorch 2.8 以上)を決める([accuracy.ja.md「動的 VRAM で逃がすとき」](accuracy.ja.md#動的-vram-で逃がすとき))。null は分からない(使えると仮定し、逃がすと判定したら理由に書く)。検出はしない。CLI は `--comfyui-version` を渡したコマンドだけ `comfyui_version` を入れる。ライブラリは `SystemInfo` に入れて渡す |
+| `comfyui_args` | str[] \| null | (0.15.0)ComfyUI の起動の引数。`--disable-dynamic-vram`・`--highvram`・`--gpu-only`・`--novram`・`--cpu` があれば動的 VRAM の式を使わない。null は分からない(無いとみなす) |
 | `platform_verified` | bool | (0.11.0、#108。CLI の JSON の外枠だけ。`SystemInfo.to_dict` には無い)判定に使う GPU の種類(会社 × 専用 / 共有のメモリ)で、同梱の実測に 2 機種以上で動いた記録があるか。表の PC の行の「✓ 確認済みの種類」と同じ。GPU が無い・`--vram` で仮定したときは false。段階・`auto`(gate)には使わない([scoring.ja.md](scoring.ja.md)「確認済みの GPU の種類」)。ライブラリは `gmf.platform_verification(system)` |
 | `platform_verified_by` | object \| null | 確認済みのときの根拠 `{"kind": "nvidia/dedicated", "models": ["NVIDIA GeForce RTX 3070", "NVIDIA GeForce RTX 5080"]}`(種類・動いた機種の名前)。確認済みでなければ null |
 
@@ -536,7 +536,7 @@ VRAM を増やすと、代表がより重い精度・動かし方に替わって
 | `optional_parts` | object[] | (0.12.0、#81)テンプレートの既定の値で読み込まれない部品(上の量には入れていない)。1 つずつ `name`、`size_gb`(null は不明)、`optional`(`inactive` / `switch_off`。`ModelFile.optional`)、`kind`(`replace` = 使うと既定の部品の代わりに読み込む / `add` = 足すだけ)、`replaces`(代わりに読み込まなくなる既定の部品の名前)。無ければ `[]`。[scoring.ja.md](scoring.ja.md)「既定で切ってある部品」 |
 | `vram_gb_all_options` | float \| null | (0.12.0、#81)スイッチで切ってある部品(`switch_off`)を全部入れたときの、判定に使う VRAM(上限。`gpu_memory_required_gb` と同じ選び方)。`switch_off` が無い・GPU が無い・大きさ不明なら null |
 | `fit_all_options` | str \| null | (0.12.0、#81)そのときの段階。`switch_off` が無ければ null。`fit` と違うときだけ `reasons` に 1 文 |
-| `offload_method` | str \| null | (0.15)`vram_offload_gb` の式。`dynamic_vram` = ComfyUI の動的 VRAM(画像・NVIDIA・ComfyUI 0.16 以上・PyTorch 2.8 以上。固定分 + 段の作業用メモリ + 小さな常駐、ただし `legacy` の値を超えない)、`legacy` = 重みの 0.4 を GPU に残す今までの式。GPU が無いときは null([accuracy.ja.md「動的 VRAM で逃がすとき」](accuracy.ja.md#動的-vram-で逃がすとき)) |
+| `offload_method` | str \| null | (0.15.0)`vram_offload_gb` の式。`dynamic_vram` = ComfyUI の動的 VRAM(画像・NVIDIA・ComfyUI 0.16 以上・PyTorch 2.8 以上。固定分 + 段の作業用メモリ + 小さな常駐、ただし `legacy` の値を超えない)、`legacy` = 重みの 0.4 を GPU に残す今までの式。GPU が無いときは null([accuracy.ja.md「動的 VRAM で逃がすとき」](accuracy.ja.md#動的-vram-で逃がすとき)) |
 | `unknown_size` | bool | 重みの大きさが不明で、何も判定していない。`fit` は `unknown`(`?` と表示。「Too tight」にはしない)、`run_mode` は `unknown`(0.2.0。以前は `none`)、VRAM / RAM の値は JSON で `null`(`Estimate.to_dict`。Python の属性は 0.0 のまま)、`limits` は null、最初の理由は「大きさが分からないため判定できません」。`recommend` はこれを落とし、`fit` / `search` は最後に並べる |
 
 `basis_detail`(#34)。実測に近い順に並べる(`models.BASIS_DETAILS`):
@@ -967,7 +967,7 @@ Template: `name`、`title`、`category`、`min_comfyui_version`、`open_source`�
 | `runs_evidence` | bool \| null | (#90)community の行: false は OOM の出どころが ok の出どころ以上(「動く」根拠にしない。使い方は段階の決まり PR #95) |
 | `gpu_pci_id` | str \| null | (0.9.0)実測した GPU の PCI 型番 ID `vendor:device`(`1002:744c`。型番で、バスアドレスやシリアルではない)。bench は、ComfyUI がこの PC で動いているとき AMD / Intel について書く(`hardware.local_pci_id`: Windows の WMI `PNPDeviceID` の VEN/DEV、Linux の `lspci -nn`)。community の行は、あればこれでグループにする。`estimate.same_gpu` は、両側に ID があれば ID を、無ければ正規化した名前(`estimate.gpu_key`。`AMD Radeon(TM) Graphics` のような汎用の名前は決して合わない)を比べる。0.9.1 からは VRAM の比も 0.95 以上でなければならない(`estimate.same_vram`、`MEASURED_VRAM_TOLERANCE`。0.11.0 で 0.97 から 0.95。共有 / 統合メモリには適用しない) |
 | `standard` | bool | 公式テンプレートをそのまま使い(width / height / frames / length / steps / seed だけ変えた)、到達できるノードがすべて実際に動き(部分的なキャッシュが無い)、間にほかのジョブが動いていないとき `true`。既定は `true` |
-| `vram_available_gb` | float \| null | (0.15。任意)VRAM をほかのプロセスで物理的に占めて減らして測った回の、使えた VRAM(GPU の総量に当たる量 = 生成エンジンを起動する前の空き + 画面などほかのアプリの分。GiB)。null は減らしていない。こうした行は `standard: false` で、値のずらし・段階の決定には使わない(記録だけ。[accuracy.ja.md「動的 VRAM で逃がすとき」](accuracy.ja.md#動的-vram-で逃がすとき))。`--reserve-vram` で絞った回には書かない(重みの量しか抑えず、作業用メモリが上に乗る) |
+| `vram_available_gb` | float \| null | (0.15.0。任意)VRAM をほかのプロセスで物理的に占めて減らして測った回の、使えた VRAM(GPU の総量に当たる量 = 生成エンジンを起動する前の空き + 画面などほかのアプリの分。GiB)。null は減らしていない。こうした行は `standard: false` で、値のずらし・段階の決定には使わない(記録だけ。[accuracy.ja.md「動的 VRAM で逃がすとき」](accuracy.ja.md#動的-vram-で逃がすとき))。`--reserve-vram` で絞った回には書かない(重みの量しか抑えず、作業用メモリが上に乗る) |
 
 `outcome` と `standard` は、既定値のある任意の項目として後から足した。無い古いファイルは `ok` / `true` として読む(`schema_version` は 1 のまま)。
 見積もりが使うのは、`outcome == "ok"` かつ `standard != false` の実測だけ。
