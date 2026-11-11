@@ -97,6 +97,7 @@ PINNED = {
     "manual:stable-audio-3-small-music": ("sa3_small", "sa3_small", 0.0442, 0.1774, 0.1406, 0.0),
     "image_ming_image_01_design_t2i": ("ming_image", "wan", 0.8960, 4.2969, 0.2686, 3.0732),
     "image_ming_image_01_design_image_edit": ("ming_image", "wan", 1.7920, 4.2969, 0.2686, 3.1465),
+    "audio_minimax_music_3": ("minimax_music3", "dav", 0.1009, 9.8776, 3.6638, 0.0),
 }
 
 
@@ -145,6 +146,12 @@ def test_formula_by_hand():
     assert ming[2] == pytest.approx(128 * 128 * 2 * 0.01 * 2.8 / 1024, abs=1e-4)
     assert PINNED["image_ming_image_01_design_image_edit"][2] == pytest.approx(2 * ming[2], abs=1e-4)
     assert ming[3] == pytest.approx(2200 * 128 * 128 * 64 * 2 / GIB, abs=1e-4)
+    # MiniMax Music 3 の 30 秒: L = int(750 × 44100 / 24000 × 960 / 512) = 2583、係数 2.0。
+    # DAV は (L × 512 × 1400 + 8 億) × 4 B(float32 だけ)、タイルは L 256 まで
+    mm3 = PINNED["audio_minimax_music_3"]
+    assert mm3[2] == pytest.approx(2583 * 2 * 0.01 * 2.0 / 1024, abs=1e-4)
+    assert mm3[3] == pytest.approx((2583 * 512 * 1400 + 800_000_000) * 4 / GIB, abs=1e-4)
+    assert mm3[4] == pytest.approx((256 * 512 * 1400 + 800_000_000) * 4 / GIB, abs=1e-4)
     banks = 3 * 2048 * 512 * 256 * 4
     assert ming[5] == pytest.approx((banks + 600 * 2048 * 64) / GIB, abs=1e-4)
     assert PINNED["image_ming_image_01_design_image_edit"][5] == pytest.approx(

@@ -71,6 +71,14 @@ LATENTS: dict[str, Latent] = {
         # (sample.py:61-65・latent_formats.py:160-163)
         Latent("sa3", "1d", rate=44100 / 4096, source=f"sample.py:61-65@{C}(秒 × 44100 / 4096)"),
         Latent("yue2", "1d", rate=25.0, source=f"text_encoders/yue2.py:21@{C}(FRAMES_PER_SECOND 25)"),
+        # MiniMax Music 3: L = int(round(秒 × 25) × 44100 / 24000 × 960 / 512) ≒ 秒 × 44100 / 512
+        # (nodes_minimax_music.py:60-63・ldm/minimax_music/dit.py:16-17・ar.py:22)
+        Latent(
+            "mm3",
+            "1d",
+            rate=44100 / 512,
+            source=f"nodes_minimax_music.py:60-63@{C}・ldm/minimax_music/dit.py:16-17@{C}",
+        ),
         # ACE-Step 1: 潜在 [B, 8, 16, L]、L = int(秒 × 44100 / 512 / 8)。面積は 16 × L
         Latent("ace", "1d", rate=44100 / 512 / 8, source=f"nodes_ace.py:82@{C}"),
     )
@@ -236,6 +244,8 @@ WORKS: dict[str, Work] = {
         Work("sa3_medium", 7.0, "sa3", "sa3_large", ("sa3_large",), f"{SM}:634@{C}"),
         Work("sa3_small", 7.0, "sa3", "sa3_small", ("sa3_small",), f"{SM}:634@{C}"),
         Work("yue2", 4.0, "yue2", "yue2", ("yue2",), f"{SM}:2407@{C}", te="yue2"),
+        # MiniMax Music 3: 係数 2.0(supported_models.py:2428)。文章の段の自己回帰の LM は ComfyUI が見込まない
+        Work("minimax_music3", 2.0, "mm3", "dav", ("dav",), f"{SM}:2428@{C}"),
     )
 }
 
@@ -451,6 +461,15 @@ VAE_WORK: dict[str, VaeWork] = {
         VaeWork("sa3_small", lambda s: 72 * s.L * 4096, lambda s: 72 * s.n, "1d", f"sd.py:1017-1018@{C}"),
         VaeWork(
             "ace", lambda s: 87000 * 16 * s.L, lambda s: 330 * s.n, "1d_extra", f"sd.py:911-912・923@{C}"
+        ),
+        # MiniMax Music 3 の DAV: (L × 512 × 1400 + 8 億) 要素、float32 だけ、符号化は無い(sd.py:533-547)
+        VaeWork(
+            "dav",
+            lambda s: s.L * 512 * 1400 + 800_000_000,
+            None,
+            "1d",
+            f"sd.py:533-547@{C}",
+            fp32_only=True,
         ),
         # 一緒に仕上げる音声の VAE(float32 だけ)
         VaeWork(
@@ -701,7 +720,10 @@ def _dims(entry, s, lat: Latent, *, image_frames: bool) -> Shape:
     mod = entry.modality
     if lat.kind == "1d":
         sec = s.seconds if s.seconds and s.seconds > 0 else 30.0
-        L = max(1, int(sec * lat.rate)) if lat.key == "ace" else max(1, round(sec * lat.rate))
+        if lat.key == "mm3":  # 25 コマ/秒に丸めてから切り捨て(dit.py:16-17)
+            L = max(1, int(round(sec * 25) * 44100 / 24000 * 960 / 512))
+        else:
+            L = max(1, int(sec * lat.rate)) if lat.key == "ace" else max(1, round(sec * lat.rate))
         sr = 48000 if lat.key in ("ace15", "yue2") else 44100
         return Shape(L=L, n=round(sec * sr))
     W, H = s.width, s.height

@@ -181,6 +181,7 @@ VAES: dict[str, Vae] = {
         ),
         Vae("oobleck", True, "sd.py:742(ACE-Step 1.5・Stable Audio Open の Oobleck)"),
         Vae("yue2", True, "sd.py:742・744-747(YuE2 の Oobleck)"),
+        Vae("dav", True, "sd.py:542(MiniMax Music 3 の DAV。どの GPU でも float32)"),
         Vae("sa3_large", True, "sd.py:1029(Stable Audio 3 の大きい設定。transformers 12 段)"),
         Vae("sa3_small", True, "sd.py:1029(Stable Audio 3 の小さい設定。transformers 6 段)"),
         Vae("pixel", False, "sd.py:925-933(ピクセル空間。KL の既定のまま)"),
@@ -253,6 +254,10 @@ _EN: dict[str, str] = dict(
             "sd.py:742 (the Oobleck VAE of ACE-Step 1.5 and Stable Audio Open)",
         ),
         ("sd.py:742・744-747(YuE2 の Oobleck)", "sd.py:742, 744-747 (the YuE2 Oobleck VAE)"),
+        (
+            "sd.py:542(MiniMax Music 3 の DAV。どの GPU でも float32)",
+            "sd.py:542 (the MiniMax Music 3 DAV; float32 on every GPU)",
+        ),
         (
             "sd.py:1029(Stable Audio 3 の大きい設定。transformers 12 段)",
             "sd.py:1029 (the large Stable Audio 3 configuration; 12 transformer layers)",
