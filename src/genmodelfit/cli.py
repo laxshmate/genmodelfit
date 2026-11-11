@@ -7273,7 +7273,46 @@ def _comfyui_start_plan(args: argparse.Namespace, url: str | None) -> tuple[Any,
         )
     except comfystart.StartError as e:
         return None, str(e)
+    if dest.source == "cwd":
+        # 今の作業フォルダで見つけた ComfyUI は、そのフォルダの python を動かすので、確かめてから起動する
+        # (RT-001)。尋ねられない(--json・端末でない)ときは起動しない
+        if getattr(args, "json", False) or not _interactive():
+            return None, tr(
+                f"今の作業フォルダの ComfyUI({d})は、確かめずには起動しません(そのフォルダの python を"
+                "動かすため)。起動するなら --comfyui-dir で指定するか、"
+                "起動しておいて --url で指定してください",
+                f"The ComfyUI in the current folder ({d}) is not started without asking (it runs that"
+                " folder's python). To start it, give it with --comfyui-dir, or start it yourself and give"
+                " --url",
+            )
+        plan.found_in_cwd = True
     return plan, None
+
+
+def _confirm_cwd_start(plan) -> None:
+    """作業フォルダで見つけた ComfyUI を起動してよいか尋ねる(RT-001)。いいえ・EOF なら CliError。"""
+    if not plan.found_in_cwd or plan.confirmed:
+        return
+    print(
+        tr(
+            f"今の作業フォルダの ComfyUI を起動します: {plan.comfyui_dir}\n"
+            f"  動かす python: {plan.python}\n"
+            "  知らないフォルダ(ダウンロードしたものなど)なら、起動しないでください。",
+            f"About to start the ComfyUI in the current folder: {plan.comfyui_dir}\n"
+            f"  python to run: {plan.python}\n"
+            "  Do not start it if you do not know this folder (for example, something you downloaded).",
+        ),
+        file=sys.stderr,
+    )
+    if not _ask_yes_no(tr("起動しますか? [y/N] ", "Start it? [y/N] "), False):
+        raise CliError(
+            tr(
+                "ComfyUI を起動しませんでした"
+                "(--comfyui-dir で指定するか、起動しておいて --url で指定できます)",
+                "ComfyUI was not started (give it with --comfyui-dir, or start it yourself and give --url)",
+            )
+        )
+    plan.confirmed = True
 
 
 def _comfyui_start(args: argparse.Namespace, plan, holder: list):
@@ -7283,6 +7322,7 @@ def _comfyui_start(args: argparse.Namespace, plan, holder: list):
     from . import comfystart
 
     say = _progress(args)
+    _confirm_cwd_start(plan)
     try:
         started = comfystart.launch(plan)
     except comfystart.StartError as e:

@@ -9,6 +9,10 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **`measure` / `share` ask before starting a ComfyUI found in the current folder.** Starting it runs that folder's
+  python (`.venv`, `venv`, `python_embeded`), so running `measure` inside a crafted folder could run its code. They now
+  show the folder and the python and ask `Start it? [y/N]`; without a terminal or with `--json` that ComfyUI is not
+  started. A ComfyUI given with `--comfyui-dir`, the environment variable or `genmodelfit config` is started as before.
 - **`plan_download` no longer raises when a file already in the destination cannot be read** (held open by another
   program, no permission, a Windows path that is too long). The file becomes `conflict` with the reason, and is never
   overwritten; before, the `OSError` reached the caller even though planning promises not to raise.
