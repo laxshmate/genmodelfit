@@ -16,6 +16,13 @@ All notable changes to this project are documented here. The format is based on
   value from 2.2 to 5.9 GB (the Flux2 VAE estimate at 1024², as for FLUX.2 Klein 4B). On 6 GB, text to image goes
   from Good to Marginal and image edit from Good to Too tight (offload 5.98 GB; FLUX.2 Klein 4B edit needs 5.82 GB and
   stays Marginal). 8 GB and more do not change level. Models without a per-stage formula: 87 → 83.
+- **Stable Audio 3 (4 entries) now uses the per-stage working memory.** ComfyUI picks one of two VAE configurations
+  from a header key of the all-in-one file, which the list does not keep, so these fell back to the earlier formula.
+  Reading the headers of the four Comfy-Org/stable-audio-3 files showed that medium has the large VAE and small the
+  small one; a name table (`working.SA3_VAE_BY_NAME`) now picks it, with ComfyUI's factor 7 and VAE estimates. At
+  30 seconds the all-on-GPU value of medium goes from 15.4 to 18.3 GB (the large VAE estimate, 2.9 GB tiled) and of
+  small music from 4.71 to 4.83 GB; small music on 8 GB goes from Perfect to Good (60.4%). Other levels, including
+  the CPU ones, do not change. Models without a per-stage formula: 83 → 79.
 
 ### Fixed
 

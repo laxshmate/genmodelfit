@@ -253,6 +253,7 @@ VAE (`working_dtypes` in `comfy/sd.py`; "yes" has fp16, "no" does not):
 - `qwen21` (853; Qwen Image 2.1, 16× compression): yes
 - `oobleck` (742; ACE-Step 1.5, Stable Audio Open): yes
 - `yue2` (742, 744 to 747): yes
+- `sa3_large` / `sa3_small` (1029; the large and small Stable Audio 3 configurations): yes
 - `hunyuan_video` (828): yes
 - `hunyuan_video15` (795): yes
 - `hunyuan3d` (906): yes

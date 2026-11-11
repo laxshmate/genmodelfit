@@ -67,6 +67,9 @@ LATENTS: dict[str, Latent] = {
         Latent("h3", "3d", 16, 0, 24, source=f"sd.py:1048-1052@{C}・nodes_minimax_h3.py:91@{C}"),
         Latent("ace15", "1d", rate=48000 / 1920, source=f"nodes_ace.py:105@{C}(秒 × 48000 / 1920)"),
         Latent("sa1", "1d", rate=44100 / 2048, source=f"nodes_audio.py:33@{C}(秒 × 44100 / 2048)"),
+        # Stable Audio 3: 空の潜在(EmptyLatentAudio の 2048)を、標本の前に 4096 の比に縮める
+        # (sample.py:61-65・latent_formats.py:160-163)
+        Latent("sa3", "1d", rate=44100 / 4096, source=f"sample.py:61-65@{C}(秒 × 44100 / 4096)"),
         Latent("yue2", "1d", rate=25.0, source=f"text_encoders/yue2.py:21@{C}(FRAMES_PER_SECOND 25)"),
         # ACE-Step 1: 潜在 [B, 8, 16, L]、L = int(秒 × 44100 / 512 / 8)。面積は 16 × L
         Latent("ace", "1d", rate=44100 / 512 / 8, source=f"nodes_ace.py:82@{C}"),
@@ -215,6 +218,10 @@ WORKS: dict[str, Work] = {
         Work("ace15", 4.7, "ace15", "oobleck", ("oobleck",), f"{SM}:2377@{C}", te="ace15_lm"),
         Work("ace", 0.5, "ace", "ace", ("ace",), f"{SM}:1902@{C}"),
         Work("stable_audio", 2.0, "sa1", "oobleck", ("oobleck",), f"supported_models_base.py:49@{C}(既定)"),
+        # Stable Audio 3: 係数 7(supported_models.py:634)。VAE は全部入りの見出しで 2 つの設定に分かれる
+        # (sd.py:1006-1018)。medium は大きい VAE、small は小さい VAE(SA3_VAE_BY_NAME)
+        Work("sa3_medium", 7.0, "sa3", "sa3_large", ("sa3_large",), f"{SM}:634@{C}"),
+        Work("sa3_small", 7.0, "sa3", "sa3_small", ("sa3_small",), f"{SM}:634@{C}"),
         Work("yue2", 4.0, "yue2", "yue2", ("yue2",), f"{SM}:2407@{C}", te="yue2"),
     )
 }
@@ -222,6 +229,14 @@ WORKS: dict[str, Work] = {
 # 本体の大きさ(header_params。無ければ params_b)の区分。docs/accuracy.md「系統の当て方」
 WAN_BINS = ((2.5e9, "wan_1.3b"), (7e9, "wan_5b"), (math.inf, "wan_14b"))
 FLUX2_BINS = ((6e9, "flux2_4b"), (12e9, "flux2_9b"), (math.inf, "flux2_32b"))
+# Stable Audio 3 の名前 → 行。全部入りの見出し(Comfy-Org/stable-audio-3 の checkpoints の 4 つ、
+# 2026-11-11)で、medium は decoder.layers.3.transformers が 0〜11(大きい VAE。sd.py:1007 の鍵がある)、
+# small は 0〜5 だった。
+# docs/accuracy.md「系統の当て方」
+SA3_VAE_BY_NAME: tuple[tuple[str, str], ...] = (
+    (r"stable[._ -]?audio[._ -]?3[._ -]?medium", "sa3_medium"),
+    (r"stable[._ -]?audio[._ -]?3[._ -]?small", "sa3_small"),
+)
 # Flux3: Klein(5.5B)より大きいものは hidden_size が分からないので当てない
 FLUX3_KLEIN_MAX = 6e9
 
@@ -417,6 +432,10 @@ VAE_WORK: dict[str, VaeWork] = {
             untiled=True,
         ),
         VaeWork("yue2", lambda s: 1500 * s.L * 1920, lambda s: 1000 * s.n, "1d", f"sd.py:734・747@{C}"),
+        # Stable Audio 3 の VAE(working_dtypes は bf16・fp16・fp32: sd.py:1029)。
+        # transformers 12 段の大きい設定と 6 段の小さい設定(sd.py:1007-1018)
+        VaeWork("sa3_large", lambda s: 1500 * s.L * 4096, lambda s: 1500 * s.n, "1d", f"sd.py:1011-1012@{C}"),
+        VaeWork("sa3_small", lambda s: 72 * s.L * 4096, lambda s: 72 * s.n, "1d", f"sd.py:1017-1018@{C}"),
         VaeWork(
             "ace", lambda s: 87000 * 16 * s.L, lambda s: 330 * s.n, "1d_extra", f"sd.py:911-912・923@{C}"
         ),
@@ -583,10 +602,12 @@ def work_of(entry, family: str | None) -> Work | None:
     elif family == "kandinsky5":
         key = "k5_video" if mod == "video" else "k5_image"
     elif family == "stable_audio":
-        # Stable Audio 3 の VAE は 2 つの設定(sd.py:1006-1030)のどちらか一覧からは分からないので当てない
+        # Stable Audio 3 の VAE は 2 つの設定(sd.py:1006-1018)。全部入りの見出しで確かめた名前の表で選び、
+        # 表に無いものは当てない
         if re.search(r"stable[._ -]?audio[._ -]?3", names):
-            return None
-        key = "stable_audio"
+            key = next((k for pat, k in SA3_VAE_BY_NAME if re.search(pat, names)), None)
+        else:
+            key = "stable_audio"
     elif family in WORKS:
         key = family
     if key is None:

@@ -93,6 +93,8 @@ PINNED = {
     "hunyuan_video_text_to_video": ("hunyuan_video", "hunyuan_video", 4.6069, 16.6626, 1.7090, 0.0),
     "image_flux2_klein_text_to_image": ("flux2_4b", "flux2", 1.1703, 4.2539, 4.2539, 0.0),
     "image_flux3_klein_t2i": ("flux3_klein", "flux2", 1.1703, 4.2539, 4.2539, 0.0),
+    "audio_stable_audio_3_medium": ("sa3_medium", "sa3_large", 0.0442, 3.6964, 2.9297, 0.0),
+    "manual:stable-audio-3-small-music": ("sa3_small", "sa3_small", 0.0442, 0.1774, 0.1406, 0.0),
 }
 
 
@@ -124,6 +126,15 @@ def test_formula_by_hand():
     area = 128 * 11 * 15 * 26 + 8 * 16 * 81
     assert PINNED["video_ltx2_t2v"][2] == pytest.approx(area * 0.02 * 0.077 / 1024, abs=1e-4)
     assert PINNED["video_ltx2_t2v"][5] == pytest.approx(642 * 3 / 1024, abs=1e-4)
+    # Stable Audio 3 の 30 秒: 潜在 L = 30 × 44100 / 4096 → 323。係数 7。
+    # 大きい VAE は 1500 × L × 4096 × 2 B、小さい VAE は 72 ×(sd.py:1011・1017)。タイルは L 256 まで
+    sa3 = PINNED["audio_stable_audio_3_medium"]
+    assert sa3[2] == pytest.approx(323 * 2 * 0.01 * 7 / 1024, abs=1e-4)
+    assert sa3[3] == pytest.approx(1500 * 323 * 4096 * 2 / GIB, abs=1e-4)
+    assert sa3[4] == pytest.approx(1500 * 256 * 4096 * 2 / GIB, abs=1e-4)
+    assert PINNED["manual:stable-audio-3-small-music"][3] == pytest.approx(
+        72 * 323 * 4096 * 2 / GIB, abs=1e-4
+    )
 
 
 # --- 形の性質 ----------------------------------------------------------------------------------
@@ -415,8 +426,14 @@ def test_size_bins(db):
         "image_flux3_klein_distilled_image_edit",
     ):
         assert _st(db, mid).work == "flux3_klein", mid
-    # VAE の設定の分からない Stable Audio 3 は当てない(今までの式)
-    assert _st(db, "audio_stable_audio_3_medium") is None
+    # Stable Audio 3 は見出しで確かめた名前の表で VAE を選ぶ(medium は大きい VAE、small は小さい VAE)
+    assert (_st(db, "audio_stable_audio_3_medium").work, _st(db, "audio_stable_audio_3_medium").vae) == (
+        "sa3_medium",
+        "sa3_large",
+    )
+    assert _st(db, "audio_stable_audio_3_medium_base").vae == "sa3_large"
+    assert _st(db, "manual:stable-audio-3-small-music").vae == "sa3_small"
+    assert _st(db, "hf:stabilityai/stable-audio-3-small-sfx").vae == "sa3_small"
 
 
 def _flux3_params(hidden: int, depth: int = 5, single: int = 28, flow_map: bool = False) -> int:

@@ -256,13 +256,18 @@ ACE-Step 1.5(実測の無い `audio_ace_step_1_5_split`、NVIDIA、メインメ�
       (`tests/test_working.py` が数え直す)。hidden が 2560・3584 なら 1B 以上ずれる
   - LTX: 14B 以上 → LTXAV(LTX-2 / 2.3。係数 0.077、:980)、10B 以上 → LTXV 13B(11 = 5.5 × 4096 / 2048、:960)、ほか → LTXV(5.5)
   - SD: 本体(全部入り)が 3.3B 以上 → SDXL(0.8、:219)、未満 → SD1.5・SD2・SDXL refiner(どれも 1.0、:69・116・180)
+  - Stable Audio 3(0.15.1): 係数 7(:634)。潜在は 256 チャンネル・秒 × 44100 / 4096(空の潜在を
+    sample.py:61-65 が 4096 の比に縮める)。VAE は全部入りの中にあり、ComfyUI は見出しの鍵で 2 つの設定に分ける
+    (sd.py:1006-1018。大きい設定は復号 1500 × L × 4096、小さい設定は 72 × L × 4096)。一覧は見出しの鍵を持たないので、
+    Comfy-Org/stable-audio-3 の 4 つの全部入りの見出しを読んで確かめた名前の表 `working.SA3_VAE_BY_NAME` で選ぶ
+    (2026-11-11。medium は transformers 12 段の大きい VAE、small は 6 段の小さい VAE)。表に無い名前は当てない
 - そのほかの係数: SD3 1.6・Flux 3.1・Chroma 3.2・LongCat 2.5・HiDream 2.0(既定)・Lumina2 1.4・Z-Image 2.8・
   Omnigen2 1.95(Boogu 2.15)・Kandinsky5 1.25・Krea2 2.2・Qwen Image 1.8・JoyImage 1.8・Anima 0.95・Lens 4.0・
   Ideogram4 11.6・MOSS-Image 14.6・ERNIE 10.0・MageFlow 6.5・Qwen Image 2.1 6.0・HiDream O1 0.033・PixelDiT 0.04・
   HunyuanVideo 1.8・HunyuanVideo 1.5 4.0・CogVideoX 2.0(既定)・MiniMax H3 0.114・ACE-Step 1.5 4.7・ACE-Step 1 0.5・
-  Stable Audio Open 2.0(既定)・YuE2 4.0(出典の行は `working.WORKS`)。
+  Stable Audio Open 2.0(既定)・Stable Audio 3 7.0・YuE2 4.0(出典の行は `working.WORKS`)。
 - VAE(#100 で分けた): `wan22`(Wan 2.2 5B、16 倍圧縮)・`qwen21`(Qwen Image 2.1、16 倍圧縮)・`flux2`(Flux2 の VAE × 4)・
-  `oobleck`(ACE-Step 1.5・Stable Audio Open)・`yue2`・`pixel`(ピクセル空間)。Qwen Image の VAE は Wan 2.1 の VAE。
+  `oobleck`(ACE-Step 1.5・Stable Audio Open)・`sa3_large` / `sa3_small`(Stable Audio 3)・`yue2`・`pixel`(ピクセル空間)。Qwen Image の VAE は Wan 2.1 の VAE。
   一覧の `comfy_vae` が行の潜在に合わない(別の部品の VAE・古い一覧の鍵)ときは、行の既定の VAE を使う。
 - 時間方向の圧縮: Wan・HunyuanVideo・CogVideoX は 4、LTX は 8、MiniMax H3 は 17k+5 コマ ↔ 5k+2(sd.py:1051)。
   ピクセル空間の系統(HiDream O1・PixelDiT)は空間も 1。
@@ -272,12 +277,12 @@ ACE-Step 1.5(実測の無い `audio_ace_step_1_5_split`、NVIDIA、メインメ�
 次のものは、**モデル全体を今までの種類ごとの式**で出します(ComfyUI の既定の係数 2.0 は使わない。
 SAM3・Depth Anything・フレーム補間などの拡散でない道具が過大になるため)。
 
-<!-- fallback-count: 83 -->
-同梱の一覧(330 件)で 83 件:
+<!-- fallback-count: 79 -->
+同梱の一覧(330 件)で 79 件:
 
 - 読み上げ 23 件・3D 10 件(係数 `act_3d_gb` の式。3D の作業用メモリは ComfyUI の見込みの形が違う)
 - 系統が分からない 27 件(画像 13・動画 13・音楽 1)
-- 系統はあるが式が無い 20 件: SeedVR2 4・Stable Audio 3 4(VAE の 2 つの設定のどちらか一覧から分からない)・SD の動画(SVD・AnimateDiff)3・
+- 系統はあるが式が無い 16 件: SeedVR2 4・SD の動画(SVD・AnimateDiff)3・
   Ming 2(VAE の式が無い)・Qwen Image の動画のワークフロー 2・Depth Anything 3 2・SAM3 2・MiniMax Music 1
 - 大きさが分からない 3 件: Wan 2(一覧に本体のファイルが無い)・SD 1(`.ckpt` で見出しを読めない)
   - Flux3 Klein の 4 件は 0.15.1 から当てる(上の「系統の当て方」)
@@ -624,7 +629,7 @@ music・video は張り付いていない実測が 1 件以下のため評価で
   1. 文章の読み取りの作業用メモリ: Qwen2.5-VL の画像のトークン、Flux2 の Mistral、YuE2 の楽譜の段(8192 トークン)、
      ACE-Step 1.5 の LM の KV、Flux3 の指示文の書き直し(Qwen3.5 9B)など、ComfyUI が見込まないもの
   2. 段ごとの山を bench で測る(段の境目で区切る)。作業用メモリだけの実測(上の「実測の使い方」7)を使えるようにする
-  3. 当てられないモデル(83 件)を減らす(Stable Audio 3 の VAE、SeedVR2・Ming の VAE など。Flux3 Klein は 0.15.1 で当てた)
+  3. 当てられないモデル(79 件)を減らす(SeedVR2・Ming の VAE など。Flux3 Klein と Stable Audio 3 は 0.15.1 で当てた)
   4. RTX 3070 の測り直し(下の「照合」)と、Wan2.1 832x480・81 コマ
   5. **対応した(0.15.0、画像だけ)**: 逃がすときに GPU に残す割合(0.4)。ComfyUI の NVIDIA は `MIN_WEIGHT_MEMORY_RATIO = 0`
      (model_management.py:458-460@426f5ee)で、0.16 からは動的 VRAM が既定。画像は上の「動的 VRAM で逃がすとき」の式にした。
