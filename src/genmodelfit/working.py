@@ -285,6 +285,10 @@ KNOWN_PARAMS: tuple[tuple[str, int, str], ...] = (
 LTX_BINS = ((10e9, "ltxv"), (14e9, "ltxv_13b"), (math.inf, "ltxav"))
 # SD: 本体(全部入り)が 3.3B 以上なら SDXL(UNet 2.6B + CLIP 0.8B)、未満は SD1.5・SD2・SDXL refiner(どれも 1.0)
 SDXL_MIN_PARAMS = 3.3e9
+# SDXL の UNet だけの要素数(stabilityai/stable-diffusion-xl-base-1.0 の unet/。
+# families.SD_PARAM_PRINTS と同じ)
+SDXL_UNET_PARAMS = 2_567_463_684
+SD_PARAM_TOLERANCE = 20_000  # families.SD_PARAM_TOLERANCE と同じ(循環 import を避けて持つ)
 
 # 参照の潜在を足す編集の用途(tasks)。ReferenceLatent で入れた ref_latents を memory_required が数える
 # (model_base.py:426-436@426f5ee。系統は Work.ref)
@@ -617,7 +621,10 @@ def work_of(entry, family: str | None) -> Work | None:
     if family == "sd":
         if mod != "image" or not sizes:  # SVD・AnimateDiff などの動画と、大きさの分からないものは当てない
             return None
-        key = "sd15" if min(sizes) < SDXL_MIN_PARAMS else "sdxl"
+        # UNet だけのファイル(diffusers の unet/)は、SDXL の UNet の指紋に合えば SDXL
+        # (families.SD_PARAM_PRINTS)
+        sdxl_unet = any(abs(n - SDXL_UNET_PARAMS) <= SD_PARAM_TOLERANCE for n in sizes)
+        key = "sdxl" if sdxl_unet or min(sizes) >= SDXL_MIN_PARAMS else "sd15"
     elif family == "wan":
         if "dancer" in names:
             key = "wan_dancer"

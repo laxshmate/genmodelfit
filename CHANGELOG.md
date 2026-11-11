@@ -33,6 +33,12 @@ All notable changes to this project are documented here. The format is based on
   decoder estimate ((L × 512 × 1400 + 800 million) elements in float32; 3.7 GB tiled at 30 seconds). The all-on-GPU
   value goes from 14.8 to 18.5 GB and the offload value from 4.9 to 5.2 GB; on 6 GB it goes from Good to Marginal, and
   8 GB and more do not change level. Models without a per-stage formula: 77 → 76.
+- **SD models whose names do not say so are found by their header element count.** Five Hugging Face SD1.5 / SDXL
+  checkpoints had no family because neither the file name nor the repository name matched a rule. An image main model
+  is now SD when its header element count is within ±20,000 of the official SD1.5 or SDXL file (all-in-one or UNet
+  only; counted from the official headers), and a UNet-only file matching the SDXL UNet uses the SDXL row. They now use
+  the same per-stage values as the official SD models (all-on-GPU 8.2 → 9.0 GB for SDXL) and the CPU judgment of the SD
+  family (on 2 GB, Too tight → Marginal on the CPU, like the official SDXL). Models without a per-stage formula: 76 → 71.
 
 ### Fixed
 

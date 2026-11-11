@@ -376,8 +376,36 @@ def _main_names(entry) -> list[str]:
     return [f.name.split("/")[-1].lower() for f in main_files(entry)]
 
 
+# 名前で系統が分からない画像の本体を、見出しの要素数(header_params)で SD と見分ける指紋。
+# 1 行 = (公式のファイルの要素数, 説明)。公式のファイルの見出しを 2026-11-11 に数えた
+# (stable-diffusion-v1-5/stable-diffusion-v1-5 の v1-5-pruned-emaonly.safetensors、
+# stabilityai/stable-diffusion-xl-base-1.0 の sd_xl_base_1.0.safetensors と unet/。UNet だけの数は HF API の
+# safetensors.total と同じ)。docs/hardware.md「系統の表」
+SD_PARAM_PRINTS: tuple[tuple[int, str], ...] = (
+    (1_066_247_386, "SD1.5 の全部入り"),
+    (859_520_964, "SD1.5 の UNet"),
+    (3_468_837_945, "SDXL の全部入り"),
+    (2_567_463_684, "SDXL の UNet"),
+)
+# 指紋の幅。同じ形の派生(inpaint の conv_in の 5 チャンネル 5 × 320 × 3 × 3 = 14,400、position_ids などの
+# 小さな差)を含め、ほかの形(いちばん近い形でも数千万は違う)は含まない
+SD_PARAM_TOLERANCE = 20_000
+
+
+def _sd_by_params(entry) -> bool:
+    from .groups import main_files
+
+    if entry.modality != "image":
+        return False
+    sizes = [f.header_params for f in main_files(entry) if getattr(f, "header_params", None)]
+    return bool(sizes) and all(
+        any(abs(n - ref) <= SD_PARAM_TOLERANCE for ref, _ in SD_PARAM_PRINTS) for n in sizes
+    )
+
+
 def family_of(entry) -> str | None:
-    """一覧の 1 件の系統。本体のファイル名で決まらなければ、ID・テンプレート名で決める。"""
+    """一覧の 1 件の系統。本体のファイル名で決まらなければ、ID・テンプレート名で決め、それでも決まらなければ
+    画像の本体の見出しの要素数が SD の指紋(SD_PARAM_PRINTS)に合うものを SD にする。"""
     if entry.modality == "tts":  # 読み上げは ComfyUI の組み込みの系統に当たらない(名前の偶然の一致を避ける)
         return None
     names = " ".join(_main_names(entry))
@@ -387,7 +415,10 @@ def family_of(entry) -> str | None:
     # 部品の置き場所(Comfy-Org/… のリポジトリ)は別のモデルの部品も混ざるので見ない。
     # HF の項目は ID がリポジトリ
     tmpl = entry.template.name if entry.template else ""
-    return _match(_RULES, f"{entry.id} {tmpl}".lower())
+    key = _match(_RULES, f"{entry.id} {tmpl}".lower())
+    if key:
+        return key
+    return "sd" if _sd_by_params(entry) else None
 
 
 def vae_of(entry, family: str | None = None) -> str | None:

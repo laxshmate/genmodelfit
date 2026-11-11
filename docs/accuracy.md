@@ -262,7 +262,8 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
       Flux3 class (comfy/ldm/flux3/model.py:79@426f5ee; hidden 3072, depth 5, single 28; only flow_map differs)
       (`tests/test_working.py` recounts them). With hidden 2560 or 3584 the count is off by more than 1B
   - LTX: 14B or more → LTXAV (LTX-2 / 2.3; factor 0.077, :980), 10B or more → LTXV 13B (11 = 5.5 × 4096 / 2048, :960), otherwise → LTXV (5.5)
-  - SD: an (all-in-one) main model of 3.3B or more → SDXL (0.8, :219), below → SD1.5, SD2, SDXL refiner (all 1.0, :69, 116, 180)
+  - SD: an (all-in-one) main model of 3.3B or more → SDXL (0.8, :219), below → SD1.5, SD2, SDXL refiner (all 1.0, :69, 116, 180).
+    A UNet-only file (diffusers unet/) is SDXL when it matches the SDXL UNet fingerprint (2,567,463,684 ± 20,000; 0.15.1)
   - Ming Image (0.15.1): it inherits ZImage, so the factor is 2.8 (:1239, 1268). The latent is 3-D with the Wan 2.1 shape
     (latent_formats.py:779-782; one frame for an image), and ComfyUI's checks put the VAE header (`ming_image_vae_bf16` of
     Comfy-Org/Ming-Image, 2026-11-11) in the Wan 2.1 VAE branch (sd.py:842, 868-883; no key of the Wan 2.2 layout; dim 96,
@@ -292,11 +293,11 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
 These use **the earlier per-modality formula for the whole model** (ComfyUI's default factor 2.0 is not used: it would overestimate
 non-diffusion tools such as SAM3, Depth Anything and frame interpolation).
 
-<!-- fallback-count: 76 -->
-76 of the 330 entries in the bundled list:
+<!-- fallback-count: 71 -->
+71 of the 330 entries in the bundled list:
 
 - 23 text to speech, 10 3D (the `act_3d_gb` formula; ComfyUI's 3D estimate has a different shape)
-- 27 with an unknown family (13 image, 13 video, 1 music)
+- 22 with an unknown family (8 image, 13 video, 1 music). The SD fingerprints (0.15.1; [hardware.md](hardware.md), "Family table") made 5 of them SD
 - 13 with a family but no formula: SeedVR2 4,
   SD video (SVD, AnimateDiff) 3, Qwen Image video workflows 2, Depth Anything 3 2, SAM3 2
 - 3 with an unknown size: Wan 2 (the list has no main file), SD 1 (a `.ckpt`, whose header cannot be read)
@@ -648,7 +649,7 @@ How to read it:
   1. Text-stage working memory ComfyUI does not estimate: image tokens of Qwen2.5-VL, Flux2's Mistral, the YuE2 score stage (8192 tokens),
      the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), the autoregressive LM of MiniMax Music 3, and so on
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used
-  3. Reduce the models without a per-stage formula (76): the SeedVR2 VAE, and so on (Flux3 Klein, Stable Audio 3, Ming Image and MiniMax Music 3 were mapped in 0.15.1)
+  3. Reduce the models without a per-stage formula (71): the SeedVR2 VAE, and so on (Flux3 Klein, Stable Audio 3, Ming Image, MiniMax Music 3 and 5 SD models found by fingerprint were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
      `MIN_WEIGHT_MEMORY_RATIO = 0` (model_management.py:458-460@426f5ee), and dynamic VRAM is the default from 0.16. Images now use

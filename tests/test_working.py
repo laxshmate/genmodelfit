@@ -833,3 +833,39 @@ def test_minimax_music3_latent_is_capped_at_max_audio_frames(db):
     long = stage_memory(m, E.settings_for(m, Settings(seconds=600)))
     cap = stage_memory(m, E.settings_for(m, Settings(seconds=360)))
     assert pytest.approx(cap.S) == long.S
+
+
+# --- 名前で分からない SD の本体を見出しの要素数で見分ける -----------------------------------------
+
+SD_BY_PRINT = {
+    "hf:Heartsync/NSFW-Uncensored": "sdxl",  # diffusers の unet/(SDXL の UNet だけ)
+    "hf:Ine007/waiNSFWIllustrious_v140": "sdxl",
+    "hf:UnfilteredAI/NSFW-gen-v2": "sdxl",
+    "hf:TheImposterImposters/LazyMix-v4.0-inpainting": "sd15",  # inpaint(conv_in が 5 チャンネル多い)
+    "hf:digiplay/CamelliaMix_NSFW_diffusers_v1.1": "sd15",
+}
+
+
+@pytest.mark.parametrize("mid", sorted(SD_BY_PRINT))
+def test_sd_found_by_header_params(db, mid):
+    m = db.get(mid)
+    assert families.family_of(m) == "sd" == m.comfy_family
+    assert _st(db, mid).work == SD_BY_PRINT[mid]
+
+
+def test_sd_prints_are_the_official_counts():
+    """指紋は公式のファイルの見出しの要素数(2026-11-11 に数えた)。
+    inpaint は conv_in の 5 × 320 × 3 × 3 だけ多く、幅に入る。working の写しの定数と同じ。"""
+    import genmodelfit.working as W
+
+    prints = dict(families.SD_PARAM_PRINTS)
+    assert set(prints) == {1_066_247_386, 859_520_964, 3_468_837_945, 2_567_463_684}
+    assert 5 * 320 * 3 * 3 <= families.SD_PARAM_TOLERANCE == W.SD_PARAM_TOLERANCE
+    assert W.SDXL_UNET_PARAMS in prints
+
+
+def test_sd_prints_do_not_catch_other_families(db):
+    """名前で系統の決まる画像の項目のうち、指紋に合うものは SD だけ(ほかの形を SD にしない)。"""
+    for m in db.models:
+        if m.modality == "image" and families._sd_by_params(m):
+            assert families.family_of(m) == "sd", m.id
