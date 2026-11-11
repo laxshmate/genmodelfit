@@ -698,6 +698,8 @@ def test_plan_on_bundled_list_is_offline(monkeypatch):
     monkeypatch.setattr(
         HTTPAdapter, "send", lambda *a, **k: (_ for _ in ()).throw(AssertionError("通信した"))
     )
+    # 本物のディスクの空きを見ない(空きが 20 GB 前後の PC だと bf16 の計画が disk で止まり、PC によって落ちる)
+    monkeypatch.setattr(downloader, "_free_bytes", lambda p: 1024**4)
     db = gmf.load_db(use_cache=False)
     big = gmf.plan_download("Z-Image-Turbo", db=db, system_info=pc(24), output_dir="unused-dir")
     assert big.model_id == "image_z_image_turbo" and big.precision == "bf16" and big.ok

@@ -213,13 +213,21 @@ def test_suggestions_put_installed_first_and_drop_measured(db, tmp_path):
     from genmodelfit.downloader import directory_refs, infer_directory
 
     refs = directory_refs(db)
-    for f in m.files:
-        d = f.directory or infer_directory(f, refs)[0]
-        p = root / d / f.name
-        p.parent.mkdir(parents=True, exist_ok=True)
-        with p.open("wb") as fh:
-            fh.truncate(f.size_bytes or 0)  # 大きさだけ同じ(中身は見ない)
-    again = measure.suggestions(db, s, roots=[root])
+    made = []
+    try:
+        for f in m.files:
+            d = f.directory or infer_directory(f, refs)[0]
+            p = root / d / f.name
+            p.parent.mkdir(parents=True, exist_ok=True)
+            made.append(p)
+            with p.open("wb") as fh:
+                fh.truncate(f.size_bytes or 0)  # 大きさだけ同じ(中身は見ない)
+        again = measure.suggestions(db, s, roots=[root])
+    finally:
+        # 数 GB になる(Windows では大きさの分だけ場所を取る)。pytest は前の数回の tmp_path を残すので、
+        # 消さないと実行のたびに 4.7 GB ずつ溜まる(2026-11-11)
+        for p in made:
+            p.unlink(missing_ok=True)
     assert again[0].model_id == last.model_id and again[0].installed.state == "yes"
     # この GPU で測ったら出さない
     db2 = load_db(use_cache=False)
