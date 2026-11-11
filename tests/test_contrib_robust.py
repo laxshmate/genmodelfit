@@ -1020,3 +1020,16 @@ def test_name_from_a_fork_pr_alone_does_not_link_ids(tmp_path):
     r.pr("x", [("b", "m@example.invalid")], owner="mallory", n=3)
     _subs, _who, src = r.sources()
     assert len(set(src.values())) == 2
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git が無い")
+def test_reused_name_alone_does_not_bridge_two_ids(tmp_path):
+    """名前を変えた人の古い名前を別の人が取り、2 人がその名前で Issue を送った(ID は別)。その名前の
+    フォークの PR が無ければ、名前を橋にして 2 つの ID をつながない(submission_sources の
+    `login_key in people`)。"""
+    r = _Repo(tmp_path)
+    r.pr("measurement/issue-1", [("a\n\nSubmitted-by: github:alice\nSubmitted-by-id: 77", BOT)], n=2)
+    r.pr("measurement/issue-3", [("b\n\nSubmitted-by: github:alice\nSubmitted-by-id: 99", BOT)], n=4)
+    _subs, who, src = r.sources()
+    assert sorted(set(who.values())) == ["github-id:77", "github-id:99"]
+    assert len(set(src.values())) == 2

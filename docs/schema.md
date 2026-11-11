@@ -1515,7 +1515,8 @@ Each rule can be explained in one sentence. They are checked with about 60 kinds
   commit, else the pull request's source account from the merge commit's first line (`Merge pull request #N from
   <account>/<branch>`; commit e-mail addresses are never used for it). When a bot commit has both `Submitted-by` and
   `Submitted-by-id`, that account name and numeric id are joined as one person, so an issue and a fork pull request
-  from the same account are one source. Only a commit that is not such a merge
+  from the same account are one source (a fork pull request sent under a name the account took later is not joined
+  and counts on its own). Only a commit that is not such a merge
   (directly on main, squash, rebase) falls back to the author's e-mail address (weaker). The value is the sha256 of the
   group's smallest key, so no address is published. They count as one source whose median is one value, and outliers are judged between sources (`n_sources`; without git
   history or in a shallow clone each submission counts on its own, and the output says so).
