@@ -750,7 +750,7 @@ genmodelfit download [-h] [--lang {en,ja}] [--json] [--vram GB] [--ram GB] [--db
 - 足りないのが同意だけなら、計画の最後に同意を足したコマンドを 1 つ出す(genmodelfit が勝手に足して落とすことはしない)。
 - 断るもの(どのオプションでも変わらない): gated のファイル(ログインしない)、ディスクの空きが足りない(落とす量 + 1 GB が要る)、置き場所の外に出る名前、Hugging Face / GitHub 以外のホスト。
 - 落としたファイルを使うには: ComfyUI を開いていたらブラウザで読み込み直し、ComfyUI のテンプレートの一覧から、info の 1 行目の名前のテンプレートを開く([ ] の中の ID はテンプレートのファイル名)。
-- ID が hf: で始まるモデルには ComfyUI のテンプレートが無いので、使い方は Hugging Face のページ(`https://huggingface.co/<<user>>/<repo>`)を見る。
+- ID が hf: で始まるモデルには ComfyUI のテンプレートが無いので、使い方は Hugging Face のページ(`https://huggingface.co/<owner>/<repo>`)を見る。
 
 **オプションと引数**
 

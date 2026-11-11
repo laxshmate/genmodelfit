@@ -627,7 +627,12 @@ def _placeholders() -> list[tuple[str, str]]:
 
 def _clean(text: str, pairs: list[tuple[str, str]]) -> str:
     for old, new in pairs:
-        text = text.replace(old, new)
+        if new == "<user>":
+            # ユーザ名はパスの 1 つの部分のときだけ置き換える(名前が owner などの普通の語だと、
+            # 本文の `<owner>/<repo>` まで `<<user>>/<repo>` になる。2026-11-11)
+            text = re.sub(rf"(?<=[\\/]){re.escape(old)}(?=[\\/]|$)", new, text, flags=re.M)
+        else:
+            text = text.replace(old, new)
     return text
 
 

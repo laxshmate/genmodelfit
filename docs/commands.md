@@ -757,7 +757,7 @@ Download the files of a model for this PC (all files of one workflow), checking 
 - When only the consent is missing, the plan ends with one command that adds it (genmodelfit never adds it by itself).
 - Refused (no option lifts these): gated files (no login is used), too little disk (needs the download + 1 GB), names that would land outside the folder, hosts other than Hugging Face / GitHub.
 - To use the files: reload ComfyUI in the browser if it was open, then open, from ComfyUI's template list, the template titled as in the first line of info (the id in [ ] is the template's file name).
-- Models whose id starts with hf: have no ComfyUI template: their Hugging Face page (`https://huggingface.co/<<user>>/<repo>`) says how to use them.
+- Models whose id starts with hf: have no ComfyUI template: their Hugging Face page (`https://huggingface.co/<owner>/<repo>`) says how to use them.
 
 **Options and arguments**
 
