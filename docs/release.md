@@ -43,6 +43,9 @@ There are three flows.
 - Repository-wide secrets hold nothing.
 - The private key exists only in `data-signing`, so workflows on branches other than main and on PRs cannot read it.
 - data.yml also passes it, as an environment variable, to the one signing step only.
+- Every workflow pins its actions to a commit (a 40-character SHA), with the version kept in a comment (no moving tags
+  such as `@v4`). The twine that checks the dist in release.yml has a fixed version too. tests/test_workflows.py
+  checks both. To upgrade, replace the SHA with the commit that the new version's tag points to.
 
 To check the settings, run:
 

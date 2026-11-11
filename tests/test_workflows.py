@@ -68,6 +68,19 @@ def test_weekly_actions_are_pinned(weekly):
         assert SHA.match(u), f"コミットで固定していない: {u}"
 
 
+@pytest.mark.parametrize("name", sorted(p.name for p in WF.glob("*.yml")))
+def test_all_actions_are_pinned(name):
+    # 署名の鍵(data.yml)・PyPI の公開(release.yml)を使うジョブもあるので、
+    # 動くタグ(@v4・@release/v1)は使わない。版はコメント(# v4.2.2)に残す
+    for u in _uses(_load(name)):
+        assert SHA.match(u), f"{name}: コミットで固定していない: {u}"
+
+
+def test_release_pins_twine():
+    # build のジョブが dist を検査する道具も、版を固定する(動く最新を取ると、公開する dist に触れられる)
+    assert re.search(r"uvx twine@\d+\.\d+\.\d+ check", _code("release.yml"))
+
+
 def test_weekly_permissions(weekly):
     jobs = weekly["jobs"]
     assert set(jobs) == {"build", "pr"}
