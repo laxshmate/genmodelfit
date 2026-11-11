@@ -12,9 +12,10 @@ All notable changes to this project are documented here. The format is based on
 - **`plan_download` no longer raises when a file already in the destination cannot be read** (held open by another
   program, no permission, a Windows path that is too long). The file becomes `conflict` with the reason, and is never
   overwritten; before, the `OSError` reached the caller even though planning promises not to raise.
-- **`bench` / `measure` no longer follow redirects from ComfyUI.** A server given with `--url` that answered 307 made
-  the workflow and input images be sent again to whatever host it named. A redirect now stops with an error that asks
-  for the target's URL.
+- **`bench` / `measure` no longer follow redirects from ComfyUI to another server.** A server given with `--url` that
+  answered 307 made the workflow and input images be sent again to whatever host it named. Redirects within the same
+  server (same scheme, host and port) are still followed; any other redirect stops with an error that asks for the
+  target's URL.
 - **The marks of what `share` has sent (`submissions_shared.json`) and the brief-peak marks are written atomically**
   through a temporary file with a unique name, so a crash or two `share` runs at once cannot leave a broken file
   (which would have been read as empty, losing every mark).

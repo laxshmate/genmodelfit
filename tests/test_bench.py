@@ -942,7 +942,8 @@ def test_client_template_404_returns_none():
 
 
 def test_client_does_not_follow_redirects():
-    """--url の相手が転送を返しても追わない(ワークフローを別のホストへ送り直さない。RT-004)。"""
+    """--url の相手が別の相手(ポート違いも別)へ転送しても追わない(ワークフローを別のホストへ送り直さない。
+    RT-004)。同じ相手の中の転送は追う(tests/test_privacy.py の test_bench_client_sends_no_netrc)。"""
     from http.server import BaseHTTPRequestHandler
 
     hits: list[str] = []
