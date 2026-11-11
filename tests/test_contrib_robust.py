@@ -993,3 +993,30 @@ def test_bot_trailer_id_survives_a_rename(tmp_path):
     assert contrib.submitter_count(r.root, "newname", model_id=mid, gpu_name=gpu, user_id=4242) == 2
     assert contrib.submitter_count(r.root, "legacy", model_id=mid, gpu_name=gpu) == 1
     assert contrib.submitter_count(r.root, "x", model_id=mid, gpu_name=gpu, user_id="4242; rm") == 0
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git が無い")
+def test_issue_and_fork_pr_of_one_account_is_one_source(tmp_path):
+    """同じアカウントが Issue(ボットのコミットは ID の鍵)とフォークの PR(PR の元のアカウント名の鍵)で
+    送ったものは 1 つの出どころ(アカウントごとに 1 回。docs/schema.md「contrib」)。
+    2026-11-11 まで 2 つに数えていた。"""
+    r = _Repo(tmp_path)
+    r.pr("measurement/issue-1", [("a\n\nSubmitted-by: github:Alice\nSubmitted-by-id: 77", BOT)], n=2)
+    r.pr("my-run", [("b", "alice@example.invalid")], owner="alice", n=3)  # 同じ人のフォークの PR
+    r.pr("measurement/issue-4", [("c\n\nSubmitted-by: github:legacy", BOT)], n=5)  # 前の版のボット(名前だけ)
+    r.pr("legacy-run", [("d", "l@example.invalid")], owner="legacy", n=6)
+    r.pr("other", [("e", "o@example.invalid")], owner="bob", n=7)
+    _subs, who, src = r.sources()
+    assert sorted(set(who.values())) == ["github-id:77", "github:alice", "github:bob", "github:legacy"]
+    assert len(set(src.values())) == 3  # alice(ID と名前) / legacy / bob
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git が無い")
+def test_name_from_a_fork_pr_alone_does_not_link_ids(tmp_path):
+    """名前と ID を結ぶのは受け取るボットのコミット(両方の trailer)だけ。フォークの PR の名前が、
+    ID だけを持つ別の人に結び付かない。"""
+    r = _Repo(tmp_path)
+    r.pr("measurement/issue-1", [("a\n\nSubmitted-by: github:carol\nSubmitted-by-id: 5", BOT)], n=2)
+    r.pr("x", [("b", "m@example.invalid")], owner="mallory", n=3)
+    _subs, _who, src = r.sources()
+    assert len(set(src.values())) == 2

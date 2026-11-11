@@ -3223,11 +3223,23 @@ def submission_origins(
     鍵はメールアドレスを含むので、外に書かない(submission_sources は hash にして使う)。
     git の作業ツリーでない・浅い clone・git が無いときは ({}, False)。まだコミットしていない提出は入れない。
     通信しない(手元の git の履歴を読むだけ)。"""
+    origins, ok, _aliases = _origins_and_aliases(root, subs)
+    return origins, ok
+
+
+def _origins_and_aliases(
+    root: str | os.PathLike[str], subs: list[Submission]
+) -> tuple[dict[str, tuple[str | None, str]], bool, set[tuple[str, str]]]:
+    """submission_origins と、同じ人の 2 つの鍵の組(`github:<login>`, `github-id:<数の ID>`)。組は、受け取る
+    ボットのコミットに `Submitted-by` と `Submitted-by-id` の両方があるときだけ(その時のアカウント名と ID を
+    GitHub が Issue の作者として渡したもの)。同じアカウントが Issue(ID の鍵)とフォークの PR(名前の鍵)で
+    送ったものを 1 人にまとめるのに使う。"""
+    aliases: set[tuple[str, str]] = set()
     base = Path(root).resolve()
     git = _git_runner(base)
     top = git("rev-parse", "--show-toplevel")
     if not top or (git("rev-parse", "--is-shallow-repository") or "").strip() != "false":
-        return {}, False
+        return {}, False, aliases
     top_dir = Path(top.strip()).resolve()
     log = git(
         "log",
@@ -3240,7 +3252,7 @@ def submission_origins(
         str(base),
     )
     if log is None:
-        return {}, False
+        return {}, False, aliases
     # 今の名前 → 提出。新しいコミットから順に見て、名前の変更(R)は前の名前に付け替え、足した(A)ところで止める
     alias: dict[str, Submission] = {}
     for s in subs:
@@ -3311,11 +3323,13 @@ def submission_origins(
                 if trailer and email.strip().lower() == BOT_EMAIL:
                     # 数の ID があればそれ(名前を変えても同じ人)、無ければ(前の版のボット)アカウント名
                     person = f"github-id:{uid.group(1)}" if uid else f"github:{trailer.group(1).lower()}"
+                    if uid:
+                        aliases.add((f"github:{trailer.group(1).lower()}", person))
             out = (f"pr:{commit}", person)
         cache[(commit, path)] = out
         return out
 
-    return {sha: origin(c, p) for sha, (c, p) in added.items()}, True
+    return {sha: origin(c, p) for sha, (c, p) in added.items()}, True, aliases
 
 
 def submission_submitters(
@@ -3335,7 +3349,7 @@ def submission_sources(root: str | os.PathLike[str], subs: list[Submission]) -> 
     まとめに書かない)。まだコミットしていないファイルは 1 件で 1 つ(file:<sha256>)。
     (内容の sha256 → 出どころ, git の履歴を使えたか)。git の作業ツリーでない・浅い clone・git が無いときは
     ({}, False)(aggregate はファイルごとに数える)。通信しない。"""
-    origins, via_git = submission_origins(root, subs)
+    origins, via_git, aliases = _origins_and_aliases(root, subs)
     if not via_git:
         return {}, False
     parent: dict[str, str] = {}
@@ -3356,6 +3370,11 @@ def submission_sources(root: str | os.PathLike[str], subs: list[Submission]) -> 
         find(person)
         if pr:
             union(pr, person)
+    # 同じアカウントの名前の鍵と ID の鍵(Issue は ID、フォークの PR・前の版のボットは名前)は 1 人
+    people = {person for _pr, person in origins.values()}
+    for login_key, id_key in aliases:
+        if login_key in people:
+            union(login_key, id_key)
     out = {
         sha: hashlib.sha256(f"source:{find(person)}".encode()).hexdigest()
         for sha, (_pr, person) in origins.items()
