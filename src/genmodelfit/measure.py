@@ -584,9 +584,25 @@ def save_brief_peak(m: Measurement) -> Path:
     row = asdict(m)
     if row not in rows:
         rows.append(row)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"measurements": rows}, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    _write_json_atomic(path, {"measurements": rows})
     return path
+
+
+def _write_json_atomic(path: Path, obj: Any) -> None:
+    """一時ファイル(名前は毎回別)に書いてから置き換える。途中で落ちても前の中身が残り、同時に 2 つ動いても
+    同じ一時ファイルを踏み合わない(読むときに壊れたファイルは空とみなすので、壊れると印が全部消えるため)。
+    失敗は OSError のまま(一時ファイルは消す)。"""
+    import tempfile
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(obj, ensure_ascii=False, indent=1) + "\n")
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
 def _read_brief_peaks(path: Path) -> list[dict[str, Any]]:
@@ -634,11 +650,7 @@ def mark_shared(data: dict[str, Any]) -> str:
         "date": datetime.now(timezone.utc).date().isoformat(),
         "model_id": mm.get("model_id"),
     }
-    p = shared_path()
-    p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_name(p.name + ".tmp")
-    tmp.write_text(json.dumps({"shared": marks}, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    os.replace(tmp, p)
+    _write_json_atomic(shared_path(), {"shared": marks})
     return sha
 
 

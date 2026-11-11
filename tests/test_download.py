@@ -906,6 +906,23 @@ def test_unverified_present_is_hashed_before_skip(server, comfy):
     assert dest.read_bytes() == b"x" * len(BODY_B)
 
 
+def test_plan_does_not_raise_when_an_existing_file_cannot_be_read(server, comfy, monkeypatch):
+    """置き場所のファイルを読めない(別のプロセスが掴んでいる・権限)ときも、計画は例外を出さず、
+    上書きしない conflict にする(2026-11-11 まで PermissionError がそのまま出た)。"""
+    dest = comfy / "models" / "vae" / "tiny_vae.safetensors"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"x" * len(BODY_B))
+
+    def locked(path):
+        raise PermissionError(13, "Permission denied", str(path))
+
+    monkeypatch.setattr(downloader, "_hash_file", locked)
+    p = gmf.plan_download("test_tiny", db=make_db(server), system_info=pc(), comfyui_dir=comfy)
+    f = p.files[1]
+    assert f.status == "conflict" and "PermissionError" in (f.reason or "")
+    assert not p.ok
+
+
 def test_id_plus_precision_measures_existing(server, comfy):
     """ID と精度を指定して候補が 2 つ以上でも、選んだワークフローの既にあるファイルは sha256 まで計る。"""
     import copy

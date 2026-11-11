@@ -1430,3 +1430,20 @@ def test_aggregate_leaves_out_listed_nonstandard_submissions(monkeypatch):
     assert with_512 and contrib.aggregate(with_512) == []
     monkeypatch.setattr(contrib, "nonstandard_submissions", lambda: {})
     assert len(contrib.aggregate(with_512)) == 4
+
+
+def test_shared_marks_survive_a_failed_write(monkeypatch):
+    """送った印は一時ファイル(毎回別の名前)から置き換える。置き換えに失敗しても前の印が残り、
+    一時ファイルも残らない(壊れた印のファイルは空とみなすので、壊れると全部の印が消えていた)。"""
+    first = measure.mark_shared({"measurement": {"model_id": "a"}, "n": 1})
+    before = measure.shared_path().read_bytes()
+
+    def fail(src, dst):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(measure.os, "replace", fail)
+    with pytest.raises(OSError):
+        measure.mark_shared({"measurement": {"model_id": "b"}, "n": 2})
+    assert measure.shared_path().read_bytes() == before
+    assert first in json.loads(before)["shared"]
+    assert not list(measure.shared_path().parent.glob("*.tmp"))

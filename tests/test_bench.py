@@ -941,6 +941,49 @@ def test_client_template_404_returns_none():
         assert ComfyClient(fake.url).template("nothing") is None
 
 
+def test_client_does_not_follow_redirects():
+    """--url の相手が転送を返しても追わない(ワークフローを別のホストへ送り直さない。RT-004)。"""
+    from http.server import BaseHTTPRequestHandler
+
+    hits: list[str] = []
+
+    class Target(BaseHTTPRequestHandler):
+        def do_POST(self):
+            hits.append(self.path)
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    target = ThreadingHTTPServer(("127.0.0.1", 0), Target)
+    to = f"http://127.0.0.1:{target.server_address[1]}/prompt"
+
+    class Redirect(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.send_response(307)
+            self.send_header("Location", to)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    src = ThreadingHTTPServer(("127.0.0.1", 0), Redirect)
+    threads = [threading.Thread(target=s.serve_forever, daemon=True) for s in (target, src)]
+    for t in threads:
+        t.start()
+    try:
+        client = ComfyClient(f"http://127.0.0.1:{src.server_address[1]}")
+        with pytest.raises(BenchError, match=r"転送|redirect"):
+            client._req("POST", "/prompt", json={"prompt": {}})
+    finally:
+        for s in (target, src):
+            s.shutdown()
+            s.server_close()
+    assert hits == []
+
+
 # --- 計測の部品 -------------------------------------------------------------------------------------
 
 

@@ -123,8 +123,11 @@ class ComfyClient:
         import requests
 
         kw.setdefault("timeout", self.timeout)
+        # 転送は追わない: --url の相手が 307 を返すと、ワークフローや画像を別のホスト(http を含む)へ送り直して
+        # しまう。ComfyUI の API は転送しないので、転送が来たら止めて知らせる(セキュリティのレビュー RT-004)
+        kw["allow_redirects"] = False
         try:
-            return self.s.request(method, self.url + path, **kw)
+            r = self.s.request(method, self.url + path, **kw)
         except requests.ConnectionError as e:
             raise BenchError(
                 tr(
@@ -139,6 +142,17 @@ class ComfyClient:
                     f"Cannot talk to ComfyUI ({self.url}; {type(e).__name__})",
                 )
             ) from e
+        if getattr(r, "is_redirect", False):
+            raise BenchError(
+                tr(
+                    f"ComfyUI({self.url})が別の場所へ転送しようとしました({r.status_code})。genmodelfit は"
+                    "転送を追いません。転送先が ComfyUI なら、その URL を --url で指定してください",
+                    f"ComfyUI ({self.url}) tried to redirect elsewhere ({r.status_code}). "
+                    "genmodelfit does not follow redirects; "
+                    "if the target is ComfyUI, give its URL with --url",
+                )
+            )
+        return r
 
     def get_json(self, path: str) -> Any:
         r = self._req("GET", path)

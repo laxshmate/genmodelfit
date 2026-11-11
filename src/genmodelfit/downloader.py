@@ -646,6 +646,24 @@ def _plan_file(
         pf.status, pf.reason = "unavailable", reason
         return pf
     assert dest is not None
+    try:
+        return _plan_local(pf, f, dest, verify_existing)
+    except OSError as e:
+        # 計画は読むだけで例外を出さない(download は OSError を DownloadError に包む)。
+        # 置き場所のファイルを読めない(別のプロセスが掴んでいる・権限・Windows の長すぎるパス)ときは、
+        # 上書きしない「conflict」にする
+        pf.status, pf.reason = (
+            "conflict",
+            tr(
+                f"置き場所のファイルを確かめられません({type(e).__name__}: {e.strerror or e})",
+                f"Cannot check the file in the destination ({type(e).__name__}: {e.strerror or e})",
+            ),
+        )
+        return pf
+
+
+def _plan_local(pf: PlannedFile, f: ModelFile, dest: Path, verify_existing: bool) -> PlannedFile:
+    """置き場所にあるもの(本体・.part)を見て状態を決める(_plan_file の続き。OSError は呼び出し側で扱う)。"""
     part = dest.with_name(dest.name + ".part")
     for p in (dest, part):
         if p.is_symlink():
