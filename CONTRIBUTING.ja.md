@@ -333,7 +333,7 @@ genmodelfit contrib show data/contrib/rtx-3070/2026-10-21-1a2b3c4d.json
 - 依存を足すときは MIT / Apache-2.0 / BSD のものだけにしてください(このツールを組み込むアプリがソースを公開せずに配布するため)。
 - ComfyUI のコード(GPL-3.0)は import せず、HTTP だけで話します。
 - 新しい `.py` ファイルの先頭には、ほかのファイルと同じ MPL-2.0 の表示(3 行)を入れてください。
-- 送る前に `python tools/ci_local.py` で、CI と同じ検査(Python 3.10〜3.13 の試験・ruff・配布物)を手元で通してください。要るのは [uv](https://docs.astral.sh/uv/) だけです。Windows からは `--linux` で WSL の中でも流せます。
+- 送る前に `python tools/ci_local.py` で、CI と同じ検査(Python 3.10〜3.13 の試験・ruff・配布物)を手元で通してください。要るのは [uv](https://docs.astral.sh/uv/) だけです。Windows からは `--linux` で WSL の中でも流せます(WSL の既定が Docker Desktop の `docker-desktop` なら、ほかのディストリを使います。決めるなら `--wsl-distro <名前>` か環境変数 `GENMODELFIT_WSL_DISTRO`)。
 - フォークからの PR では GitHub の CI も動きます。
 
 ## ライセンス

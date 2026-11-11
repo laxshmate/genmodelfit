@@ -1616,7 +1616,7 @@ PlannedFile:
 | `license_note` | str \| null | 一覧の値とライセンスが違う理由、または確かめられなかった理由 |
 | `license_allowed` | bool | ライセンスの許可リストにある(ゲートの既定、または `--license-allowlist`) |
 | `gated` | bool \| null | アクセスの申請が要る(部品の上流が求める場合も) |
-| `status` | str | `download` / `resume`(`.part` がある)/ `present`(すでにあり、sha256 が合う)/ `conflict`(別のファイルが その名前を使っている。決して上書きしない)/ `unavailable`(`reason` を参照) |
+| `status` | str | `download` / `resume`(`.part` がある)/ `present`(すでにあり、sha256 が合う)/ `conflict`(別のファイルが その名前を使っている、か そこのファイルを読めない。決して上書きしない)/ `unavailable`(`reason` を参照) |
 | `part_bytes` | int | 既存の `.part` の大きさ |
 | `remaining_bytes` | int | このファイルでこれから落とすバイト数 |
 | `reason` | str \| null | `conflict` / `unavailable` の理由(表示の言語 `en` / `ja`) |

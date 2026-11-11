@@ -343,7 +343,7 @@ Code changes are welcome too.
 - When adding a dependency, use only MIT / Apache-2.0 / BSD ones (apps that embed this tool distribute without publishing their source).
 - Do not import ComfyUI code (GPL-3.0); talk to it over HTTP only.
 - Put the same 3-line MPL-2.0 notice as in other files at the top of every new `.py` file.
-- Before sending, run `python tools/ci_local.py` to pass the same checks as CI on your PC (tests on Python 3.10 to 3.13, ruff, and the package). You only need [uv](https://docs.astral.sh/uv/). On Windows, `--linux` also runs it inside WSL.
+- Before sending, run `python tools/ci_local.py` to pass the same checks as CI on your PC (tests on Python 3.10 to 3.13, ruff, and the package). You only need [uv](https://docs.astral.sh/uv/). On Windows, `--linux` also runs it inside WSL (when the default WSL distro is Docker Desktop's `docker-desktop`, another distro is used; pick one with `--wsl-distro <name>` or the `GENMODELFIT_WSL_DISTRO` environment variable).
 - For PRs from forks, GitHub's CI runs as well.
 
 ## License

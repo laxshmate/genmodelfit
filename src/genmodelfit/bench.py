@@ -39,7 +39,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse, urlsplit
 
 import psutil
 
@@ -113,6 +113,18 @@ def _queue_ids(items: Any) -> list[str]:
     return [str(x[1]) for x in items or [] if isinstance(x, list) and len(x) > 1]
 
 
+MAX_REDIRECTS = 5
+
+
+def _origin(url: str) -> tuple[str, str, int | None]:
+    p = urlsplit(url)
+    try:
+        port = p.port or {"http": 80, "https": 443}.get(p.scheme.lower())
+    except ValueError:
+        port = -1
+    return p.scheme.lower(), (p.hostname or "").lower(), port
+
+
 class ComfyClient:
     def __init__(self, url: str, session: requests.Session | None = None, timeout: float = 30):
         self.url = url.rstrip("/")
@@ -123,8 +135,35 @@ class ComfyClient:
         import requests
 
         kw.setdefault("timeout", self.timeout)
+        # 転送は同じ相手(scheme・ホスト・ポートが同じ)の中だけ追う: --url の相手が別のホスト(http を含む)へ
+        # 転送すると、ワークフローや画像をそこへ送り直してしまう(セキュリティのレビュー RT-004)
+        kw["allow_redirects"] = False
+        url = self.url + path
+        for _hop in range(MAX_REDIRECTS + 1):
+            r = self._send(requests, method, url, kw)
+            if not getattr(r, "is_redirect", False):
+                return r
+            nxt = urljoin(url, r.headers.get("location", ""))
+            if _origin(nxt) != _origin(self.url):
+                break
+            url = nxt
+            if r.status_code in (301, 302, 303) and method != "HEAD":
+                # requests と同じ: 307・308 以外は GET で取り直し、本文は送らない
+                method = "GET"
+                kw = {k: v for k, v in kw.items() if k not in ("json", "data", "files")}
+        raise BenchError(
+            tr(
+                f"ComfyUI({self.url})が別の場所へ転送しようとしました({r.status_code})。genmodelfit は"
+                "ほかの相手への転送を追いません。転送先が ComfyUI なら、その URL を --url で指定してください",
+                f"ComfyUI ({self.url}) tried to redirect elsewhere ({r.status_code}). "
+                "genmodelfit does not follow redirects to another server; "
+                "if the target is ComfyUI, give its URL with --url",
+            )
+        )
+
+    def _send(self, requests: Any, method: str, url: str, kw: dict[str, Any]) -> requests.Response:
         try:
-            return self.s.request(method, self.url + path, **kw)
+            return self.s.request(method, url, **kw)
         except requests.ConnectionError as e:
             raise BenchError(
                 tr(

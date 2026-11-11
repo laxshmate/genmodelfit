@@ -484,6 +484,33 @@ def test_ci_workflow_runs_only_after_merge_or_for_forks() -> None:
         assert job["if"] == fork_only
 
 
+@pytest.mark.parametrize(
+    ("listing", "want"),
+    [
+        # 既定が docker-desktop(bash が無い)なら、ほかの WSL 2 の最初のもの(2026-11-11)
+        (
+            "  NAME              STATE    VERSION\n* docker-desktop    Running  2\n"
+            "  Ubuntu-24.04      Stopped  2\n  PoshOnTmux        Stopped  1\n",
+            "Ubuntu-24.04",
+        ),
+        # 既定が使えるなら既定のまま(-d を付けない)
+        ("  NAME    STATE    VERSION\n* Ubuntu  Running  2\n  docker-desktop  Running  2\n", None),
+        # ほかに使えるものが無い・読めない
+        ("  NAME  STATE  VERSION\n* docker-desktop  Running  2\n  Old  Stopped  1\n", None),
+        ("", None),
+    ],
+)
+def test_ci_local_skips_docker_desktop_distro(listing: str, want: str | None) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("ci_local", ROOT / "tools" / "ci_local.py")
+    ci_local = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ci_local)
+    assert ci_local.wsl_distro(listing) == want
+    utf16 = listing.encode("utf-16-le").decode("utf-16-le")  # wsl.exe は UTF-16 で出す(読んだ後は同じ文字)
+    assert ci_local.wsl_distro(utf16) == want
+
+
 def test_ci_local_matches_ci_workflow() -> None:
     # 手元の台本が ci.yml と同じ版・同じコマンドを流すこと(片方だけ変えない)
     import importlib.util

@@ -1792,7 +1792,7 @@ PlannedFile:
 | `license_note` | str \| null | why the license differs from the list's value, or why it could not be confirmed |
 | `license_allowed` | bool | on the license allowlist (gate default or `--license-allowlist`) |
 | `gated` | bool \| null | access request needed (also when the upstream of a component asks for it) |
-| `status` | str | `download` / `resume` (a `.part` exists) / `present` (already there, sha256 matches) / `conflict` (a different file has the name; never overwritten) / `unavailable` (see `reason`) |
+| `status` | str | `download` / `resume` (a `.part` exists) / `present` (already there, sha256 matches) / `conflict` (a different file has the name, or the file there cannot be read; never overwritten) / `unavailable` (see `reason`) |
 | `part_bytes` | int | size of the existing `.part` |
 | `remaining_bytes` | int | bytes still to download for this file |
 | `reason` | str \| null | why `conflict` / `unavailable` (in the display language, `en` / `ja`) |

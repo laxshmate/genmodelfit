@@ -9,6 +9,16 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **`plan_download` no longer raises when a file already in the destination cannot be read** (held open by another
+  program, no permission, a Windows path that is too long). The file becomes `conflict` with the reason, and is never
+  overwritten; before, the `OSError` reached the caller even though planning promises not to raise.
+- **`bench` / `measure` no longer follow redirects from ComfyUI to another server.** A server given with `--url` that
+  answered 307 made the workflow and input images be sent again to whatever host it named. Redirects within the same
+  server (same scheme, host and port) are still followed; any other redirect stops with an error that asks for the
+  target's URL.
+- **The marks of what `share` has sent (`submissions_shared.json`) and the brief-peak marks are written atomically**
+  through a temporary file with a unique name, so a crash or two `share` runs at once cannot leave a broken file
+  (which would have been read as empty, losing every mark).
 - **One account that sends both an issue and a fork pull request is one source.** Issues are counted by the numeric
   account id (`Submitted-by-id`) and fork pull requests by the account name, and nothing joined the two, so the same
   person counted twice towards `n_sources` (and could make a group look consistent on their own). When the intake
