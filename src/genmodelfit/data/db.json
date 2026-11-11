@@ -50843,7 +50843,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [
     "en"
@@ -50930,7 +50930,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [
     "en"
@@ -51367,8 +51367,12 @@
    "sampler_stages": null,
    "workflow_precision": null,
    "precision_source": "header",
-   "languages": {},
-   "runtime": null,
+   "languages": {
+    "prompt": [
+     "en"
+    ]
+   },
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [],
    "review": {
@@ -51452,12 +51456,10 @@
    "precision_source": "header",
    "languages": {
     "prompt": [
-     "en",
-     "pt",
-     "th"
+     "en"
     ]
    },
-   "runtime": null,
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [
     "en",
@@ -51940,8 +51942,12 @@
    "sampler_stages": null,
    "workflow_precision": null,
    "precision_source": "header",
-   "languages": {},
-   "runtime": null,
+   "languages": {
+    "prompt": [
+     "en"
+    ]
+   },
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [],
    "review": {
