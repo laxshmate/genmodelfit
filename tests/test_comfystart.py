@@ -295,6 +295,59 @@ def test_measure_starts_comfyui_and_stops_it(capsys, monkeypatch, this_pc, start
     ]
 
 
+def _cwd_comfyui(monkeypatch, tmp_path) -> Path:
+    """今の作業フォルダが ComfyUI(ほかの探し方は効かない)。"""
+    d = venv_install(tmp_path)
+    monkeypatch.chdir(d)
+    monkeypatch.delenv("GENMODELFIT_COMFYUI_DIR", raising=False)
+    from genmodelfit import comfyfind
+
+    monkeypatch.setenv(comfyfind.SEARCH_ENV, "1")  # 試験の既定は探さない(conftest)。ここだけ探す
+    monkeypatch.setattr(comfyfind, "comfy_port_status", lambda *a, **k: None)  # 起動中のものは無い
+    monkeypatch.setattr(comfyfind, "running_candidates", lambda *a, **k: [])
+    real = comfyfind.find_candidates
+    monkeypatch.setattr(
+        comfyfind,
+        "find_candidates",
+        lambda *, probe, cwd=None, places=None: [c for c in real(probe=False, cwd=d) if c.source == "cwd"],
+    )
+    return d
+
+
+def test_cwd_comfyui_is_started_only_after_yes(capsys, monkeypatch, this_pc, starter, tmp_path):
+    """作業フォルダで見つけた ComfyUI は、そのフォルダの python を動かすので、y/N で確かめてから起動する
+    (RT-001)。いいえなら起動しない。"""
+    d = _cwd_comfyui(monkeypatch, tmp_path)
+    _fake_run(monkeypatch, starter)
+    monkeypatch.setattr(cli, "_interactive", lambda: True)
+    answers = iter(["", "n"])  # 測りますか → Enter、起動しますか → n
+    asked = []
+    monkeypatch.setattr("builtins.input", lambda p="": asked.append(p) or next(answers))
+    assert cli.main(["--lang", "ja", "measure", "image_sdxl_simple"]) == 1
+    assert not any(e[0] == "launch" for e in starter)
+    assert asked[-1] == "起動しますか? [y/N] "
+    err = capsys.readouterr().err
+    assert str(d) in err and "python" in err
+    starter.clear()
+    answers = iter(["", "y"])
+    assert cli.main(["--lang", "ja", "measure", "image_sdxl_simple"]) == 0
+    assert ("launch", "venv", str(d)) in starter
+
+
+def test_cwd_comfyui_is_not_started_without_a_terminal(capsys, monkeypatch, this_pc, starter, tmp_path):
+    d = _cwd_comfyui(monkeypatch, tmp_path)
+    _fake_run(monkeypatch, starter)
+    monkeypatch.setattr(cli, "_interactive", lambda: False)
+    monkeypatch.setattr("builtins.input", lambda p="": pytest.fail("尋ねない"))
+    cli.main(["measure", "image_sdxl_simple", "--yes"])
+    assert not any(e[0] == "launch" for e in starter)
+    assert "--comfyui-dir" in capsys.readouterr().err
+    # --comfyui-dir で選んだものは、尋ねずに起動する
+    starter.clear()
+    assert cli.main(["measure", "image_sdxl_simple", "--yes", "--comfyui-dir", str(d)]) == 0
+    assert ("launch", "venv", str(d)) in starter
+
+
 def test_measure_stops_comfyui_after_a_failure(capsys, monkeypatch, this_pc, starter, tmp_path):
     d = venv_install(tmp_path)
     _fake_run(monkeypatch, starter, error="boom")

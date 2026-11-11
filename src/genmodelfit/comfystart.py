@@ -105,6 +105,10 @@ class StartPlan:
     main: Path
     cwd: Path
     extra_args: list[str] = field(default_factory=list)
+    # 今の作業フォルダで見つけた ComfyUI(利用者が選んだものでない)。起動の前に y/N で確かめる(RT-001:
+    # 細工したフォルダで measure を実行すると、そのフォルダの python が動く)。confirmed は答えた後
+    found_in_cwd: bool = False
+    confirmed: bool = False
 
     def argv(self, port: int) -> list[str]:
         head = [str(self.python)] + (["-s"] if self.kind == "portable" else [])

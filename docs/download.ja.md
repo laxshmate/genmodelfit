@@ -67,7 +67,7 @@ genmodelfit download MODEL --uncensored --any-license --yes   # without the ques
 2. 環境変数 `GENMODELFIT_COMFYUI_DIR`(フラグと同じく確かめる)。
 3. [`genmodelfit config`](#genmodelfit-config) で保存した `comfyui-dir`。そのフォルダが無くなっていれば誤りにし、設定の消し方を出す。
 4. 自動で探す。見つけたものは確かめの画面に必ず出す:
-   1. 今いるフォルダ。`main.py`・`comfy/`・`nodes.py`・`comfy_extras/`・`comfy_api/` のうち 4 つがあるとき(comfy-cli と同じ見分け方)。
+   1. 今いるフォルダ。`main.py`・`comfy/`・`nodes.py`・`comfy_extras/`・`comfy_api/` のうち 4 つがあるとき(comfy-cli と同じ見分け方)。`measure`・`share` がこのフォルダの ComfyUI を起動するときは、そのフォルダの python を動かすので、起動の前に場所と python を見せて y/N で確かめる(端末でないとき・`--json` では起動しない。`--comfyui-dir` で指定したものは尋ねない)。
    2. この PC で起動中の ComfyUI: `GET http://127.0.0.1:8188/internal/folder_paths` と、ポート 8000 の同じもの(ComfyUI とデスクトップ版の既定)。時間切れ 2 秒、転送は追わない、プロキシは使わない。ComfyUI はこの口を自分の画面のためだけのもので変わりうると書いているので、答えが無い・形が違うときは黙って次へ進む。ComfyUI のフォルダは `custom_nodes` の親(無ければ `models` の親)。尋ねるのは**落とすとき**と、`measure`・`share` が測りに使う ComfyUI を探すときだけ: `--list` とほかのコマンドは通信しない。
    3. ComfyUI デスクトップ版の設定: 利用者データのフォルダ(Windows `%APPDATA%\ComfyUI`、macOS `~/Library/Application Support/ComfyUI`、Linux `~/.config/ComfyUI`)の `config.json` の `basePath` と、そこの `extra_models_config.yaml`。comfy-cli: `config.ini` の `default_workspace`・`recent_workspace` と既定の場所(Windows・macOS は `~/Documents/comfy/ComfyUI`、Linux は `~/comfy/ComfyUI`)。新しい「Comfy Desktop」は探さない(確かめたソースにフォルダの場所が無い)。
    4. よくある場所(1 段だけ): 固定ドライブ(Windows の `C:\`・`D:\` など)・ドキュメント・デスクトップ・ダウンロード・ホームの直下の `ComfyUI` と `ComfyUI_windows_portable\ComfyUI`。
