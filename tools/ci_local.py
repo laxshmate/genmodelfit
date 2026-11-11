@@ -198,11 +198,37 @@ def run_in_wsl(args: argparse.Namespace) -> bool:
         f'set -e; d="{WSL_HOME_DIR}"; rm -rf "$d/src"; mkdir -p "$d/src"; tar -x -C "$d/src"; cd "$d/src"; '
         f"exec uv run -q --no-project --python {LINT_VERSION} python tools/ci_local.py {' '.join(inner)}"
     )
-    print(f"\n##### WSL の中で流します({len(buf.getvalue()) // 1024} KB を写す)", flush=True)
-    return (
-        subprocess.run(["wsl", "-e", "bash", "-lc", script], input=buf.getvalue(), check=False).returncode
-        == 0
-    )
+    distro = args.wsl_distro or wsl_distro()
+    where = ["-d", distro] if distro else []
+    name = f"({distro})" if distro else ""
+    print(f"\n##### WSL{name} の中で流します({len(buf.getvalue()) // 1024} KB を写す)", flush=True)
+    cmd = ["wsl", *where, "-e", "bash", "-lc", script]
+    return subprocess.run(cmd, input=buf.getvalue(), check=False).returncode == 0
+
+
+def wsl_distro(listing: str | None = None) -> str | None:
+    """流す WSL のディストリ。既定のディストリが Docker Desktop のもの(`docker-desktop`。bash が無い)
+    のときは、ほかの最初のものを使う(2026-11-11: Docker Desktop が既定になり、`wsl -e bash` が
+    起動できなかった)。
+    既定が使えるとき・一覧を読めないときは None(既定のまま)。listing は試験用(`wsl -l -v` の出力)。"""
+    if listing is None:
+        try:
+            raw = subprocess.run(["wsl", "-l", "-v"], capture_output=True, check=False, timeout=30).stdout
+        except (OSError, subprocess.SubprocessError):
+            return None
+        listing = raw.decode("utf-16-le", errors="ignore") if b"\x00" in raw else raw.decode(errors="ignore")
+    rows = []  # (既定か, 名前, 版)。1 行目は見出し
+    for line in listing.replace("\x00", "").splitlines()[1:]:
+        parts = line.split()
+        is_default = bool(parts) and parts[0] == "*"
+        parts = parts[1:] if is_default else parts
+        if len(parts) >= 3 and parts[-1].isdigit():
+            rows.append((is_default, parts[0], int(parts[-1])))
+    default = next((n for d, n, _ in rows if d), None)
+    if default is None or not default.lower().startswith("docker-desktop"):
+        return None
+    usable = [n for d, n, v in rows if not d and v >= 2 and not n.lower().startswith("docker-desktop")]
+    return usable[0] if usable else None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -212,6 +238,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-tests", action="store_true", help="試験と ruff を飛ばす(配布物だけ流し直す)")
     ap.add_argument("--linux", action="store_true", help="続けて WSL の中でも流す")
     ap.add_argument("--linux-only", action="store_true", help="WSL の中だけで流す")
+    ap.add_argument(
+        "--wsl-distro",
+        default=os.environ.get("GENMODELFIT_WSL_DISTRO"),
+        help="流す WSL のディストリ(既定: WSL の既定。それが docker-desktop ならほかの最初のもの)",
+    )
     ap.add_argument(
         "--quick",
         action="store_true",
