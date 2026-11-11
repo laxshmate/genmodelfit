@@ -434,9 +434,12 @@ def test_flux3_klein_params_are_hidden_3072():
     """手の表の数(HF API の safetensors.total)は、ComfyUI の Flux3 の既定(hidden 3072)の形で
     数えた値と一致する。
     hidden が違えば一致しない(2560・3584 では数が大きく外れる)。"""
-    known = {pat: n for pat, n, _ in KNOWN_PARAMS}
-    assert known[r"^flux3-image-klein-base-"] == _flux3_params(3072)
-    assert known[r"^flux3-image-klein-(?!base-)"] == _flux3_params(3072, flow_map=True)
+    assert [n for _, n, _ in KNOWN_PARAMS] == [_flux3_params(3072), _flux3_params(3072, flow_map=True)]
+    # 表はファイル名の完全一致。別の大きさの Klein(仮の名前)には当たらない
+    pats = [pat for pat, _, _ in KNOWN_PARAMS]
+    for name in ("flux3-image-klein-int8-convrot.safetensors", "flux3-image-klein-base-nvfp4.safetensors"):
+        assert sum(bool(re.search(p, name)) for p in pats) == 1, name
+    assert not any(re.search(p, "flux3-image-klein-9b-bf16.safetensors") for p in pats)
     assert all(abs(_flux3_params(h) - 5.54e9) > 1e9 for h in (2560, 3584))
     assert WORKS["flux3_klein"].factor == WORKS["flux2_4b"].factor
 

@@ -229,14 +229,14 @@ FLUX3_KLEIN_MAX = 6e9
 # 1 行 = (本体のファイル名の正規表現, パラメータ数, 出典)。docs/accuracy.md「系統の当て方」
 KNOWN_PARAMS: tuple[tuple[str, int, str], ...] = (
     (
-        r"^flux3-image-klein-base-",
+        r"^flux3-image-klein-base-(?:bf16|int8-convrot|nvfp4)\.safetensors$",
         5_538_458_368,
         "HF API の safetensors.total(black-forest-labs/flux-3-image-klein-base、2026-11-11)。"
         f"comfy/ldm/flux3/model.py:79@{C} の既定(hidden 3072・depth 5・single 28・"
         "flow_map なし)で数えた値と一致",
     ),
     (
-        r"^flux3-image-klein-(?!base-)",
+        r"^flux3-image-klein-(?:bf16|int8-convrot|nvfp4)\.safetensors$",
         5_548_681_984,
         "HF API の safetensors.total(black-forest-labs/flux-3-image-klein、2026-11-11)。"
         f"comfy/ldm/flux3/model.py:79@{C} の既定(hidden 3072・depth 5・single 28・"
