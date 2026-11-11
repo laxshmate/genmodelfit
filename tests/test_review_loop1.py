@@ -107,3 +107,13 @@ def test_template_urls_keep_normal_names():
         template_url("image_z_image_turbo_int8") == f"{TEMPLATES_RAW}/templates/image_z_image_turbo_int8.json"
     )
     assert template_input_url("my image (1).png") == f"{TEMPLATES_RAW}/input/my%20image%20%281%29.png"
+
+
+def test_signing_verify_non_ascii_sig_is_an_error(tmp_path, capsys):
+    from genmodelfit import signing
+
+    f = tmp_path / "db.json"
+    f.write_text("{}", encoding="utf-8")
+    (tmp_path / "db.json.sig").write_bytes("署名".encode())
+    assert signing.main(["verify", str(f)]) == 1
+    assert "error:" in capsys.readouterr().err
