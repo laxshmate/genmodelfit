@@ -153,9 +153,11 @@ ComfyUI's code (GPL-3.0) is neither imported nor copied. Only the numbers and th
 | ACE-Step 1.5 LM | 5 × seconds tokens × 0.4375 MiB (0.5625 for the 4B LM) × 0.5 | text_encoders/ace15.py:243-246, 323-326, 384-391 |
 | LTX-2 / 2.3 Gemma | at least 642 tokens × 6 MiB × 0.5 ≈ 1.88 GiB | text_encoders/lt.py:246-256 |
 | YuE2 | with the song-stage length L = seconds × 25 + 2: (2 × 28 × 8 × 128 × L + L² + L × 34816) × 2 bytes | text_encoders/yue2.py:129-137 |
+| Ming Image (0.15.1) | MoE expert weights 3 × 2048 × 512 × 256 × 4 bytes (fp32, so not doubled) + 600 × (1 + input images) tokens × 2048 × 64 bytes ≈ 3.07 GiB (3.15 GiB for edits) | text_encoders/ming_image.py:20-32, 297, 310, 332-336 |
 
 - The template's default token counts are unknown, so the minimum is used (the YuE2 score stage, 8192 tokens by default, is not included; future work).
-- Ming's image encoder (text_encoders/ming_image.py:332) also has an estimate, but Ming has no VAE formula and cannot be mapped (earlier formula).
+- Ming's template always ends with one query block, and ComfyUI counts it and each input image as 600 tokens.
+  A text token (128 KiB) is not counted (a few hundred tokens are tens of MiB).
 
 ### Tiles
 
@@ -261,13 +263,17 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
       (`tests/test_working.py` recounts them). With hidden 2560 or 3584 the count is off by more than 1B
   - LTX: 14B or more → LTXAV (LTX-2 / 2.3; factor 0.077, :980), 10B or more → LTXV 13B (11 = 5.5 × 4096 / 2048, :960), otherwise → LTXV (5.5)
   - SD: an (all-in-one) main model of 3.3B or more → SDXL (0.8, :219), below → SD1.5, SD2, SDXL refiner (all 1.0, :69, 116, 180)
+  - Ming Image (0.15.1): it inherits ZImage, so the factor is 2.8 (:1239, 1268). The latent is 3-D with the Wan 2.1 shape
+    (latent_formats.py:779-782; one frame for an image), and ComfyUI's checks put the VAE header (`ming_image_vae_bf16` of
+    Comfy-Org/Ming-Image, 2026-11-11) in the Wan 2.1 VAE branch (sd.py:842, 868-883; no key of the Wan 2.2 layout; dim 96,
+    RGBA). Reference latents are counted too (model_base.py:1550, 1594-1598)
   - Stable Audio 3 (0.15.1): factor 7 (:634). The latent has 256 channels and seconds × 44100 / 4096 frames (sample.py:61-65
     shrinks the empty latent to the 4096 ratio). The VAE is inside the all-in-one file, and ComfyUI picks one of two
     configurations from a header key (sd.py:1006-1018; the large one decodes with 1500 × L × 4096, the small one with
     72 × L × 4096). The list does not keep header keys, so the name table `working.SA3_VAE_BY_NAME`, checked by reading the
     headers of the 4 all-in-one files of Comfy-Org/stable-audio-3, picks it (2026-11-11: medium has the large VAE with 12
     transformer layers, small the small one with 6). Names not in the table are not mapped
-- Other factors: SD3 1.6, Flux 3.1, Chroma 3.2, LongCat 2.5, HiDream 2.0 (default), Lumina2 1.4, Z-Image 2.8,
+- Other factors: SD3 1.6, Flux 3.1, Chroma 3.2, LongCat 2.5, HiDream 2.0 (default), Lumina2 1.4, Z-Image 2.8, Ming Image 2.8,
   Omnigen2 1.95 (Boogu 2.15), Kandinsky5 1.25, Krea2 2.2, Qwen Image 1.8, JoyImage 1.8, Anima 0.95, Lens 4.0,
   Ideogram4 11.6, MOSS-Image 14.6, ERNIE 10.0, MageFlow 6.5, Qwen Image 2.1 6.0, HiDream O1 0.033, PixelDiT 0.04,
   HunyuanVideo 1.8, HunyuanVideo 1.5 4.0, CogVideoX 2.0 (default), MiniMax H3 0.114, ACE-Step 1.5 4.7, ACE-Step 1 0.5,
@@ -283,13 +289,13 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
 These use **the earlier per-modality formula for the whole model** (ComfyUI's default factor 2.0 is not used: it would overestimate
 non-diffusion tools such as SAM3, Depth Anything and frame interpolation).
 
-<!-- fallback-count: 79 -->
-79 of the 330 entries in the bundled list:
+<!-- fallback-count: 77 -->
+77 of the 330 entries in the bundled list:
 
 - 23 text to speech, 10 3D (the `act_3d_gb` formula; ComfyUI's 3D estimate has a different shape)
 - 27 with an unknown family (13 image, 13 video, 1 music)
-- 16 with a family but no formula: SeedVR2 4,
-  SD video (SVD, AnimateDiff) 3, Ming 2 (no VAE formula), Qwen Image video workflows 2, Depth Anything 3 2, SAM3 2, MiniMax Music 1
+- 14 with a family but no formula: SeedVR2 4,
+  SD video (SVD, AnimateDiff) 3, Qwen Image video workflows 2, Depth Anything 3 2, SAM3 2, MiniMax Music 1
 - 3 with an unknown size: Wan 2 (the list has no main file), SD 1 (a `.ckpt`, whose header cannot be read)
   - The 4 Flux3 Klein entries are mapped from 0.15.1 ("How families are mapped" above)
 
@@ -639,7 +645,7 @@ How to read it:
   1. Text-stage working memory ComfyUI does not estimate: image tokens of Qwen2.5-VL, Flux2's Mistral, the YuE2 score stage (8192 tokens),
      the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), and so on
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used
-  3. Reduce the models without a per-stage formula (79): the SeedVR2 and Ming VAEs, and so on (Flux3 Klein and Stable Audio 3 were mapped in 0.15.1)
+  3. Reduce the models without a per-stage formula (77): the SeedVR2 VAE, and so on (Flux3 Klein, Stable Audio 3 and Ming Image were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
      `MIN_WEIGHT_MEMORY_RATIO = 0` (model_management.py:458-460@426f5ee), and dynamic VRAM is the default from 0.16. Images now use

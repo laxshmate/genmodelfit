@@ -95,6 +95,8 @@ PINNED = {
     "image_flux3_klein_t2i": ("flux3_klein", "flux2", 1.1703, 4.2539, 4.2539, 0.0),
     "audio_stable_audio_3_medium": ("sa3_medium", "sa3_large", 0.0442, 3.6964, 2.9297, 0.0),
     "manual:stable-audio-3-small-music": ("sa3_small", "sa3_small", 0.0442, 0.1774, 0.1406, 0.0),
+    "image_ming_image_01_design_t2i": ("ming_image", "wan", 0.8960, 4.2969, 0.2686, 3.0732),
+    "image_ming_image_01_design_image_edit": ("ming_image", "wan", 1.7920, 4.2969, 0.2686, 3.1465),
 }
 
 
@@ -134,6 +136,19 @@ def test_formula_by_hand():
     assert sa3[4] == pytest.approx(1500 * 256 * 4096 * 2 / GIB, abs=1e-4)
     assert PINNED["manual:stable-audio-3-small-music"][3] == pytest.approx(
         72 * 323 * 4096 * 2 / GIB, abs=1e-4
+    )
+    # Ming 1024²: 潜在 1 × 128 × 128(Wan 2.1 の形)、係数 2.8。編集は参照の潜在 1 枚ぶん足す。
+    # VAE は Wan 2.1 の 2200 × 128 × 128 × 64 × 2 B。
+    # 文章の段は fp32 の専門家の重み 3 × 2048 × 512 × 256 × 4 B と、
+    # 問い合わせ(+ 入力の画像)600 トークン × 2048 × 64 B
+    ming = PINNED["image_ming_image_01_design_t2i"]
+    assert ming[2] == pytest.approx(128 * 128 * 2 * 0.01 * 2.8 / 1024, abs=1e-4)
+    assert PINNED["image_ming_image_01_design_image_edit"][2] == pytest.approx(2 * ming[2], abs=1e-4)
+    assert ming[3] == pytest.approx(2200 * 128 * 128 * 64 * 2 / GIB, abs=1e-4)
+    banks = 3 * 2048 * 512 * 256 * 4
+    assert ming[5] == pytest.approx((banks + 600 * 2048 * 64) / GIB, abs=1e-4)
+    assert PINNED["image_ming_image_01_design_image_edit"][5] == pytest.approx(
+        (banks + 2 * 600 * 2048 * 64) / GIB, abs=1e-4
     )
 
 
@@ -793,3 +808,13 @@ def test_calibrate_uses_bundled_measurements_only(tmp_path, monkeypatch, capsys)
     assert all(x["model_id"] != "utility_moge_depth_estimation" for x in again["check"])
     assert cal.main(["--dry-run", "--date", committed["date"]]) == 0
     assert "1 件は使わない" in capsys.readouterr().out
+
+
+def test_ming_text_stage_is_not_doubled_without_bf16(db):
+    """Ming の文章の段は fp32 の専門家の重みの分なので、bf16 の無い GPU でも 2 倍しない(TE_FIXED_DTYPE)。"""
+    m = db.get("image_ming_image_01_design_t2i")
+    s = E.settings_for(m, None)
+    assert pytest.approx(stage_memory(m, s).T) == stage_memory(m, s, no_bf16=True).T
+    ace = db.get("audio_ace_step_1_5_checkpoint")
+    sa = E.settings_for(ace, None)
+    assert pytest.approx(2 * stage_memory(ace, sa).T) == stage_memory(ace, sa, no_bf16=True).T
