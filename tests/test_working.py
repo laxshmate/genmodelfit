@@ -825,3 +825,11 @@ def test_ming_text_stage_is_not_doubled_without_bf16(db):
     ace = db.get("audio_ace_step_1_5_checkpoint")
     sa = E.settings_for(ace, None)
     assert pytest.approx(2 * stage_memory(ace, sa).T) == stage_memory(ace, sa, no_bf16=True).T
+
+
+def test_minimax_music3_latent_is_capped_at_max_audio_frames(db):
+    """MiniMax Music 3 の長さはノードが MAX_AUDIO_FRAMES 9000 コマ(360 秒)で止める(ar.py:21)。"""
+    m = db.get("audio_minimax_music_3")
+    long = stage_memory(m, E.settings_for(m, Settings(seconds=600)))
+    cap = stage_memory(m, E.settings_for(m, Settings(seconds=360)))
+    assert pytest.approx(cap.S) == long.S

@@ -720,8 +720,8 @@ def _dims(entry, s, lat: Latent, *, image_frames: bool) -> Shape:
     mod = entry.modality
     if lat.kind == "1d":
         sec = s.seconds if s.seconds and s.seconds > 0 else 30.0
-        if lat.key == "mm3":  # 25 コマ/秒に丸めてから切り捨て(dit.py:16-17)
-            L = max(1, int(round(sec * 25) * 44100 / 24000 * 960 / 512))
+        if lat.key == "mm3":  # 25 コマ/秒に丸め、MAX_AUDIO_FRAMES 9000 まで、切り捨て(dit.py:16-17・ar.py:21)
+            L = max(1, int(min(9000, max(1, round(sec * 25))) * 44100 / 24000 * 960 / 512))
         else:
             L = max(1, int(sec * lat.rate)) if lat.key == "ace" else max(1, round(sec * lat.rate))
         sr = 48000 if lat.key in ("ace15", "yue2") else 44100
