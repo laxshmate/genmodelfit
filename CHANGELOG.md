@@ -9,6 +9,11 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **One account that sends both an issue and a fork pull request is one source.** Issues are counted by the numeric
+  account id (`Submitted-by-id`) and fork pull requests by the account name, and nothing joined the two, so the same
+  person counted twice towards `n_sources` (and could make a group look consistent on their own). When the intake
+  bot's commit carries both `Submitted-by` and `Submitted-by-id`, the name and the id are now one person. The bundled
+  community aggregate does not change.
 - **A failed file write no longer ends with exit code 0 or a traceback.** On Windows, opening a file with an invalid
   name (`contrib make --output "x|y.json"`) raised EINVAL, which the CLI took for a closed pipe and so reported
   success with nothing written. Only an EINVAL without a file name now counts as a closed pipe; other file errors
