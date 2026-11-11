@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.15.1] - Unreleased
+
+### Fixed
+
+- **A failed file write no longer ends with exit code 0 or a traceback.** On Windows, opening a file with an invalid
+  name (`contrib make --output "x|y.json"`) raised EINVAL, which the CLI took for a closed pipe and so reported
+  success with nothing written. Only an EINVAL without a file name now counts as a closed pipe; other file errors
+  (permission, disk full, invalid name) print `error: …` (or the `--json` error envelope) and exit with 1.
+- **One broken file in `<cache>/measurements/` no longer stops every command.** It is skipped with a warning on the
+  `genmodelfit` logger, like a broken cached list; folders passed explicitly are still checked strictly.
+- **The ComfyUI logs that `measure` / `share` write are capped**: only the newest 10 `comfyui-<date>.log` are kept.
+- **Official template and input names are checked before they go into the GitHub URL**: names with `/`, `\`, `..`,
+  `?`, `#`, `%` or control characters are refused, and the rest are URL-encoded.
+- `python -m genmodelfit.signing verify` reports a `.sig` with non-ASCII bytes as an error instead of a traceback;
+  `python -m genmodelfit.calibrate` skips measurements whose peak VRAM is 0 instead of dividing by zero.
+
 ## [0.15.0] - 2026-11-03
 
 ### Changed

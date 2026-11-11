@@ -105,6 +105,8 @@ def _rows(db: Database, c: Coefficients | None, *, same_metric: bool) -> list[Ro
         # 1 件から使うが、全モデルに効く係数の合わせ直しと照合には、そろったもの(consistent)だけ入れる
         if e is None or not usable(m) or (is_community(m) and not m.consistent):
             continue
+        if not (m.peak_vram_gb or 0) > 0:  # 割り算に使う(0 のピークは測り損ね)
+            continue
         if (getattr(m, "vram_metric", None) == CALIBRATION_METRIC) != same_metric:
             continue
         parts = components(e)

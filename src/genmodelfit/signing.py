@@ -162,7 +162,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         sig_path = Path(args.sig) if args.sig else path.with_name(path.name + ".sig")
         ok = verify(path.read_bytes(), decode_sig(sig_path.read_text(encoding="ascii")))
-    except (OSError, SigningError) as e:
+    except (
+        OSError,
+        ValueError,
+        SigningError,
+    ) as e:  # ValueError: .sig に ASCII でない文字(UnicodeDecodeError)
         print(f"error: {e}", file=sys.stderr)
         return 1
     print(

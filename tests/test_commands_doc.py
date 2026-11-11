@@ -65,3 +65,12 @@ def test_no_machine_specific_paths(page):
 
 def test_check_mode_passes():
     assert cli_reference.main(["--check"]) == 0
+
+
+def test_user_name_is_replaced_only_inside_paths():
+    # ユーザ名が owner のような普通の語でも、本文の `<owner>/<repo>` を壊さない(2026-11-11)
+    pairs = [("owner", "<user>")]
+    clean = cli_reference._clean
+    assert clean("https://huggingface.co/<owner>/<repo>", pairs) == "https://huggingface.co/<owner>/<repo>"
+    assert clean("the owner of the repo", pairs) == "the owner of the repo"
+    assert clean(r"/home/owner/x and C:\Users\owner", pairs) == r"/home/<user>/x and C:\Users\<user>"
