@@ -208,7 +208,7 @@ Python の関数は読みません。キーは `comfyui-dir`(フォルダのパ�
 でフォルダを変えられます。設定のフォルダには `share` の GitHub のログイン(`github_token`。本人だけが読める。
 `genmodelfit share --logout` で消す)も入ります。キャッシュには、`update` で取った一覧(`db.json`)、HEAD とファイルの見出しの確認の結果、
 `measure`・`bench` の結果(`measurements/`。この PC の判定にも使う)、提出の下書きと失敗の記録(`submissions/`。`share` が送るもの)、
-`share` で送った印(`submissions_shared.json`)、`measure`・`share` が起動した ComfyUI の出力(`comfyui-<日付>.log`)、
+`share` で送った印(`submissions_shared.json`)、`measure`・`share` が起動した ComfyUI の出力(`comfyui-<日付>.log`。新しい 10 個だけ残す)、
 測るあいだの `measure.lock`(同時に測るのは 1 つの `measure` か `share` だけ)が入ります。
 キャッシュのフォルダは消してもかまいません(同梱の一覧に戻ります。保存した結果も消えます)。
 
@@ -750,7 +750,7 @@ genmodelfit download [-h] [--lang {en,ja}] [--json] [--vram GB] [--ram GB] [--db
 - 足りないのが同意だけなら、計画の最後に同意を足したコマンドを 1 つ出す(genmodelfit が勝手に足して落とすことはしない)。
 - 断るもの(どのオプションでも変わらない): gated のファイル(ログインしない)、ディスクの空きが足りない(落とす量 + 1 GB が要る)、置き場所の外に出る名前、Hugging Face / GitHub 以外のホスト。
 - 落としたファイルを使うには: ComfyUI を開いていたらブラウザで読み込み直し、ComfyUI のテンプレートの一覧から、info の 1 行目の名前のテンプレートを開く([ ] の中の ID はテンプレートのファイル名)。
-- ID が hf: で始まるモデルには ComfyUI のテンプレートが無いので、使い方は Hugging Face のページ(`https://huggingface.co/<owner>/<repo>`)を見る。
+- ID が hf: で始まるモデルには ComfyUI のテンプレートが無いので、使い方は Hugging Face のページ(`https://huggingface.co/<<user>>/<repo>`)を見る。
 
 **オプションと引数**
 
@@ -888,7 +888,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 - 通信: ComfyUI が起動しているか・フォルダの場所を 127.0.0.1 の 8188・8000 に尋ねる(`--url` が無いとき)、測る ComfyUI(ノードの確かめと仕事を 1 つ)、その ComfyUI に無ければ GitHub の公式のテンプレートと入力の画像、落とすときはモデルのファイル。
 - この PC のことはほかへ送らない。
 - 結果を `<cache>/measurements/`(この PC の判定に使う)に、送るための下書き(か失敗の記録)を `<cache>/submissions/`(`genmodelfit share` が送るもの)に書く。
-- 起動した ComfyUI の出力は `<cache>/comfyui-<日付>.log`。
+- 起動した ComfyUI の出力は `<cache>/comfyui-<日付>.log`(新しい 10 個だけ残す)。
 - 測るあいだは `<cache>/measure.lock`。
 - この実行で落としたモデルのファイルを消すのは、y と答えたか `--delete-downloaded` のときだけ(置き場所の中だけ)。
 

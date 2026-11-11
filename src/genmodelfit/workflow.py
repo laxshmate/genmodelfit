@@ -18,6 +18,7 @@ import copy
 import re
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import quote
 
 from .i18n import tr
 from .models import Settings
@@ -50,12 +51,28 @@ class WorkflowError(ValueError):
     missing_nodes: list[str] | None = None
 
 
+_URL_PART_BAD = re.compile(r"[/\\?#%\x00-\x1f\x7f]|\.\.|^\.|^\s|\s$")
+
+
+def _url_part(part: str) -> str:
+    """公式テンプレートの URL に入れる名前(1 つのファイル名だけ)。`/`・`..`・`?` などで別のファイルを
+    取りに行かないよう、形を確かめて符号化する。"""
+    if not part or _URL_PART_BAD.search(part):
+        raise WorkflowError(
+            tr(
+                f"公式テンプレートの名前として使えません: {part!r}",
+                f"not usable as an official template name: {part!r}",
+            )
+        )
+    return quote(part)
+
+
 def template_url(name: str) -> str:
-    return f"{TEMPLATES_RAW}/templates/{name}.json"
+    return f"{TEMPLATES_RAW}/templates/{_url_part(name)}.json"
 
 
 def template_input_url(filename: str) -> str:
-    return f"{TEMPLATES_RAW}/input/{filename}"
+    return f"{TEMPLATES_RAW}/input/{_url_part(filename)}"
 
 
 def is_api_format(data: Any) -> bool:

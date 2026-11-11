@@ -216,7 +216,7 @@ move the folders. The config folder also holds the GitHub sign-in of `share` (`g
 `genmodelfit share --logout` removes it). The cache holds the list from `update` (`db.json`), the results of the HEAD and file-header checks,
 your `measure` and `bench` results (`measurements/`, also used when this PC is judged), submission drafts
 and failure records (`submissions/`, what `share` sends), the marks of what `share` has sent
-(`submissions_shared.json`), the output of a ComfyUI that `measure` / `share` started (`comfyui-<date>.log`) and,
+(`submissions_shared.json`), the output of a ComfyUI that `measure` / `share` started (`comfyui-<date>.log`, the newest 10 are kept) and,
 while measuring, `measure.lock` (only one `measure` / `share` measures at a time).
 Deleting the cache folder is safe: the bundled list is used again (your saved results go with it).
 
@@ -757,7 +757,7 @@ Download the files of a model for this PC (all files of one workflow), checking 
 - When only the consent is missing, the plan ends with one command that adds it (genmodelfit never adds it by itself).
 - Refused (no option lifts these): gated files (no login is used), too little disk (needs the download + 1 GB), names that would land outside the folder, hosts other than Hugging Face / GitHub.
 - To use the files: reload ComfyUI in the browser if it was open, then open, from ComfyUI's template list, the template titled as in the first line of info (the id in [ ] is the template's file name).
-- Models whose id starts with hf: have no ComfyUI template: their Hugging Face page (`https://huggingface.co/<owner>/<repo>`) says how to use them.
+- Models whose id starts with hf: have no ComfyUI template: their Hugging Face page (`https://huggingface.co/<<user>>/<repo>`) says how to use them.
 
 **Options and arguments**
 
@@ -885,7 +885,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 - Network: asks 127.0.0.1 ports 8188 and 8000 whether ComfyUI runs and where its folders are (without `--url`), the ComfyUI it measures on (the node check and one job), the official template and its input images from GitHub when that ComfyUI lacks them, and the model files when it downloads them.
 - Nothing about this PC is sent anywhere else.
 - Writes the result to `<cache>/measurements/` (used when this PC is judged) and a submission draft (or a failure record) to `<cache>/submissions/` (what `genmodelfit share` sends).
-- A started ComfyUI writes its output to `<cache>/comfyui-<date>.log`; `<cache>/measure.lock` while measuring.
+- A started ComfyUI writes its output to `<cache>/comfyui-<date>.log` (the newest 10 are kept); `<cache>/measure.lock` while measuring.
 - Deletes the model files this run downloaded only on y or `--delete-downloaded` (only inside the destination).
 
 **Exit codes**

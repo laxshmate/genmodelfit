@@ -223,7 +223,7 @@ move the folders. The config folder also holds the GitHub sign-in of `share` (`g
 `genmodelfit share --logout` removes it). The cache holds the list from `update` (`db.json`), the results of the HEAD and file-header checks,
 your `measure` and `bench` results (`measurements/`, also used when this PC is judged), submission drafts
 and failure records (`submissions/`, what `share` sends), the marks of what `share` has sent
-(`submissions_shared.json`), the output of a ComfyUI that `measure` / `share` started (`comfyui-<date>.log`) and,
+(`submissions_shared.json`), the output of a ComfyUI that `measure` / `share` started (`comfyui-<date>.log`, the newest 10 are kept) and,
 while measuring, `measure.lock` (only one `measure` / `share` measures at a time).
 Deleting the cache folder is safe: the bundled list is used again (your saved results go with it).
 
@@ -440,7 +440,7 @@ Python の関数は読みません。キーは `comfyui-dir`(フォルダのパ�
 でフォルダを変えられます。設定のフォルダには `share` の GitHub のログイン(`github_token`。本人だけが読める。
 `genmodelfit share --logout` で消す)も入ります。キャッシュには、`update` で取った一覧(`db.json`)、HEAD とファイルの見出しの確認の結果、
 `measure`・`bench` の結果(`measurements/`。この PC の判定にも使う)、提出の下書きと失敗の記録(`submissions/`。`share` が送るもの)、
-`share` で送った印(`submissions_shared.json`)、`measure`・`share` が起動した ComfyUI の出力(`comfyui-<日付>.log`)、
+`share` で送った印(`submissions_shared.json`)、`measure`・`share` が起動した ComfyUI の出力(`comfyui-<日付>.log`。新しい 10 個だけ残す)、
 測るあいだの `measure.lock`(同時に測るのは 1 つの `measure` か `share` だけ)が入ります。
 キャッシュのフォルダは消してもかまいません(同梱の一覧に戻ります。保存した結果も消えます)。
 

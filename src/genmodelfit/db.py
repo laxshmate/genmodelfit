@@ -12,6 +12,7 @@ measurements_community.json)とキャッシュのものを合わせて使う。
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 from dataclasses import dataclass, field
@@ -406,13 +407,22 @@ def load_measurements(
     同じになる。#100)。"""
     out = parse_measurements(_loads_measurements(bundled_text("measurements.json")))
     out.extend(parse_measurements(_loads_measurements(bundled_text(COMMUNITY_FILE))))
-    dirs = [cache_dir() / "measurements"] if include_cache else []
+    cache = cache_dir() / "measurements"
+    dirs = [cache] if include_cache else []
     for d in [*dirs, *(extra_dirs or [])]:
         if d.is_dir():
             for p in sorted(d.glob("*.json")):
                 try:
                     out.extend(parse_measurements(_loads_measurements(p.read_text(encoding="utf-8"))))
                 except (OSError, ValueError, TypeError) as e:
+                    if d is cache:
+                        # この PC のキャッシュの 1 つが壊れていても(書きかけ・手で直した)、
+                        # ほかの判定は止めない。壊れた一覧のキャッシュを同梱へ戻すのと同じ扱い。
+                        # 渡されたフォルダ(extra_dirs)は厳しく見る
+                        logging.getLogger("genmodelfit").warning(
+                            "skipping a broken measurements file: %s: %s", p, e
+                        )
+                        continue
                     raise DatabaseError(
                         tr(
                             f"実測のファイルを読めません: {p}: {e}",

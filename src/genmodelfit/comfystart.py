@@ -236,6 +236,20 @@ def log_path(cache: Path | None = None) -> Path:
     return (cache or cache_dir()) / f"comfyui-{day}.log"
 
 
+LOG_KEEP = 10  # 起動のたびに 1 つ増えるので、新しいものから これだけ残す
+
+
+def prune_logs(folder: Path, keep: int = LOG_KEEP) -> None:
+    """古い `comfyui-*.log` を消す(名前に日時が入るので名前の順 = 古い順)。消せないものは飛ばす。"""
+    try:
+        logs = sorted(p for p in folder.glob("comfyui-*.log") if p.is_file())
+    except OSError:
+        return
+    for p in logs[: max(0, len(logs) - keep)]:
+        with contextlib.suppress(OSError):
+            p.unlink()
+
+
 @dataclass
 class Started:
     """起動した ComfyUI(止めるのはこれだけ)。"""
@@ -271,7 +285,10 @@ def launch(
             port = free_port()
             if not port_in_use(port):
                 break
-    log = log or log_path()
+    if log is None:
+        log = log_path()
+        log.parent.mkdir(parents=True, exist_ok=True)
+        prune_logs(log.parent, LOG_KEEP - 1)  # これから作る 1 つと合わせて LOG_KEEP
     log.parent.mkdir(parents=True, exist_ok=True)
     kw: dict[str, Any] = {
         "cwd": str(plan.cwd),

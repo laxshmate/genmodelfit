@@ -8868,7 +8868,8 @@ SIDE EFFECTS:
   downloads them. Nothing about this PC is sent anywhere else.
   Writes the result to <cache>/measurements/ (used when this PC is judged) and a submission draft
   (or a failure record) to <cache>/submissions/ (what genmodelfit share sends). A started ComfyUI
-  writes its output to <cache>/comfyui-<date>.log; <cache>/measure.lock while measuring.
+  writes its output to <cache>/comfyui-<date>.log (the newest 10 are kept); <cache>/measure.lock
+  while measuring.
   Deletes the model files this run downloaded only on y or --delete-downloaded (only inside the
   destination).
 
@@ -9399,8 +9400,9 @@ ComfyUI は、測る前に空ける(/free。モデルを外し、前の結果を
   テンプレートと入力の画像、落とすときはモデルのファイル。この PC のことはほかへ送らない。
   結果を <cache>/measurements/(この PC の判定に使う)に、送るための下書き(か失敗の記録)を
   <cache>/submissions/(genmodelfit share が送るもの)に書く。起動した ComfyUI の出力は
-  <cache>/comfyui-<日付>.log。測るあいだは <cache>/measure.lock。この実行で落としたモデルの
-  ファイルを消すのは、y と答えたか --delete-downloaded のときだけ(置き場所の中だけ)。
+  <cache>/comfyui-<日付>.log(新しい 10 個だけ残す)。測るあいだは <cache>/measure.lock。
+  この実行で落としたモデルのファイルを消すのは、y と答えたか --delete-downloaded のときだけ
+  (置き場所の中だけ)。
 
 終了コード:
   0  成功(選ばなかった・出す提案が無い・「測りますか?」や落とす質問に n と答えた・送れない
@@ -11842,29 +11844,42 @@ def _main(argv: list[str]) -> int:
         _quiet_stdout()
         return 0
     except OSError as e:
-        if getattr(e, "errno", None) == 22 and not sys.stdout.isatty():  # Windows でパイプを閉じられたとき
+        # Windows でパイプを閉じられたとき(書き込み先のファイル名を持たない EINVAL だけ。
+        # 不正なファイル名で open した EINVAL は filename を持つので、成功扱いにしない)
+        if getattr(e, "errno", None) == 22 and e.filename is None and not sys.stdout.isatty():
             _quiet_stdout()
             return 0
-        raise
+        # ファイルの読み書きの失敗(権限・ディスク満杯・不正な名前)は、
+        # トレースバックでなくエラー文で終了コード 1
+        return _report_error(args, CliError(_os_error_text(e)))
     except (CliError, DatabaseError) as e:
-        code = 2 if isinstance(e, UsageError) else 1
-        cands = getattr(e, "candidates", None)
-        if getattr(args, "json", False):
-            err: dict[str, Any] = {"genmodelfit": __version__, "command": args.command, "error": str(e)}
-            if cands is not None:
-                err["candidates"] = [{"id": m.id, "name": m.name, "content": m.content} for m in cands]
-            _out(err)
-        else:
-            print(tr(f"エラー: {e}", f"error: {e}"), file=sys.stderr)
-            for m in (cands or [])[:30]:
-                print(f"  {m.id}  ({m.name})", file=sys.stderr)
-            if cands and len(cands) > 30:
-                rest = len(cands) - 30
-                print(
-                    tr(f"  …ほか {rest} 件(--json で全部)", f"  … {rest} more (--json for all)"),
-                    file=sys.stderr,
-                )
-        return code
+        return _report_error(args, e)
+
+
+def _os_error_text(e: OSError) -> str:
+    where = f": {e.filename}" if e.filename else ""
+    return f"{e.strerror or e}{where}"
+
+
+def _report_error(args: argparse.Namespace, e: Exception) -> int:
+    code = 2 if isinstance(e, UsageError) else 1
+    cands = getattr(e, "candidates", None)
+    if getattr(args, "json", False):
+        err: dict[str, Any] = {"genmodelfit": __version__, "command": args.command, "error": str(e)}
+        if cands is not None:
+            err["candidates"] = [{"id": m.id, "name": m.name, "content": m.content} for m in cands]
+        _out(err)
+    else:
+        print(tr(f"エラー: {e}", f"error: {e}"), file=sys.stderr)
+        for m in (cands or [])[:30]:
+            print(f"  {m.id}  ({m.name})", file=sys.stderr)
+        if cands and len(cands) > 30:
+            rest = len(cands) - 30
+            print(
+                tr(f"  …ほか {rest} 件(--json で全部)", f"  … {rest} more (--json for all)"),
+                file=sys.stderr,
+            )
+    return code
 
 
 if __name__ == "__main__":
