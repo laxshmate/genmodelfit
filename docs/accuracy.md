@@ -277,13 +277,35 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
     72 × L × 4096). The list does not keep header keys, so the name table `working.SA3_VAE_BY_NAME`, checked by reading the
     headers of the 4 all-in-one files of Comfy-Org/stable-audio-3, picks it (2026-11-11: medium has the large VAE with 12
     transformer layers, small the small one with 6). Names not in the table are not mapped
+  - SeedVR2 (0.15.1; the 3B and 7B upscalers): it has no factor of its own, so the default 2.0 (supported_models_base.py:49,
+    supported_models.py:1841-1871). There is no text stage (clip_target is None). The latent is 3-D with 16 channels, one
+    frame for images (sd.py:605-618, latent_formats.py:1098-1100). The width and height of the settings are read as the
+    output (upscaled) size, which the model runs at. Two things follow how the official templates
+    (`utility_seedvr2_*_int8_*`) run it:
+    - Denoise stage: judged with **all the latent frames**. The video template has a branch that splits the latent frames
+      to fit the free VRAM (SeedVR2TemporalChunk, auto; nodes_seedvr.py:484-486), but the switch that selects it,
+      "Split Latent" (a PrimitiveBoolean), is False by default, so by default the frames are not split. For video the
+      reasons say that turning on "Split Latent" may let it run on less VRAM (slower); the level does not change.
+      The author's measured law (0.55 GiB per megapixel per latent frame; constants.py:3-11) and the
+      factor-2.0 formula (0.61 GiB) nearly agree
+    - Decode stage: the VAE estimate is the author's fp16 byte formula fitted to measurements (ldm/seedvr/vae.py:1415-1433,
+      constants.py:27-38). Decode is output-frame pixels × 3150 + 384 MiB and encode is input-frame pixels × 2550 + 576 MiB,
+      neither depending on the number of frames. GPUs that do not use half precision (fp32) take decode × 5 and encode × 3
+      (per two bytes; vae.py:409-411). The templates always tile with VAEDecodeTiled / VAEEncodeTiled at 512 px squares
+      (nodes.py:380, 414), so the amount used is the tile value. V (the resident amount) is what ComfyUI tries to free: the
+      tile size for decode (sd.py:1392) and the untiled size for encode (sd.py:1491, an estimate marked TODO). The
+      "ComfyUI splits the VAE into tiles (slower)" note is not shown
+    - The temporal caches (pixels × 6200 bytes) are assumed to fit in pinned main memory. When they do not, they stay on
+      the GPU (vae.py:1427-1428), but that depends on free main memory, so it is not in the estimate. There are no measurements
+    - The old custom-node template `utility_seedvr2_image_upscale` (seedvr2_videoupscaler) is not ComfyUI's implementation
+      and the list has no main file for it, so it is not mapped
 - Other factors: SD3 1.6, Flux 3.1, Chroma 3.2, LongCat 2.5, HiDream 2.0 (default), Lumina2 1.4, Z-Image 2.8, Ming Image 2.8,
   Omnigen2 1.95 (Boogu 2.15), Kandinsky5 1.25, Krea2 2.2, Qwen Image 1.8, JoyImage 1.8, Anima 0.95, Lens 4.0,
   Ideogram4 11.6, MOSS-Image 14.6, ERNIE 10.0, MageFlow 6.5, Qwen Image 2.1 6.0, HiDream O1 0.033, PixelDiT 0.04,
   HunyuanVideo 1.8, HunyuanVideo 1.5 4.0, CogVideoX 2.0 (default), MiniMax H3 0.114, ACE-Step 1.5 4.7, ACE-Step 1 0.5, MiniMax Music 3 2.0,
-  Stable Audio Open 2.0 (default), Stable Audio 3 7.0, YuE2 4.0 (source lines in `working.WORKS`).
+  Stable Audio Open 2.0 (default), Stable Audio 3 7.0, YuE2 4.0, SeedVR2 2.0 (default) (source lines in `working.WORKS`).
 - VAEs (split out in #100): `wan22` (Wan 2.2 5B, 16× compression), `qwen21` (Qwen Image 2.1, 16× compression), `flux2` (the Flux2 VAE × 4),
-  `oobleck` (ACE-Step 1.5, Stable Audio Open), `sa3_large` / `sa3_small` (Stable Audio 3), `dav` (MiniMax Music 3; float32 only), `yue2`, `pixel` (pixel space). The Qwen Image VAE is the Wan 2.1 VAE.
+  `oobleck` (ACE-Step 1.5, Stable Audio Open), `sa3_large` / `sa3_small` (Stable Audio 3), `dav` (MiniMax Music 3; float32 only), `seedvr2` (SeedVR2; the templates' 512 px tiles), `yue2`, `pixel` (pixel space). The Qwen Image VAE is the Wan 2.1 VAE.
   When the list's `comfy_vae` does not fit the row's latent (another part's VAE, or a key of an older list), the row's default VAE is used.
 - Temporal compression: 4 for Wan, HunyuanVideo and CogVideoX, 8 for LTX, 17k+5 frames ↔ 5k+2 for MiniMax H3 (sd.py:1051).
   Pixel-space families (HiDream O1, PixelDiT) are 1 in space too.
@@ -293,12 +315,12 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
 These use **the earlier per-modality formula for the whole model** (ComfyUI's default factor 2.0 is not used: it would overestimate
 non-diffusion tools such as SAM3, Depth Anything and frame interpolation).
 
-<!-- fallback-count: 71 -->
-71 of the 330 entries in the bundled list:
+<!-- fallback-count: 68 -->
+68 of the 330 entries in the bundled list:
 
 - 23 text to speech, 10 3D (the `act_3d_gb` formula; ComfyUI's 3D estimate has a different shape)
 - 22 with an unknown family (8 image, 13 video, 1 music). The SD fingerprints (0.15.1; [hardware.md](hardware.md), "Family table") made 5 of them SD
-- 13 with a family but no formula: SeedVR2 4,
+- 10 with a family but no formula: SeedVR2 1 (the old custom-node template),
   SD video (SVD, AnimateDiff) 3, Qwen Image video workflows 2, Depth Anything 3 2, SAM3 2
 - 3 with an unknown size: Wan 2 (the list has no main file), SD 1 (a `.ckpt`, whose header cannot be read)
   - The 4 Flux3 Klein entries are mapped from 0.15.1 ("How families are mapped" above)
@@ -649,7 +671,7 @@ How to read it:
   1. Text-stage working memory ComfyUI does not estimate: image tokens of Qwen2.5-VL, Flux2's Mistral, the YuE2 score stage (8192 tokens),
      the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), the autoregressive LM of MiniMax Music 3, and so on
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used
-  3. Reduce the models without a per-stage formula (71): the SeedVR2 VAE, and so on (Flux3 Klein, Stable Audio 3, Ming Image, MiniMax Music 3 and 5 SD models found by fingerprint were mapped in 0.15.1)
+  3. Reduce the models without a per-stage formula (68) (Flux3 Klein, Stable Audio 3, Ming Image, MiniMax Music 3, 5 SD models found by fingerprint and 3 SeedVR2 templates were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
      `MIN_WEIGHT_MEMORY_RATIO = 0` (model_management.py:458-460@426f5ee), and dynamic VRAM is the default from 0.16. Images now use

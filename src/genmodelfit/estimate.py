@@ -2222,6 +2222,7 @@ def _stage_notes(n: Need, parts: Parts, system: SystemInfo, prec: GpuPrecision, 
         vram > 0
         and not st.untiled
         and not st.fallback  # untiled の VAE は _judge_tiled が書く(#148)
+        and not st.template_tiled  # テンプレートが初めからタイルに分ける(SeedVR2)
         and st.V_tile < st.V
         and c.overhead_gb + parts.decode * c.weight_factor + st.V > vram
     ):

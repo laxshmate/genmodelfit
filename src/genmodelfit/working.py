@@ -63,6 +63,9 @@ LATENTS: dict[str, Latent] = {
         Latent("hv", "3d", 8, 4, 16, source=f"sd.py:819-820@{C}(HunyuanVideo の VAE、(4, 8, 8))"),
         Latent("hv15", "3d", 16, 4, 32, source=f"sd.py:791-792@{C}(HunyuanVideo 1.5 の VAE、(4, 16, 16))"),
         Latent("cog", "3d", 8, 4, 16, source=f"sd.py:805-806@{C}(CogVideoX の VAE、(4, 8, 8))"),
+        # SeedVR2: 16 チャンネルの 3 次元(latent_formats.py:1098-1100)、(4n+1 コマ, 8, 8)(sd.py:615-618)。
+        # 画像は 1 コマ
+        Latent("seedvr2", "3d", 8, 4, 16, source=f"sd.py:605-618@{C}・latent_formats.py:1098-1100@{C}"),
         # MiniMax H3: コマ 17k+5 ↔ 潜在 5k+2(sd.py:1051)、空間 16。動画と音声を NestedTensor で渡す
         Latent("h3", "3d", 16, 0, 24, source=f"sd.py:1048-1052@{C}・nodes_minimax_h3.py:91@{C}"),
         Latent("ace15", "1d", rate=48000 / 1920, source=f"nodes_ace.py:105@{C}(秒 × 48000 / 1920)"),
@@ -226,6 +229,17 @@ WORKS: dict[str, Work] = {
         Work("hunyuan_video15", 4.0, "hv15", "hunyuan_video15", ("hunyuan_video15",), f"{SM}:2269@{C}"),
         Work("k5_video", 1.25, "hv", "hunyuan_video", ("hunyuan_video",), f"{SM}:2321@{C}"),
         Work("cogvideox", 2.0, "cog", "cogvideox", ("cogvideox",), f"supported_models_base.py:49@{C}(既定)"),
+        # SeedVR2(3B・7B): 係数は持たず既定の 2.0(supported_models.py:1841-1871)。文章の段は無い
+        # (clip_target が None。埋め込みは本体に入っている)。公式の動画のテンプレートの潜在を分ける枝
+        # (SeedVR2TemporalChunk)は、スイッチ「Split Latent」が既定で False なので使われない。全部のコマで見る
+        Work(
+            "seedvr2",
+            2.0,
+            "seedvr2",
+            "seedvr2",
+            ("seedvr2",),
+            f"supported_models_base.py:49@{C}(既定。{SM}:1841-1871)",
+        ),
         Work(
             "minimax_h3",
             0.114,
@@ -348,6 +362,25 @@ class VaeWork:
     # 復号し(sd.py:1278-1311)、CUDA の OOM のときだけタイルに分ける(sd.py:1312-1326、
     # model_management.py:389-395)。実測でタイルにしない山が V に沿って増えると確かめた VAE だけ True
     untiled: bool = False
+    # fp32 で動くとき(半精度を使わない GPU)に掛ける倍率(復号, 符号化)。式が fp16 の経路の実測に合わせてあり、
+    # ほかの dtype は eager の経路で、2 バイトあたりこの倍率(SeedVR2。ldm/seedvr/vae.py:409-411)
+    eager: tuple[float, float] | None = None
+    # 公式のテンプレートが VAEDecodeTiled / VAEEncodeTiled で必ずタイルに分ける VAE(SeedVR2)。V は ComfyUI が
+    # 空けようとする量(復号はタイルの大きさ: sd.py:1392、符号化はタイルにしない大きさ: sd.py:1491)、
+    # 使う量はタイルの値。「タイルに分けて動かす(遅い)」の注意は出さない
+    template_tiled: bool = False
+
+
+def _seedvr2_dec(s: Shape) -> float:
+    # 出力の 1 コマの面積 × 3150 + 384 MiB バイト(fp16。コマ数によらない。ldm/seedvr/vae.py:1421-1433・
+    # constants.py:27-29)。2 バイトの要素数にして返す。時間方向の覚え書きはメインメモリに置ける(pin できる)と
+    # 仮定する(置けなければ面積 × 6200 バイトが GPU に残る: vae.py:1427-1428)
+    return (s.h * 8 * s.w * 8 * 3150 + 384 * MIB) / 2
+
+
+def _seedvr2_enc(s: Shape) -> float:
+    # 入力の 1 コマの面積 × 2550 + 576 MiB バイト(fp16。ldm/seedvr/vae.py:1415-1419・constants.py:32-33)
+    return (s.H * s.W * 2550 + 576 * MIB) / 2
 
 
 def _h3_dec(s: Shape) -> float:
@@ -458,6 +491,17 @@ VAE_WORK: dict[str, VaeWork] = {
             # 曲の長さに比例(#148)
             untiled=True,
         ),
+        # SeedVR2 の VAE(working_dtypes は fp16・bf16・fp32: sd.py:612。NVIDIA は fp16)。公式のテンプレートは
+        # VAEDecodeTiled / VAEEncodeTiled の 512 画素角(nodes.py:380・414)
+        VaeWork(
+            "seedvr2",
+            _seedvr2_dec,
+            _seedvr2_enc,
+            "tmpl512",
+            f"sd.py:605-618@{C}・ldm/seedvr/vae.py:1415-1433@{C}・ldm/seedvr/constants.py:27-38@{C}",
+            eager=(5.0, 3.0),
+            template_tiled=True,
+        ),
         VaeWork("yue2", lambda s: 1500 * s.L * 1920, lambda s: 1000 * s.n, "1d", f"sd.py:734・747@{C}"),
         # Stable Audio 3 の VAE(working_dtypes は bf16・fp16・fp32: sd.py:1029)。
         # transformers 12 段の大きい設定と 6 段の小さい設定(sd.py:1007-1018)
@@ -508,6 +552,10 @@ def _tile_decode(v: VaeWork, kind: str, s: Shape, spatial: int) -> Shape:
         return Shape(s.T, s.h, s.w, s.F, s.H, s.W, min(s.L, 256), s.n)  # decode_tiled_1d(sd.py:1196)
     if v.tiling == "own256":
         return Shape(s.T, s.h, s.w, s.F, min(s.H, 256), min(s.W, 256), s.L, s.n)  # sd.py:1327-1331・1335
+    if v.tiling == "tmpl512":
+        # テンプレートの VAEDecodeTiled の 512 画素角(潜在 64。nodes.py:379-380)。見込みも 1 枚のタイル
+        # (sd.py:1371-1382 の _tile_bounded_shape)
+        return Shape(s.T, min(s.h, 64), min(s.w, 64), s.F, s.H, s.W, s.L, s.n)
     return s
 
 
@@ -520,6 +568,9 @@ def _tile_encode(v: VaeWork, s: Shape) -> Shape:
             key=lambda x: x[0] * x[1],
         )
         return Shape(s.T, s.h, s.w, s.F, H, W, s.L, s.n)
+    if v.tiling == "tmpl512":
+        # テンプレートの VAEEncodeTiled の 512 画素角(nodes.py:414)
+        return Shape(s.T, s.h, s.w, s.F, min(s.H, 512), min(s.W, 512), s.L, s.n)
     if v.tiling in ("3d", "own256"):
         # encode_tiled_3d・自分で切る VAE: 空間 256 画素、時間はそのまま(sd.py:1462-1470)
         return Shape(s.T, s.h, s.w, s.F, min(s.H, 256), min(s.W, 256), s.L, s.n)
@@ -646,6 +697,12 @@ def work_of(entry, family: str | None) -> Work | None:
         if not sizes:
             return None
         key = _bin(max(sizes), LTX_BINS)
+    elif family == "seedvr2":
+        # 本体のファイルが分からないもの(カスタムノード seedvr2_videoupscaler の古いテンプレート。ComfyUI の
+        # 実装でないので、その見込みは当てはまらない)は当てない
+        if not sizes:
+            return None
+        key = "seedvr2"
     elif family in ("flux", "flux_fill"):
         key = "flux"
     elif family == "omnigen2":
@@ -666,7 +723,8 @@ def work_of(entry, family: str | None) -> Work | None:
     w = WORKS[key]
     kind = LATENTS[w.latent].kind
     want = {"image": ("2d", "3d"), "video": ("3d",), "music": ("1d",), "sfx": ("1d",)}.get(mod, ())
-    image_3d = key.startswith("wan") or key == "ming_image"  # 画像を 3 次元の潜在(1 コマ)で作る行
+    # 画像を 3 次元の潜在(1 コマ)で作る行
+    image_3d = key.startswith("wan") or key in ("ming_image", "seedvr2")
     if kind not in want or (kind == "3d" and mod == "image" and not image_3d):
         return None
     return w
@@ -698,6 +756,9 @@ class StageMem:
     untiled: bool = False
     # untiled の VAE が入らず、ComfyUI がタイルに分けて動かす(OOM のあと)見積もり(estimate._judge_tiled)
     fallback: bool = False
+    # テンプレートが初めからタイルに分ける VAE(VaeWork.template_tiled)。V はタイルにしない値ではなく、
+    # ComfyUI がタイルの節で空けようとする量
+    template_tiled: bool = False
 
     @property
     def V_eff(self) -> float:
@@ -811,13 +872,19 @@ def stage_memory(
         enc_shape = Shape(d.T, d.h, d.w, frames, d.H, d.W)
 
     def one(vv: VaeWork, shape: Shape, nbytes: int, r: float) -> tuple[float, float]:
-        dec = vv.decode(shape)
         dec_t = vv.decode(_tile_decode(vv, lat.kind, shape, lat.spatial))
+        # テンプレートがタイルに分ける VAE は、復号の見込みもタイルの大きさ(sd.py:1392)
+        dec = dec_t if vv.template_tiled else vv.decode(shape)
         enc = enc_t = 0.0
         if enc_input and vv.encode is not None:
             es = enc_shape if vv is v else shape
             enc = vv.encode(es)
             enc_t = vv.encode(_tile_encode(vv, es))
+        # fp32 は eager の経路(fp16 の見込みの倍率。vae.py:409-411)。ComfyUI は bf16 にも掛けるが、
+        # working_dtypes は fp16 が先なので、fp16 を使えない GPU は fp32 になる(bf16 になる GPU は扱わない)
+        if vv.eager and nbytes == 4:
+            dec, dec_t = dec * vv.eager[0], dec_t * vv.eager[0]
+            enc, enc_t = enc * vv.eager[1], enc_t * vv.eager[1]
         return max(dec, enc) * nbytes * r / GIB, max(dec_t, enc_t) * nbytes * r / GIB
 
     V, V_tile = one(v, d, vae_bytes, ratio)
@@ -831,6 +898,20 @@ def stage_memory(
             xs = Shape(n=round(sec * 32000))
         a, at = one(xv, xs, 4, 1.0)
         V, V_tile = max(V, a), max(V_tile, at)
+    if w.key == "seedvr2" and not image_frames and d.T > 1:
+        # 公式の動画のテンプレートの「Split Latent」(既定 False)をオンにすると、SeedVR2TemporalChunk が
+        # 潜在のコマを空き VRAM に合わせて分ける(nodes_seedvr.py:484-486@426f5ee)。
+        # 段階は既定の動き(分けない)で決める
+        notes.append(
+            tr(
+                f"生成の段は潜在の {d.T} コマをまとめて回す見積もり(テンプレートの既定)。"
+                "「Split Latent」をオンにすると、空いている VRAM に合わせてコマを分けるので、"
+                "少ない VRAM でも動くことがある(遅くなる)",
+                f"The denoise stage is estimated with all {d.T} latent frames at once (the template default)."
+                ' Turning on "Split Latent" splits the frames to fit the free VRAM,'
+                " so it may run on less VRAM (slower)",
+            )
+        )
     if vkey == "flux2":
         notes.append(
             tr(
@@ -848,7 +929,19 @@ def stage_memory(
         images = 1 if tasks & REF_TASKS else 0
         wide = (no_bf16 or gpu_fp32) and w.te not in TE_FIXED_DTYPE
         T = _te_gib(w.te, sec, _names(entry), images) * (2.0 if wide else 1.0)
-    return StageMem(S, V, V_tile, T, w.key, vkey, vae_bytes, ratio, notes, untiled=v.untiled)
+    return StageMem(
+        S,
+        V,
+        V_tile,
+        T,
+        w.key,
+        vkey,
+        vae_bytes,
+        ratio,
+        notes,
+        untiled=v.untiled,
+        template_tiled=v.template_tiled,
+    )
 
 
 __all__ = [
