@@ -10,6 +10,9 @@ docs/sources.md「任意の部品」、docs/accuracy.md「ファイルの数え�
 
 import copy
 import importlib
+import importlib.util
+import json
+from pathlib import Path
 
 import pytest
 
@@ -17,7 +20,7 @@ import genmodelfit
 from genmodelfit import appinfo, i18n
 from genmodelfit.db import DatabaseError, check_entry, load
 from genmodelfit.models import ModelEntry, ModelFile
-from genmodelfit.optional import INACTIVE, SWITCH_OFF, optional_files
+from genmodelfit.optional import INACTIVE, SWITCH_OFF, optional_files, switch_branches
 from genmodelfit.update import set_optional_files
 
 E = importlib.import_module("genmodelfit.estimate")  # genmodelfit.estimate は関数の名前でもある
@@ -158,6 +161,37 @@ def _nested(outer_mode: int, inner_mode: int):
         "links": [link(1, 40, 0, 41, 0)],
         "definitions": {"subgraphs": [outer, inner]},
     }
+
+
+def test_switch_branches_reports_default_and_flipped_nodes():
+    # 既定 False: on_true の枝(TextGenerate・CLIPLoader)は値を逆にすると実行し始める。止まるものは無い
+    (b,) = switch_branches(switch_graph())
+    assert (b.path, b.type, b.value, b.stops) == ((10, 3), "ComfySwitchNode", False, [])
+    assert sorted(t for _p, t in b.starts) == ["CLIPLoader", "TextGenerate"]
+    (b,) = switch_branches(switch_graph(value=True))
+    assert b.value is True and b.starts == []
+    assert sorted(t for _p, t in b.stops) == ["CLIPLoader", "TextGenerate"]
+
+
+def test_switch_branches_unknown_value_or_bad_shape_is_empty():
+    wf = switch_graph()
+    wf["nodes"][0]["widgets_values"] = ["a cat", "maybe"]
+    assert switch_branches(wf) == []
+    assert switch_branches({"nodes": "x"}) == []
+
+
+def test_template_branches_tool_reads_a_local_json(tmp_path, capsys):
+    spec = importlib.util.spec_from_file_location(
+        "template_branches", Path(__file__).resolve().parents[1] / "tools" / "template_branches.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    f = tmp_path / "wf.json"
+    f.write_text(json.dumps(switch_graph()), encoding="utf-8")
+    assert mod.main([str(f)]) == 0
+    out = capsys.readouterr().out
+    assert "ComfySwitchNode [10/3]  = False" in out
+    assert "+ TextGenerate [10/2]" in out
 
 
 def test_nested_bypassed_instance_contents_are_active():

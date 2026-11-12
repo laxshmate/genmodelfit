@@ -248,6 +248,10 @@ Levels of ACE-Step 1.5 (`audio_ace_step_1_5_split`, no measurements; NVIDIA, 32 
 
 The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; docs/hardware, "Family table") and the main model's size.
 
+A branch in a template (a node that splits frames, say) runs by default only if its switch says so. Before mapping a formula,
+`python tools/template_branches.py <template name>` shows each switch's default value and the nodes that start or stop running
+when it is flipped (it follows the graph the same way as the optional parts in "How files are counted").
+
 - **The size is the main file's `header_params`** (element count from the safetensors / GGUF header; else the hand table
   `working.KNOWN_PARAMS`; else `params_b` of the list), in bins
   (dim and hidden_size are not read; no cache or schema change, and the values are fixed):

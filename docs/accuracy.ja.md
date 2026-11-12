@@ -243,6 +243,10 @@ ACE-Step 1.5(実測の無い `audio_ace_step_1_5_split`、NVIDIA、メインメ�
 
 `comfy_family` / `comfy_vae`(`families.py`。docs/hardware「系統の表」)と本体の大きさで、`working.py` の表の行を決めます。
 
+テンプレートに枝(コマを分けるノードなど)があっても、既定で通るかはスイッチの値で決まります。式を当てる前に
+`python tools/template_branches.py <テンプレートの名前>` で、スイッチごとの既定の値と、値を逆にすると動き出す・止まるノードを確かめます
+(たどり方は「ファイルの数え方」の任意の部品と同じ)。
+
 - **大きさは本体のファイルの `header_params`**(safetensors / GGUF の見出しの要素数。無ければ手の表 `working.KNOWN_PARAMS`、
   それも無ければ一覧の `params_b`)の区分で決める
   (dim・hidden_size は読まない。キャッシュ・スキーマを変えず、決まった値になる):

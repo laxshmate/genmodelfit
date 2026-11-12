@@ -397,10 +397,11 @@ class _Analysis:
         return out
 
     def walk(
-        self, starts: list[tuple], lazy: bool, flip: tuple | None = None
+        self, starts: list[tuple], lazy: bool, flip: tuple | None = None, ran: set[tuple] | None = None
     ) -> tuple[set[str], list[tuple]]:
         """出発点から届くノードの読むファイルと、値の決まったスイッチの鍵。lazy=True は実行(選ばれない枝を
-        たどらない)、False は検証(全部たどる)。flip のスイッチは値を逆にする。"""
+        たどらない)、False は検証(全部たどる)。flip のスイッチは値を逆にする。ran を渡すと、実行するノードの
+        鍵を入れる。"""
         seen: set[tuple] = set()
         got: set[str] = set()
         switches: list[tuple] = []
@@ -417,6 +418,8 @@ class _Analysis:
             ctx, n, eff = self.flat[k]
             if eff != 0:
                 continue
+            if ran is not None:
+                ran.add(k)
             got |= self.files_used(ctx, n)
             names: set[str] | None = None
             if lazy and n.get("type") in (SWITCH, SOFT_SWITCH):
@@ -491,4 +494,53 @@ def optional_files(wf: Any) -> dict[str, OptionalFile]:
                     o.replaces = list(removed)
     except (RecursionError, TypeError, KeyError):
         return {}
+    return out
+
+
+@dataclass
+class SwitchBranch:
+    """既定の値で実行するスイッチ 1 つ。path はノードの id の道(サブグラフの実体の id から)、value は既定の
+    値、starts・stops は値を逆にすると実行し始める・しなくなるノード(道と型)。"""
+
+    path: tuple
+    type: str
+    title: str | None
+    value: bool
+    starts: list[tuple[tuple, str]] = field(default_factory=list)
+    stops: list[tuple[tuple, str]] = field(default_factory=list)
+
+
+def switch_branches(wf: Any) -> list[SwitchBranch]:
+    """テンプレートの既定の値で、どのスイッチがどちらの枝を通すか(テンプレートの式を当てる前の確かめ用。
+    tools/template_branches.py)。分けられないときは空。"""
+    if not isinstance(wf, dict) or not isinstance(wf.get("nodes"), list):
+        return []
+    try:
+        a = _Analysis(wf)
+        if any(n.get("type") in VIRTUAL_LINKS for _c, n, _e in a.flat.values()):
+            return []
+        starts = a.starts()
+        base: set[tuple] = set()
+        _, switches = a.walk(starts, lazy=True, ran=base)
+        out: list[SwitchBranch] = []
+        for k in switches:
+            flipped: set[tuple] = set()
+            a.walk(starts, lazy=True, flip=k, ran=flipped)
+            ctx, n, _e = a.flat[k]
+
+            def typed(keys: set[tuple]) -> list[tuple[tuple, str]]:
+                return sorted(((kk, str(a.flat[kk][1].get("type"))) for kk in keys), key=repr)
+
+            out.append(
+                SwitchBranch(
+                    k,
+                    str(n.get("type")),
+                    n.get("title"),
+                    bool(a.switch_value(ctx, n)),
+                    typed(flipped - base),
+                    typed(base - flipped),
+                )
+            )
+    except (ValueError, RecursionError, TypeError, KeyError):
+        return []
     return out
