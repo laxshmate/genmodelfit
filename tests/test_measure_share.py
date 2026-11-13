@@ -19,6 +19,7 @@ import pytest
 from genmodelfit import bench, cli, contrib, measure
 from genmodelfit.db import cache_dir
 from genmodelfit.db import load as load_db
+from genmodelfit.estimate import working_only
 from genmodelfit.models import Gpu, Measurement, ModelEntry, ModelFile, SystemInfo
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -893,13 +894,16 @@ def without_community(db):
 
 def defaults_measured(db=None, **override_seconds):
     """この GPU(RTX 3070)で、テンプレートのままの実測がある一覧(設定を変えた測定が出る前提)。
-    同梱のほかの利用者のまとめは外す(試験が同梱のデータの増減に左右されないように。実測は下の明示した行だけ)。"""
+    同梱のほかの利用者のまとめと、下の 3 モデルの同梱の作業用メモリだけの実測(設定を変えた照合の行。
+    2026-11-13 の RTX 5080 など)は外す(試験が同梱のデータの増減に左右されないように。
+    実測は下の明示した行だけ)。"""
     db = without_community(db or load_db(use_cache=False))
     rows = {
         "image_sdxl_simple": (_set(width=1024, height=1024, steps=20), 20.0),
         "text_to_video_wan": (_set(width=832, height=480, frames=33, steps=20), 120.0),
         "audio_ace_step_1_5_checkpoint": (_set(seconds=120.0, steps=8), 60.0),
     }
+    db.measurements = [m for m in db.measurements if not (m.model_id in rows and working_only(m))]
     for model_id, (st, secs) in rows.items():
         db.measurements.append(meas(model_id, settings=st, seconds=override_seconds.get(model_id, secs)))
     return db

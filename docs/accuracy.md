@@ -638,6 +638,17 @@ Cross-check (measured differently, so not used for fitting; predicted with the c
 |---|---|---|---|---|---:|---:|---:|
 | utility_birefnet_remove_background | NVIDIA GeForce RTX 3070 | maintainer | - | working memory (measurement without weights) | 1.25 | 0.24 | -81% |
 | 3d_moge_perspective_to_mesh | NVIDIA GeForce RTX 3070 | maintainer | - | working memory (measurement without weights) | 0.72 | 0.78 | +9% |
+| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | maintainer | 47.6 s | working memory (measurement without weights) | 3.84 | 3.91 | +2% |
+| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | maintainer | 30 s | working memory (measurement without weights) | 2.56 | 2.46 | -4% |
+| audio_yue2_text2music | NVIDIA GeForce RTX 5080 | maintainer | 97.8 s | working memory (measurement without weights) | 4.31 | 1.37 | -68% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | working memory (measurement without weights) | 2.53 | 1.06 | -58% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | maintainer | 1536x1536 | working memory (measurement without weights) | 5.50 | 1.06 | -81% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | working memory (measurement without weights) | 2.25 | 1.06 | -53% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | maintainer | 1536x1536 | working memory (measurement without weights) | 4.94 | 2.02 | -59% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 33 frames | working memory (measurement without weights) | 4.41 | 0.76 | -83% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 17 frames | working memory (measurement without weights) | 3.94 | 0.42 | -89% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 49 frames | working memory (measurement without weights) | 4.69 | 1.10 | -77% |
+| utility_seedvr2_3b_int8_upscale_image | NVIDIA GeForce RTX 5080 | maintainer | 2880x1612 | working memory (measurement without weights) | 1.94 | 2.83 | +46% |
 
 How to read it:
 
@@ -647,8 +658,12 @@ How to read it:
 - Wan 2.1 1.3B at −14.7% is the gap between the peak on a GPU with room (VAE not tiled) and the formula, as in "Summary" above.
 - ACE-Step 1.5 at +17.8%: the heaviest stage is the untiled V of its VAE (Oobleck), 1.9 GB at 20 s (#148; "Tiles" above).
   The measured 10.8 GB is below the weights + fixed floor and says nothing about the working memory ("Cross-check" below).
-- The 2 cross-check rows are working-memory-only measurements (#100), so they are compared with the working-memory estimate (the formula for models without a per-stage formula).
+- The cross-check rows are working-memory-only measurements (#100), so they are compared with the working-memory estimate
+  (max(S, V_eff, T) for per-stage formulas, the per-type formula for models without one).
   BiRefNet at −81% shows that the image coefficient (0.23 GB per megapixel), fitted to diffusion models, is too small for tools.
+- The large negative errors of the 11 RTX 5080 rows (2026-11-13) are because a 16 GB GPU runs the VAE untiled while the usage
+  formula assumes the tiled value (V_eff). Whether all-on-GPU can be chosen is decided with the untiled V, so the judgement errs
+  on the safe side ("The maintainer's RTX 5080 16GB working-memory measurements" under "Cross-check" below).
 
 ## Known limits
 
@@ -674,7 +689,9 @@ How to read it:
 - **Future work** (#100):
   1. Text-stage working memory ComfyUI does not estimate: image tokens of Qwen2.5-VL, Flux2's Mistral, the YuE2 score stage (8192 tokens),
      the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), the autoregressive LM of MiniMax Music 3, and so on
-  2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used
+  2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used.
+     On 2026-11-13, 11 RTX 5080 rows were added to the cross-check, and for YuE2 the VAE node was swapped for its tiled version
+     to show that the peak is the VAE stage ("Cross-check" below). There is no bench that splits at stage boundaries yet
   3. Reduce the models without a per-stage formula (68) (Flux3 Klein, Stable Audio 3, Ming Image, MiniMax Music 3, 5 SD models found by fingerprint and 3 SeedVR2 templates were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
@@ -924,6 +941,56 @@ The 2 bundled rows (BiRefNet, MoGe) are torch reservations measured by bench wit
 
 - Both are models without a per-stage formula (tools, 3D), so they are compared with the per-modality coefficient formula.
 - The miss (BiRefNet −81%) is because the image coefficient was fitted to diffusion models and does not represent a tool's working memory.
+
+### The maintainer's RTX 5080 16GB working-memory measurements (bench, 2026-11-13)
+
+11 bundled rows (ComfyUI 0.45.2, driver 610.88, Windows 11), measured the same way as the RTX 3070 above (`torch_reserved`,
+dynamic VRAM). Each model was downloaded, measured and deleted one at a time while no other work used the GPU.
+
+- The ComfyUI used:
+  - SeedVR2, YuE2 and Z-Image were measured on a ComfyUI started by another task, while its queue was empty, after freeing it with `--free` (torch 0.06 GB after freeing).
+  - The rest were measured on a ComfyUI we started ourselves.
+- Runs whose peak was shorter than the read interval (#131) are not standard measurements and are left out (Z-Image 512 and 768 px, SDXL 768 px, Stable Audio 10 s).
+- These 2 templates were not measured, because they have gated parts that cannot be downloaded:
+  - FLUX 3 Image Klein
+  - SAM 3.1
+
+Next to the per-stage formula (GiB). V is the VAE figure untiled, V_tile the tiled one.
+
+| Model | Settings | Measured | S | V | V_tile | T | Usage formula | Measured / V |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| audio_stable_audio_example | 30 s | 2.56 | 0.03 | 2.46 | 0.98 | 0 | 2.46 | 1.04 |
+| audio_stable_audio_example | 47.6 s | 3.84 | 0.04 | 3.91 | 0.98 | 0 | 3.91 | 0.98 |
+| image_sdxl_simple | 1024px | 2.53 | 0.26 | 4.25 | 1.06 | 0 | 1.06 | 0.59 |
+| image_sdxl_simple | 1536px | 5.50 | 0.58 | 9.57 | 1.06 | 0 | 1.06 | 0.57 |
+| image_z_image_turbo_int8 | 1024px | 2.25 | 0.90 | 4.25 | 1.06 | 0 | 1.06 | 0.53 |
+| image_z_image_turbo_int8 | 1536px | 4.94 | 2.02 | 9.57 | 1.06 | 0 | 2.02 | 0.52 |
+| text_to_video_wan | 832x480, 17 frames | 3.94 | 0.42 | 5.21 | 0.27 | 0 | 0.42 | 0.76 |
+| text_to_video_wan | 832x480, 33 frames | 4.41 | 0.76 | 5.21 | 0.27 | 0 | 0.76 | 0.85 |
+| text_to_video_wan | 832x480, 49 frames | 4.69 | 1.10 | 5.21 | 0.27 | 0 | 1.10 | 0.90 |
+| audio_yue2_text2music | 97.8 s | 4.31 | 0.19 | 13.12 | 1.37 | 0.43 | 1.37 | 0.33 |
+| utility_seedvr2_3b_int8_upscale_image | 2880x1612 | 1.94 | 2.83 | 11.59 | 1.19 | 0 | 2.83 | - |
+
+How to read it:
+
+- **The VAE runs untiled**: a 16 GB GPU has enough free memory, so ComfyUI runs the untiled decode
+  (sd.py:1368-1383@6e8488e; even when the figure exceeds the free memory, it first tries the untiled decode).
+  - The measurement is larger than the usage formula (the tiled value V_eff) and smaller than V.
+  - Whether all-on-GPU can be chosen is decided with the untiled V ("Tiles" above). V is larger than the measurement, so the judgement errs on the safe side.
+- **KL VAE** (SDXL, Z-Image): the measurement is 0.52–0.59 × V, in line with "the VAE figure is about 1.8× the measurement" under "Results" above.
+  ComfyUI's code also says the AutoencoderKL figures "should be lower" (sd.py:512-513@6e8488e).
+- **Wan 2.1 VAE**: the measurement is 0.76–0.90 × V and grows a little with the frames. The formula's V does not depend on the frames.
+- **Oobleck VAE** (Stable Audio Open): the usage formula is the untiled V (#148), so it matches the measurement within ±4%.
+- **YuE2**: the measured 4.31 GB is 0.33 × V.
+  - To check that the peak is the VAE stage, we replaced the template's VAEDecodeAudio with VAEDecodeAudioTiled (512, 64) and measured. The peak fell to 2.03 GB (non-standard conditions, so it is not bundled). Before the replacement it was 4.0–4.6 GB.
+  - The LM decides the song length from the lyrics. Changing the template's length field (120 s) to 30 or 60 s still gave 97.8 s of output.
+- **SeedVR2 3B (image)**: the template tiles the VAE at 512 pixels, so the peak is the generation stage S. The formula is +46%, on the safe side.
+  - The template upscales the input image 4×, so bench cannot read the size. The output size 2880x1612 was written by hand.
+- **MoGe 3** (not bundled): it measured 2.47 GB, about 10× the per-type formula (0.24 GB). As with BiRefNet, the image coefficient is too small for tools.
+  - Why it is not bundled: the template takes its size from the input image and has no size input.
+  - Bundling a sizeless image measurement needs the hand table `estimate.NO_SIZE_INPUT`, which changes the judgement settings, so it is kept apart from this cross-check.
+- **The formulas are not changed**: the ratio to V was measured on one GPU and does not follow from ComfyUI's code
+  (accuracy fixes are made only where ComfyUI's code is certain).
 
 ### RTX 3070 sweep (2026-10-27, **not used as evidence**)
 
