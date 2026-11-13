@@ -253,6 +253,7 @@ VAE(`comfy/sd.py` の `working_dtypes`。○ は fp16 を持つ、× は持た�
 - `qwen21`(853。Qwen Image 2.1、16 倍圧縮)○
 - `oobleck`(742。ACE-Step 1.5・Stable Audio Open)○
 - `yue2`(742・744〜747)○
+- `sa3_large` / `sa3_small`(1029。Stable Audio 3 の大きい・小さい設定)○
 - `hunyuan_video`(828)○
 - `hunyuan_video15`(795)○
 - `hunyuan3d`(906)○
