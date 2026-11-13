@@ -257,7 +257,8 @@ ACE-Step 1.5(実測の無い `audio_ace_step_1_5_split`、NVIDIA、メインメ�
       (hidden 3072・depth 5・single 28。flow_map の有無だけ違う)で数えた値と完全に一致する
       (`tests/test_working.py` が数え直す)。hidden が 2560・3584 なら 1B 以上ずれる
   - LTX: 14B 以上 → LTXAV(LTX-2 / 2.3。係数 0.077、:980)、10B 以上 → LTXV 13B(11 = 5.5 × 4096 / 2048、:960)、ほか → LTXV(5.5)
-  - SD: 本体(全部入り)が 3.3B 以上 → SDXL(0.8、:219)、未満 → SD1.5・SD2・SDXL refiner(どれも 1.0、:69・116・180)
+  - SD: 本体(全部入り)が 3.3B 以上 → SDXL(0.8、:219)、未満 → SD1.5・SD2・SDXL refiner(どれも 1.0、:69・116・180)。
+    UNet だけのファイル(diffusers の unet/)は、SDXL の UNet の指紋(2,567,463,684 ± 20,000)に合えば SDXL(0.15.1)
   - Ming Image(0.15.1): ZImage を継ぐので係数 2.8(:1239・1268)。潜在は Wan 2.1 と同じ形の 3 次元(latent_formats.py:779-782。
     画像は 1 コマ)で、VAE の見出し(Comfy-Org/Ming-Image の `ming_image_vae_bf16`、2026-11-11)は ComfyUI の判定で
     Wan 2.1 の VAE の枝に入る(sd.py:842・868-883。Wan 2.2 の形の鍵が無い。dim 96・RGBA)。参照の潜在も数える
@@ -286,11 +287,11 @@ ACE-Step 1.5(実測の無い `audio_ace_step_1_5_split`、NVIDIA、メインメ�
 次のものは、**モデル全体を今までの種類ごとの式**で出します(ComfyUI の既定の係数 2.0 は使わない。
 SAM3・Depth Anything・フレーム補間などの拡散でない道具が過大になるため)。
 
-<!-- fallback-count: 76 -->
-同梱の一覧(330 件)で 76 件:
+<!-- fallback-count: 71 -->
+同梱の一覧(330 件)で 71 件:
 
 - 読み上げ 23 件・3D 10 件(係数 `act_3d_gb` の式。3D の作業用メモリは ComfyUI の見込みの形が違う)
-- 系統が分からない 27 件(画像 13・動画 13・音楽 1)
+- 系統が分からない 22 件(画像 8・動画 13・音楽 1)。SD の指紋(0.15.1。[hardware.ja.md](hardware.ja.md)「系統の表」)で 5 件を SD にした
 - 系統はあるが式が無い 13 件: SeedVR2 4・SD の動画(SVD・AnimateDiff)3・
   Qwen Image の動画のワークフロー 2・Depth Anything 3 2・SAM3 2
 - 大きさが分からない 3 件: Wan 2(一覧に本体のファイルが無い)・SD 1(`.ckpt` で見出しを読めない)
@@ -638,7 +639,7 @@ music・video は張り付いていない実測が 1 件以下のため評価で
   1. 文章の読み取りの作業用メモリ: Qwen2.5-VL の画像のトークン、Flux2 の Mistral、YuE2 の楽譜の段(8192 トークン)、
      ACE-Step 1.5 の LM の KV、Flux3 の指示文の書き直し(Qwen3.5 9B)、MiniMax Music 3 の自己回帰の LM など、ComfyUI が見込まないもの
   2. 段ごとの山を bench で測る(段の境目で区切る)。作業用メモリだけの実測(上の「実測の使い方」7)を使えるようにする
-  3. 当てられないモデル(76 件)を減らす(SeedVR2 の VAE など。Flux3 Klein・Stable Audio 3・Ming Image・MiniMax Music 3 は 0.15.1 で当てた)
+  3. 当てられないモデル(71 件)を減らす(SeedVR2 の VAE など。Flux3 Klein・Stable Audio 3・Ming Image・MiniMax Music 3・指紋で分かる SD 5 件は 0.15.1 で当てた)
   4. RTX 3070 の測り直し(下の「照合」)と、Wan2.1 832x480・81 コマ
   5. **対応した(0.15.0、画像だけ)**: 逃がすときに GPU に残す割合(0.4)。ComfyUI の NVIDIA は `MIN_WEIGHT_MEMORY_RATIO = 0`
      (model_management.py:458-460@426f5ee)で、0.16 からは動的 VRAM が既定。画像は上の「動的 VRAM で逃がすとき」の式にした。

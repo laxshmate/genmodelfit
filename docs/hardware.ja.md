@@ -268,6 +268,10 @@ VAE(`comfy/sd.py` の `working_dtypes`。○ は fp16 を持つ、× は持た�
 一覧の各項目の系統と VAE の決め方:
 
 - 系統は `families.family_of` で決める。本体のファイル名 → ID・テンプレート名の順に照らす。部品の置き場所のリポジトリ名は別のモデルの部品が混ざるので見ない。
+  - どちらでも決まらない画像の本体は、見出しの要素数(`header_params`)が SD の指紋(`families.SD_PARAM_PRINTS`)に合えば SD にする(0.15.1)。
+    指紋は公式のファイルの見出しで数えた要素数で、SD1.5 の全部入り 1,066,247,386(v1-5-pruned-emaonly)・UNet 859,520,964、
+    SDXL の全部入り 3,468,837,945(sd_xl_base_1.0)・UNet 2,567,463,684(2026-11-11)。幅は ±20,000
+    (inpaint の conv_in の 5 チャンネル分 14,400 を含み、ほかの形は数千万以上違う)。本体のファイルがすべて指紋に合うときだけ
 - VAE は VAE のファイル名(無ければ系統の既定)で決める。
 - `update` が `ModelEntry.comfy_family` / `comfy_vae` に入れる(`--heads-only` でも決め直す)。
 

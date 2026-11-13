@@ -268,6 +268,10 @@ VAE (`working_dtypes` in `comfy/sd.py`; "yes" has fp16, "no" does not):
 How the family and VAE of each list entry are decided:
 
 - The family comes from `families.family_of`. It matches the main model's file name first, then the ID and template name. The repository name of a component's location is not used, because it mixes in components of other models.
+  - An image main model that neither decides is SD when its header element count (`header_params`) matches an SD fingerprint (`families.SD_PARAM_PRINTS`; 0.15.1).
+    The fingerprints are element counts from the headers of the official files: SD1.5 all-in-one 1,066,247,386 (v1-5-pruned-emaonly) and UNet 859,520,964,
+    SDXL all-in-one 3,468,837,945 (sd_xl_base_1.0) and UNet 2,567,463,684 (2026-11-11). The tolerance is ±20,000
+    (it covers the 14,400 of the 5 extra inpainting conv_in channels; other shapes differ by tens of millions or more). Only when every main file matches
 - The VAE is decided by the VAE file name (or the family's default if there is none).
 - `update` stores them in `ModelEntry.comfy_family` / `comfy_vae` (`--heads-only` also decides them again).
 

@@ -50833,7 +50833,7 @@
    ],
    "files_complete": true,
    "size_floor_bytes": null,
-   "comfy_family": null,
+   "comfy_family": "sd",
    "comfy_vae": null,
    "sampler_stages": null,
    "workflow_precision": null,
@@ -50843,7 +50843,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [
     "en"
@@ -50920,8 +50920,8 @@
    "license_evidence": [],
    "files_complete": true,
    "size_floor_bytes": null,
-   "comfy_family": null,
-   "comfy_vae": null,
+   "comfy_family": "sd",
+   "comfy_vae": "kl",
    "sampler_stages": null,
    "workflow_precision": null,
    "precision_source": "header",
@@ -50930,7 +50930,7 @@
      "en"
     ]
    },
-   "runtime": null,
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [
     "en"
@@ -51362,13 +51362,17 @@
    ],
    "files_complete": true,
    "size_floor_bytes": null,
-   "comfy_family": null,
-   "comfy_vae": null,
+   "comfy_family": "sd",
+   "comfy_vae": "kl",
    "sampler_stages": null,
    "workflow_precision": null,
    "precision_source": "header",
-   "languages": {},
-   "runtime": null,
+   "languages": {
+    "prompt": [
+     "en"
+    ]
+   },
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [],
    "review": {
@@ -51445,19 +51449,17 @@
    "license_evidence": [],
    "files_complete": true,
    "size_floor_bytes": null,
-   "comfy_family": null,
-   "comfy_vae": null,
+   "comfy_family": "sd",
+   "comfy_vae": "kl",
    "sampler_stages": null,
    "workflow_precision": null,
    "precision_source": "header",
    "languages": {
     "prompt": [
-     "en",
-     "pt",
-     "th"
+     "en"
     ]
    },
-   "runtime": null,
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [
     "en",
@@ -51935,13 +51937,17 @@
    ],
    "files_complete": true,
    "size_floor_bytes": null,
-   "comfy_family": null,
-   "comfy_vae": null,
+   "comfy_family": "sd",
+   "comfy_vae": "kl",
    "sampler_stages": null,
    "workflow_precision": null,
    "precision_source": "header",
-   "languages": {},
-   "runtime": null,
+   "languages": {
+    "prompt": [
+     "en"
+    ]
+   },
+   "runtime": "comfyui",
    "description": {},
    "card_languages": [],
    "review": {
