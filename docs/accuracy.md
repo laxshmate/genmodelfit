@@ -974,11 +974,12 @@ Next to the per-stage formula (GiB). V is the VAE figure untiled, V_tile the til
 How to read it:
 
 - **The VAE runs untiled**: a 16 GB GPU has enough free memory, so ComfyUI runs the untiled decode
-  (sd.py:1368-1383@6e8488e; even when the figure exceeds the free memory, it first tries the untiled decode).
+  (sd.py:1368-1383@6e8488e; even when the figure exceeds the free memory, it first tries the untiled decode. Only a VAE
+  marked as having a reliable figure (SeedVR2) goes straight to tiles when it exceeds the free memory).
   - The measurement is larger than the usage formula (the tiled value V_eff) and smaller than V.
   - Whether all-on-GPU can be chosen is decided with the untiled V ("Tiles" above). V is larger than the measurement, so the judgement errs on the safe side.
 - **KL VAE** (SDXL, Z-Image): the measurement is 0.52–0.59 × V, in line with "the VAE figure is about 1.8× the measurement" under "Results" above.
-  ComfyUI's code also says the AutoencoderKL figures "should be lower" (sd.py:512-513@6e8488e).
+  ComfyUI's code also says the AutoencoderKL figures "should be lower" (the comment at sd.py:512@6e8488e; the decode formula is at 513).
 - **Wan 2.1 VAE**: the measurement is 0.76–0.90 × V and grows a little with the frames. The formula's V does not depend on the frames.
 - **Oobleck VAE** (Stable Audio Open): the usage formula is the untiled V (#148), so it matches the measurement within ±4%.
 - **YuE2**: the measured 4.31 GB is 0.33 × V.
@@ -986,6 +987,7 @@ How to read it:
   - The LM decides the song length from the lyrics. Changing the template's length field (120 s) to 30 or 60 s still gave 97.8 s of output.
 - **SeedVR2 3B (image)**: the template tiles the VAE at 512 pixels, so the peak is the generation stage S. The formula is +46%, on the safe side.
   - The template upscales the input image 4×, so bench cannot read the size. The output size 2880x1612 was written by hand.
+  - The hand-written YuE2 and SeedVR2 rows and the rows with changed settings carry `settings_override`, so they are not used as the template's settings (`measure`'s suggestions) or for the time guide at the template's settings.
 - **MoGe 3** (not bundled): it measured 2.47 GB, about 10× the per-type formula (0.24 GB). As with BiRefNet, the image coefficient is too small for tools.
   - Why it is not bundled: the template takes its size from the input image and has no size input.
   - Bundling a sizeless image measurement needs the hand table `estimate.NO_SIZE_INPUT`, which changes the judgement settings, so it is kept apart from this cross-check.

@@ -240,7 +240,8 @@
    "note": "GPU 全体(nvidia-smi)の増分 1.50 GB(開始前 3.92 GB 使用、最大 5.42 GB)。/system_stats の GPU 全体の増分 2.79 GB。開始前に /free でモデルを解放(解放前 torch 0.38 GB、解放後 0.09 GB)。ComfyUI の実行時間 3.71 秒。計測 131 回",
    "outcome": "ok",
    "standard": true,
-   "vram_metric": "torch_reserved"
+   "vram_metric": "torch_reserved",
+   "settings_override": true
   },
   {
    "model_id": "audio_yue2_text2music",
@@ -263,10 +264,11 @@
    "offload": "dynamic",
    "source": "genmodelfit bench 0.15.1, RTX 5080 16GB, ComfyUI 0.45.2",
    "date": "2026-11-13",
-   "note": "GPU 全体(nvidia-smi)の増分 0.75 GB(開始前 5.13 GB 使用、最大 5.89 GB)。/system_stats の GPU 全体の増分 4.20 GB。開始前に /free でモデルを解放(解放前 torch 0.59 GB、解放後 0.06 GB)。ComfyUI の実行時間 18.48 秒。計測 580 回。長さは bench が読めない(曲の長さは歌詞から LM が決める。入力欄の 120 秒を 30・60 秒に変えても 97.8 秒)ので、出力の flac の長さを手で書いた",
+   "note": "GPU 全体(nvidia-smi)の増分 0.75 GB(開始前 5.13 GB 使用、最大 5.89 GB)。/system_stats の GPU 全体の増分 4.20 GB。開始前に /free でモデルを解放(解放前 torch 0.59 GB、解放後 0.06 GB)。ComfyUI の実行時間 18.48 秒。計測 580 回。長さは bench が読めない(曲の長さは歌詞から LM が決める。入力欄の 120 秒を 30・60 秒に変えても 97.8 秒)ので、出力の flac の長さを手で書いた。settings_override を付けた(手で書いた大きさをテンプレートの設定として読まないため)",
    "outcome": "ok",
    "standard": true,
-   "vram_metric": "torch_reserved"
+   "vram_metric": "torch_reserved",
+   "settings_override": true
   },
   {
    "model_id": "image_sdxl_simple",
@@ -318,7 +320,8 @@
    "note": "GPU 全体(nvidia-smi)の増分 5.44 GB(開始前 7.82 GB 使用、最大 13.25 GB)。/system_stats の GPU 全体の増分 9.11 GB。開始前に /free でモデルを解放(解放前 torch 0.09 GB、解放後 0.09 GB)。ComfyUI の実行時間 13.07 秒。計測 414 回",
    "outcome": "ok",
    "standard": true,
-   "vram_metric": "torch_reserved"
+   "vram_metric": "torch_reserved",
+   "settings_override": true
   },
   {
    "model_id": "image_z_image_turbo_int8",
@@ -370,7 +373,8 @@
    "note": "GPU 全体(nvidia-smi)の増分 1.36 GB(開始前 12.55 GB 使用、最大 13.91 GB)。/system_stats の GPU 全体の増分 12.93 GB。開始前に /free でモデルを解放(解放前 torch 0.06 GB、解放後 0.06 GB)。ComfyUI の実行時間 9.03 秒。計測 284 回",
    "outcome": "ok",
    "standard": true,
-   "vram_metric": "torch_reserved"
+   "vram_metric": "torch_reserved",
+   "settings_override": true
   },
   {
    "model_id": "text_to_video_wan",
@@ -422,7 +426,8 @@
    "note": "GPU 全体(nvidia-smi)の増分 4.12 GB(開始前 10.26 GB 使用、最大 14.38 GB)。/system_stats の GPU 全体の増分 12.71 GB。開始前に /free でモデルを解放(解放前 torch 0.09 GB、解放後 0.09 GB)。ComfyUI の実行時間 23.29 秒。計測 740 回",
    "outcome": "ok",
    "standard": true,
-   "vram_metric": "torch_reserved"
+   "vram_metric": "torch_reserved",
+   "settings_override": true
   },
   {
    "model_id": "text_to_video_wan",
@@ -448,7 +453,8 @@
    "note": "GPU 全体(nvidia-smi)の増分 3.75 GB(開始前 10.54 GB 使用、最大 14.29 GB)。/system_stats の GPU 全体の増分 11.91 GB。開始前に /free でモデルを解放(解放前 torch 0.09 GB、解放後 0.09 GB)。ComfyUI の実行時間 83.73 秒。計測 2644 回",
    "outcome": "ok",
    "standard": true,
-   "vram_metric": "torch_reserved"
+   "vram_metric": "torch_reserved",
+   "settings_override": true
   },
   {
    "model_id": "utility_seedvr2_3b_int8_upscale_image",
@@ -471,10 +477,11 @@
    "offload": "dynamic",
    "source": "genmodelfit bench 0.15.1, RTX 5080 16GB, ComfyUI 0.45.2",
    "date": "2026-11-13",
-   "note": "GPU 全体(nvidia-smi)の増分 0.20 GB(開始前 6.03 GB 使用、最大 6.23 GB)。/system_stats の GPU 全体の増分 4.34 GB。開始前に /free でモデルを解放(解放前 torch 1.56 GB、解放後 0.06 GB)。ComfyUI の実行時間 4.84 秒。計測 163 回。幅・高さは bench が読めない(テンプレートは入力の画像 720x403 を 4 倍にする)ので、出力の大きさを手で書いた",
+   "note": "GPU 全体(nvidia-smi)の増分 0.20 GB(開始前 6.03 GB 使用、最大 6.23 GB)。/system_stats の GPU 全体の増分 4.34 GB。開始前に /free でモデルを解放(解放前 torch 1.56 GB、解放後 0.06 GB)。ComfyUI の実行時間 4.84 秒。計測 163 回。幅・高さは bench が読めない(テンプレートは入力の画像 720x403 を 4 倍にする)ので、出力の大きさを手で書いた。settings_override を付けた(手で書いた大きさをテンプレートの設定として読まないため)",
    "outcome": "ok",
    "standard": true,
-   "vram_metric": "torch_reserved"
+   "vram_metric": "torch_reserved",
+   "settings_override": true
   }
  ]
 }

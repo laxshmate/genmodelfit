@@ -160,6 +160,10 @@ def test_time_hint():
     ms = [meas(seconds=18.0), meas(seconds=41.0), meas(seconds=23.0), meas(seconds=999.0, outcome="oom")]
     assert measure.time_hint(e, ms) == (30, "measured")  # 中央値 23 → 10 秒単位に切り上げ。oom は使わない
     assert measure.time_hint(e, [meas(seconds=0.4)]) == (10, "measured")
+    # テンプレートのままの目安には、設定を変えた実測(settings_override)の時間を混ぜない
+    big = meas(seconds=400.0, settings_override=True)
+    assert measure.time_hint(e, [meas(seconds=18.0), big]) == (20, "measured")
+    assert measure.time_hint(e, [big]) == (60, "typical")
 
 
 def test_has_measurement_here():
