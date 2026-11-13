@@ -439,6 +439,14 @@ def test_size_from_resolution_selector_follows_comfyui():
     assert (s.width, s.height) == (1368, 768)
     new, notes = apply_settings(wf("1:1 (Square)", 1), width=768, height=768)
     assert notes == [] and (effective_settings(new).width, effective_settings(new).height) == (768, 768)
+    # 同じ大きさを画像の縮小のノードも使うなら、書き換えない(動く大きさが混ざる。bench は生成の前に止まる)
+    shared = wf("1:1 (Square)", 1)
+    shared["5"] = {"class_type": "ImageScaleToMaxDimension", "inputs": {"largest_size": ["9", 0]}}
+    new, notes = apply_settings(shared, width=768, height=768)
+    assert new["1"]["inputs"]["width"] == ["9", 0] and any("ノード 5" in n for n in notes)
+    assert effective_settings(new).width == 1024
+    # 値が inf・nan でも落ちない
+    assert effective_settings(wf("1:1 (Square)", float("inf"))).width is None
     # 縦横比が他のノードから来るなど、値が分からないときは今までどおり大きさの入力なし
     unknown = wf("1:1 (Square)", 1)
     unknown["9"]["inputs"]["megapixels"] = ["3", 0]

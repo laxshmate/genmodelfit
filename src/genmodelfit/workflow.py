@@ -640,7 +640,7 @@ def _resolution_selector(node: dict[str, Any]) -> tuple[int, int] | None:
         mp, mult = float(inp["megapixels"]), int(multiple)
     except (TypeError, ValueError):
         return None
-    if ratio is None or mp <= 0 or mult <= 0:
+    if ratio is None or not math.isfinite(mp) or mp <= 0 or mult <= 0:
         return None
     scale = math.sqrt(mp * 1024 * 1024 / (ratio[0] * ratio[1]))
     return round(ratio[0] * scale / mult) * mult, round(ratio[1] * scale / mult) * mult
@@ -665,6 +665,22 @@ def _size_value(api: dict[str, dict[str, Any]], nid: str, key: str) -> Any:
 
 def _settable(api: dict[str, dict[str, Any]], nid: str, key: str) -> bool:
     return _size_value(api, nid, key) is not None
+
+
+def _other_users(api: dict[str, dict[str, Any]], link: list[Any]) -> list[str]:
+    """link(PrimitiveInt・ResolutionSelector の出力)を、大きさのノードの幅・高さ以外で使うノード。
+    画像の縮小・計算のノードが同じ値を使っていると、大きさのノードだけ書き換えても実際に動く大きさとずれる。"""
+    size = set(_size_nodes(api))
+    return sorted(
+        nid
+        for nid, n in api.items()
+        for k, v in n["inputs"].items()
+        if isinstance(v, list)
+        and len(v) == 2
+        and str(v[0]) == str(link[0])
+        and v[1] == link[1]
+        and not (nid in size and k in ("width", "height"))
+    )
 
 
 def size_input(api: dict[str, dict[str, Any]]) -> bool:
@@ -704,7 +720,19 @@ def apply_settings(
                     hit = True
                 elif k in ("width", "height") and _settable(api, nid, k):
                     # PrimitiveInt・ResolutionSelector から来る大きさ: このノードの入力を値に置き換える
-                    # (元のノードは書き換えない。ほかの大きさのノードも同じ回で置き換わる)
+                    # (元のノードは書き換えない。ほかの大きさのノードも同じ回で置き換わる)。
+                    # 同じ値をほかのノードも使うなら、動く大きさが混ざるので変えない(bench は生成の前に止まる)
+                    others = _other_users(api, api[nid]["inputs"][k])
+                    if others:
+                        notes.append(
+                            tr(
+                                f"ノード {nid} の {k} の値はノード {', '.join(others)} も使うので"
+                                f" {label[0]} を変えられません",
+                                f"node {nid}: the value of {k} is also used by node {', '.join(others)},"
+                                f" so the {label[1]} cannot be changed",
+                            )
+                        )
+                        continue
                     n["inputs"][k] = value
                     hit = True
                 else:
