@@ -27,6 +27,7 @@ from genmodelfit.workflow import (
     is_api_format,
     map_widgets,
     reachable_nodes,
+    size_input,
     ui_to_api,
     upload_inputs,
 )
@@ -399,6 +400,49 @@ def test_apply_settings_linked_input_is_reported():
     new, notes = apply_settings(wf, width=768)
     assert new["1"]["inputs"]["width"] == ["9", 0]
     assert any("他のノード" in n for n in notes)
+
+
+def test_size_from_primitive_int_is_read_and_set():
+    """大きさが PrimitiveInt から来るテンプレート(FLUX.2 9B の文章から画像など)も、
+    大きさを読み、書き換えられる。"""
+    wf = {
+        "1": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": ["7", 0], "height": ["8", 0]}},
+        "7": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+        "8": {"class_type": "PrimitiveInt", "inputs": {"value": 768}},
+    }
+    assert size_input(wf)
+    s = effective_settings(wf)
+    assert (s.width, s.height) == (1024, 768)
+    new, notes = apply_settings(wf, width=512, height=512)
+    assert notes == []
+    assert new["1"]["inputs"]["width"] == 512 and new["1"]["inputs"]["height"] == 512
+    assert wf["1"]["inputs"]["width"] == ["7", 0]  # 元は変えない
+    assert (effective_settings(new).width, effective_settings(new).height) == (512, 512)
+
+
+def test_size_from_resolution_selector_follows_comfyui():
+    """ResolutionSelector の幅・高さは ComfyUI と同じ計算(メガ画素 × 1024²、縦横比、multiple の倍数)。"""
+
+    def wf(aspect, mp, multiple=8):
+        return {
+            "1": {"class_type": "EmptySD3LatentImage", "inputs": {"width": ["9", 0], "height": ["9", 1]}},
+            "9": {
+                "class_type": "ResolutionSelector",
+                "inputs": {"aspect_ratio": aspect, "megapixels": mp, "multiple": multiple},
+            },
+        }
+
+    s = effective_settings(wf("1:1 (Square)", 1))
+    assert (s.width, s.height) == (1024, 1024)
+    # 16:9・1 MP: scale = √(1048576 / 144) ≈ 85.33 → 1365.3 / 8 → 171 × 8 = 1368、768
+    s = effective_settings(wf("16:9 (Widescreen)", 1.0))
+    assert (s.width, s.height) == (1368, 768)
+    new, notes = apply_settings(wf("1:1 (Square)", 1), width=768, height=768)
+    assert notes == [] and (effective_settings(new).width, effective_settings(new).height) == (768, 768)
+    # 縦横比が他のノードから来るなど、値が分からないときは今までどおり大きさの入力なし
+    unknown = wf("1:1 (Square)", 1)
+    unknown["9"]["inputs"]["megapixels"] = ["3", 0]
+    assert not size_input(unknown) and effective_settings(unknown).width is None
 
 
 def test_offload_from_logs():

@@ -562,6 +562,7 @@ The RTX 5080 measurements were taken with ComfyUI's dynamic VRAM, which **uses m
    - A template without a size input (depth estimation, background removal and the like, which work from an input image) has no size in its judging settings (#90).
      - Which templates have no size input is decided only by a hand table the maintainer checked (`estimate.NO_SIZE_INPUT`; the evidence is a bench record or the template's nodes), never by other users' submissions (so that one submission cannot change the judgment of a model with a size input on every PC).
      - A new template is added when its first bench record is reviewed (the bench writes a width and height only when the template has a size input; a size-less submission for a model not in the table gets the `settings_missing` warning in its PR, which tells the maintainer).
+     - A size input is a literal value on a size node, and also the value of a linked `PrimitiveInt` or what a `ResolutionSelector` outputs (computed from the aspect ratio and megapixels as ComfyUI does) (0.15.1; many official text-to-image templates take their size from these two). A size taken from the input image (`GetImageSize`) and the like does not count.
      - A size-less measurement then has the same settings as a judgment without settings. With `--width` and the like, things work as before.
      - The working memory is still estimated at the default size for the type (image 1024px and so on).
 5. Without a GPU (`--vram 0` and so on), GPU measurements are not used: `basis: "estimated"`, `measured_on: null`.

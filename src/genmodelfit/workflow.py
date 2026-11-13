@@ -15,6 +15,7 @@ ComfyUI のコードは import しない(GPL のため)。ここでは JSON だ�
 from __future__ import annotations
 
 import copy
+import math
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -620,11 +621,58 @@ def _size_nodes(api: dict[str, dict[str, Any]]) -> list[str]:
     ]
 
 
+def _ratio(label: Any) -> tuple[float, float] | None:
+    """ResolutionSelector の縦横比の選択肢(「16:9 (Widescreen)」など)の先頭の 幅:高さ。"""
+    m = re.match(r"\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)", str(label))
+    return (float(m.group(1)), float(m.group(2))) if m and float(m.group(1)) and float(m.group(2)) else None
+
+
+def _resolution_selector(node: dict[str, Any]) -> tuple[int, int] | None:
+    """ResolutionSelector の幅・高さ(ComfyUI の計算: 総画素 = メガ画素 × 1024²、縦横比で分け、
+    multiple の倍数に丸める。comfy_extras/nodes_resolution.py:80-86@6e8488e)。
+    入力が他のノードから来るなら None。"""
+    inp = node["inputs"]
+    if not all(_literal(node, k) for k in ("aspect_ratio", "megapixels")):
+        return None
+    ratio = _ratio(inp["aspect_ratio"])
+    multiple = inp.get("multiple", 8)
+    try:
+        mp, mult = float(inp["megapixels"]), int(multiple)
+    except (TypeError, ValueError):
+        return None
+    if ratio is None or mp <= 0 or mult <= 0:
+        return None
+    scale = math.sqrt(mp * 1024 * 1024 / (ratio[0] * ratio[1]))
+    return round(ratio[0] * scale / mult) * mult, round(ratio[1] * scale / mult) * mult
+
+
+def _size_value(api: dict[str, dict[str, Any]], nid: str, key: str) -> Any:
+    """大きさのノードの幅・高さの値。直接の値か、つながった PrimitiveInt の値か、ResolutionSelector が出す値
+    (公式テンプレートの文章から画像の多くは、大きさをこの 2 つから受ける)。分からなければ None。"""
+    v = api[nid]["inputs"].get(key)
+    if not isinstance(v, list):
+        return v
+    src = api.get(str(v[0])) if len(v) == 2 else None
+    if src is None:
+        return None
+    if src["class_type"] == "PrimitiveInt" and _literal(src, "value"):
+        return src["inputs"]["value"]
+    if src["class_type"] == "ResolutionSelector" and v[1] in (0, 1):
+        wh = _resolution_selector(src)
+        return None if wh is None else wh[v[1]]
+    return None
+
+
+def _settable(api: dict[str, dict[str, Any]], nid: str, key: str) -> bool:
+    return _size_value(api, nid, key) is not None
+
+
 def size_input(api: dict[str, dict[str, Any]]) -> bool:
-    """テンプレートに大きさ(幅・高さ)の入力があるか: 大きさを決めるノード(_size_nodes)に、値を書ける幅と高さが
-    あるか。無いテンプレート(入力の画像から作る深度推定・背景除去など)では、bench は設定に幅・高さを書かない。
+    """テンプレートに大きさ(幅・高さ)の入力があるか: 大きさを決めるノード(_size_nodes)に、値の分かる幅と高さが
+    あるか(直接の値、PrimitiveInt、ResolutionSelector。_size_value)。無いテンプレート(入力の画像から作る
+    深度推定・背景除去など)では、bench は設定に幅・高さを書かない。
     判定と contrib はその記録で見分ける(estimate.no_size_input。#90)。"""
-    return any(_literal(api[nid], "width") and _literal(api[nid], "height") for nid in _size_nodes(api))
+    return any(_settable(api, nid, "width") and _settable(api, nid, "height") for nid in _size_nodes(api))
 
 
 FRAME_KEYS = ("length", "frames", "num_frames", "video_frames")
@@ -652,6 +700,11 @@ def apply_settings(
                 if k not in n["inputs"]:
                     continue
                 if _literal(n, k):
+                    n["inputs"][k] = value
+                    hit = True
+                elif k in ("width", "height") and _settable(api, nid, k):
+                    # PrimitiveInt・ResolutionSelector から来る大きさ: このノードの入力を値に置き換える
+                    # (元のノードは書き換えない。ほかの大きさのノードも同じ回で置き換わる)
                     n["inputs"][k] = value
                     hit = True
                 else:
@@ -711,9 +764,17 @@ def effective_settings(api: dict[str, dict[str, Any]], precision: str | None = N
             return None
 
     batch = num(_first(api, ("batch_size",), batch_nodes), int) or 1
+
+    def size_of(key: str) -> Any:
+        for nid in latent:
+            v = _size_value(api, nid, key)
+            if v is not None:
+                return v
+        return None
+
     return Settings(
-        width=num(_first(api, ("width",), latent), int) if sized else None,
-        height=num(_first(api, ("height",), latent), int) if sized else None,
+        width=num(size_of("width"), int) if sized else None,
+        height=num(size_of("height"), int) if sized else None,
         frames=num(_first(api, FRAME_KEYS, latent), int),
         seconds=num(_first(api, SECONDS_KEYS), float),
         steps=num(_first(api, ("steps",)), int),

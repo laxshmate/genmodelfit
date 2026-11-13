@@ -67,6 +67,12 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **bench reads and sets the size of templates whose size comes from a `PrimitiveInt` or a `ResolutionSelector`.**
+  34 official templates (Z-Image, Qwen Image 2.1, Krea 2, Anima, FLUX.2 9B text to image and others) take their
+  width and height from these nodes, so bench recorded no size for them and `measure --resolution` refused to change
+  it. The value is now followed through the link (ResolutionSelector computed as ComfyUI does: megapixels × 1024²
+  split by the aspect ratio and rounded to the multiple), and a requested size replaces the linked input on the size
+  nodes. A size taken from the input image still counts as no size input.
 - **`measure`'s time guide for the template's own settings no longer mixes in runs made with changed settings**
   (`settings_override`). Their times were taken at a ratio of 1, so a 1536 px or 17-frame run counted as if it were
   the template's.
