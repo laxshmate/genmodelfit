@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib
 import re
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,7 @@ import pytest
 from genmodelfit import families, i18n
 from genmodelfit.db import load
 from genmodelfit.models import Gpu, Measurement, Settings, SystemInfo
-from genmodelfit.working import LATENTS, VAE_WORK, WORKS, stage_memory
+from genmodelfit.working import KNOWN_PARAMS, LATENTS, VAE_WORK, WORKS, stage_memory
 
 E = importlib.import_module("genmodelfit.estimate")
 GIB = 1024**3
@@ -91,6 +92,7 @@ PINNED = {
     "audio_stable_audio_example": ("stable_audio", "oobleck", 0.0084, 0.8202, 0.8202, 0.0),
     "hunyuan_video_text_to_video": ("hunyuan_video", "hunyuan_video", 4.6069, 16.6626, 1.7090, 0.0),
     "image_flux2_klein_text_to_image": ("flux2_4b", "flux2", 1.1703, 4.2539, 4.2539, 0.0),
+    "image_flux3_klein_t2i": ("flux3_klein", "flux2", 1.1703, 4.2539, 4.2539, 0.0),
 }
 
 
@@ -282,7 +284,6 @@ FALLBACK_BEFORE = {
     "manual:tsukuyomi-chan-piper-plus": (1.52, "perfect"),
     "3d_hunyuan3d_image_to_model": (6.7, "good"),
     "utility_birefnet_remove_background": (2.13, "perfect"),
-    "image_flux3_klein_t2i": (18.22, "good"),  # 逃がして good(#108 で逃がすのは good まで)
 }
 
 
@@ -406,9 +407,48 @@ def test_size_bins(db):
     assert _st(db, "image_flux2_klein_9b_kv_image_edit").work == "flux2_9b"
     assert _st(db, "ltxv_text_to_video").work == "ltxv"
     assert _st(db, "video_ltx2_3_t2v").work == "ltxav"
-    # 大きさの分からない Flux3・Stable Audio 3 は当てない(今までの式)
-    assert _st(db, "image_flux3_klein_t2i") is None
+    # Flux3 Klein は見出しを読めない(gated)ので手の表 KNOWN_PARAMS の大きさで当てる
+    for mid in (
+        "image_flux3_klein_t2i",
+        "image_flux3_klein_distilled_t2i",
+        "image_flux3_klein_image_edit",
+        "image_flux3_klein_distilled_image_edit",
+    ):
+        assert _st(db, mid).work == "flux3_klein", mid
+    # VAE の設定の分からない Stable Audio 3 は当てない(今までの式)
     assert _st(db, "audio_stable_audio_3_medium") is None
+
+
+def _flux3_params(hidden: int, depth: int = 5, single: int = 28, flow_map: bool = False) -> int:
+    """comfy/ldm/flux3/model.py:79@426f5ee の形で数えたパラメータ数(bias なし)。
+    1 ブロック = q・k・v・attn_out 4h² + mlp_in 6h² + mlp_out 3h² + QKNorm 2 × 128。
+    ブロックは image・image_cond・txt の 3 × depth と single。変調 6 個 × 3h²。"""
+    h = hidden
+    block = 13 * h * h + 2 * 128
+    embed = 2 * 128 * h + 20480 * h + (256 * h + h * h) * (2 if flow_map else 1)
+    last = h * 128 + 2 * h * h
+    return (3 * depth + single) * block + 6 * 3 * h * h + embed + last
+
+
+def test_flux3_klein_params_are_hidden_3072():
+    """手の表の数(HF API の safetensors.total)は、ComfyUI の Flux3 の既定(hidden 3072)の形で
+    数えた値と一致する。
+    hidden が違えば一致しない(2560・3584 では数が大きく外れる)。"""
+    assert [n for _, n, _ in KNOWN_PARAMS] == [_flux3_params(3072), _flux3_params(3072, flow_map=True)]
+    # 表はファイル名の完全一致。別の大きさの Klein(仮の名前)には当たらない
+    pats = [pat for pat, _, _ in KNOWN_PARAMS]
+    for name in ("flux3-image-klein-int8-convrot.safetensors", "flux3-image-klein-base-nvfp4.safetensors"):
+        assert sum(bool(re.search(p, name)) for p in pats) == 1, name
+    assert not any(re.search(p, "flux3-image-klein-9b-bf16.safetensors") for p in pats)
+    assert all(abs(_flux3_params(h) - 5.54e9) > 1e9 for h in (2560, 3584))
+    assert WORKS["flux3_klein"].factor == WORKS["flux2_4b"].factor
+
+
+def test_flux3_larger_than_klein_is_not_guessed(db):
+    """Klein より大きい Flux3 は hidden が分からないので当てない(今までの式)。"""
+    m = db.get("image_flux3_klein_t2i")
+    big = replace(m, files=[replace(f, header_params=9_000_000_000) for f in m.files])
+    assert stage_memory(big, E.settings_for(big, None)) is None
 
 
 # --- 下限と実測のずらし(#100 のチェッカーの M1・S1・S3) -------------------------------------------

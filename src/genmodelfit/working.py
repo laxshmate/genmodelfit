@@ -108,7 +108,7 @@ _KL = ("kl",)
 _WAN = ("wan",)
 _F2 = ("flux2",)
 SM = "supported_models.py"
-# 系統の鍵 → 行。大きさ・名前で分かれる系統(sd・wan・flux2・ltxv・omnigen2・kandinsky5・stable_audio)は
+# 系統の鍵 → 行。大きさ・名前で分かれる系統(sd・wan・flux2・flux3・ltxv・omnigen2・kandinsky5・stable_audio)は
 # work_of で行を選ぶ
 WORKS: dict[str, Work] = {
     w.key: w
@@ -154,6 +154,17 @@ WORKS: dict[str, Work] = {
         ),
         Work(
             "flux2_32b", 3.1 * 4 * 6144 / 2604, "img16", "flux2", _F2, f"{SM}:820@{C}(hidden 6144)", ref=True
+        ),
+        # Flux3 は Flux2 を継ぐ(supported_models.py:847・820)。参照の潜在も数える(model_base.py:1110・1137)。
+        # 知っているのは Klein(hidden 3072)だけ
+        Work(
+            "flux3_klein",
+            3.1 * 4 * 3072 / 2604,
+            "img16",
+            "flux2",
+            _F2,
+            f"{SM}:820・847@{C}(hidden 3072)",
+            ref=True,
         ),
         # Wan: dim / 2222(supported_models.py:1374)。dim は本体の大きさの区分から。VACE は × 1.2(:1456)
         Work("wan_1.3b", 1536 / 2222, "wan21", "wan", ("wan", "wan22"), f"{SM}:1374@{C}(dim 1536)"),
@@ -211,6 +222,27 @@ WORKS: dict[str, Work] = {
 # 本体の大きさ(header_params。無ければ params_b)の区分。docs/accuracy.md「系統の当て方」
 WAN_BINS = ((2.5e9, "wan_1.3b"), (7e9, "wan_5b"), (math.inf, "wan_14b"))
 FLUX2_BINS = ((6e9, "flux2_4b"), (12e9, "flux2_9b"), (math.inf, "flux2_32b"))
+# Flux3: Klein(5.5B)より大きいものは hidden_size が分からないので当てない
+FLUX3_KLEIN_MAX = 6e9
+
+# 見出しを読めない本体(gated で匿名では 401)のパラメータ数。header_params の代わりに使う。
+# 1 行 = (本体のファイル名の正規表現, パラメータ数, 出典)。docs/accuracy.md「系統の当て方」
+KNOWN_PARAMS: tuple[tuple[str, int, str], ...] = (
+    (
+        r"^flux3-image-klein-base-(?:bf16|int8-convrot|nvfp4)\.safetensors$",
+        5_538_458_368,
+        "HF API の safetensors.total(black-forest-labs/flux-3-image-klein-base、2026-11-11)。"
+        f"comfy/ldm/flux3/model.py:79@{C} の既定(hidden 3072・depth 5・single 28・"
+        "flow_map なし)で数えた値と一致",
+    ),
+    (
+        r"^flux3-image-klein-(?:bf16|int8-convrot|nvfp4)\.safetensors$",
+        5_548_681_984,
+        "HF API の safetensors.total(black-forest-labs/flux-3-image-klein、2026-11-11)。"
+        f"comfy/ldm/flux3/model.py:79@{C} の既定(hidden 3072・depth 5・single 28・"
+        "flow_map あり)で数えた値と一致",
+    ),
+)
 # LTX: LTX-2 / 2.3(19B・22B。音声の付いた LTXAV)・LTXV 13B・ほか(2B)
 LTX_BINS = ((10e9, "ltxv"), (14e9, "ltxv_13b"), (math.inf, "ltxav"))
 # SD: 本体(全部入り)が 3.3B 以上なら SDXL(UNet 2.6B + CLIP 0.8B)、未満は SD1.5・SD2・SDXL refiner(どれも 1.0)
@@ -486,11 +518,20 @@ def _names(entry) -> str:
 
 
 def main_sizes(entry) -> list[float]:
-    """本体のファイルのパラメータ数(safetensors / GGUF の見出し)。無ければ一覧の params_b。
-    分からなければ空。"""
+    """本体のファイルのパラメータ数(safetensors / GGUF の見出し)。無ければ手の表 KNOWN_PARAMS、
+    それも無ければ一覧の params_b。分からなければ空。"""
     from .groups import main_files
 
-    sizes = [float(f.header_params) for f in main_files(entry) if getattr(f, "header_params", None)]
+    mains = main_files(entry)
+    sizes = [float(f.header_params) for f in mains if getattr(f, "header_params", None)]
+    if sizes:
+        return sizes
+    sizes = [
+        float(n)
+        for f in mains
+        for pat, n, _ in KNOWN_PARAMS
+        if re.search(pat, f.name.replace("\\", "/").rsplit("/", 1)[-1].lower())
+    ]
     if sizes:
         return sizes
     if entry.params_b and entry.params_b > 0:
@@ -527,6 +568,10 @@ def work_of(entry, family: str | None) -> Work | None:
         if not sizes:
             return None
         key = _bin(max(sizes), FLUX2_BINS)
+    elif family == "flux3":
+        if not sizes or max(sizes) >= FLUX3_KLEIN_MAX:
+            return None
+        key = "flux3_klein"
     elif family == "ltxv":
         if not sizes:
             return None

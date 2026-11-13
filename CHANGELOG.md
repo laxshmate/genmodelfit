@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format is based on
 
 ## [0.15.1] - Unreleased
 
+### Changed
+
+- **FLUX 3 Image Klein (4 templates) now uses the per-stage working memory** instead of the earlier per-modality
+  formula. Its main files are gated, so their headers cannot be read and the size was unknown; a hand table
+  (`working.KNOWN_PARAMS`) now holds the parameter count from the Hugging Face API, which matches the defaults of
+  ComfyUI's Flux3 class (hidden size 3072) exactly. The all-on-GPU value goes from 18.2 to 22.2 GB and the offload
+  value from 2.2 to 5.9 GB (the Flux2 VAE estimate at 1024², as for FLUX.2 Klein 4B). On 6 GB, text to image goes
+  from Good to Marginal and image edit from Good to Too tight (offload 5.98 GB; FLUX.2 Klein 4B edit needs 5.82 GB and
+  stays Marginal). 8 GB and more do not change level. Models without a per-stage formula: 87 → 83.
+
 ### Fixed
 
 - **`measure` / `share` ask before starting a ComfyUI found in the current folder.** Starting it runs that folder's

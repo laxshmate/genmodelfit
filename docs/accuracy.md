@@ -246,11 +246,19 @@ Levels of ACE-Step 1.5 (`audio_ace_step_1_5_split`, no measurements; NVIDIA, 32 
 
 The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; docs/hardware, "Family table") and the main model's size.
 
-- **The size is the main file's `header_params`** (element count from the safetensors / GGUF header; else `params_b` of the list), in bins
+- **The size is the main file's `header_params`** (element count from the safetensors / GGUF header; else the hand table
+  `working.KNOWN_PARAMS`; else `params_b` of the list), in bins
   (dim and hidden_size are not read; no cache or schema change, and the values are fixed):
   - Wan: below 2.5B → dim 1536, below 7B → 3072 (Wan 2.2 5B), otherwise → 5120. Factor = dim / 2222 (supported_models.py:1374).
     VACE × 1.2 (:1456), WanDancer 1.8 (:1590)
   - Flux2: below 6B → hidden 3072 (Klein 4B), below 12B → 4096 (Klein 9B), otherwise → 6144 (dev 32B). Factor = 3.1 × 4 × hidden / 2604 (:820)
+  - Flux3 (0.15.1): it inherits Flux2 (:847), so the factor formula is the same. Reference latents are counted too (model_base.py:1110).
+    Only Klein (below 6B → hidden 3072) is known; larger ones are not mapped
+    - The Flux3 Klein main files are gated, so their headers cannot be read anonymously (401). The hand table
+      `KNOWN_PARAMS` holds the HF API `safetensors.total` instead (black-forest-labs/flux-3-image-klein: 5,548,681,984,
+      -base: 5,538,458,368; 2026-11-11). Both numbers equal, to the parameter, the count from the defaults of ComfyUI's
+      Flux3 class (comfy/ldm/flux3/model.py:79@426f5ee; hidden 3072, depth 5, single 28; only flow_map differs)
+      (`tests/test_working.py` recounts them). With hidden 2560 or 3584 the count is off by more than 1B
   - LTX: 14B or more → LTXAV (LTX-2 / 2.3; factor 0.077, :980), 10B or more → LTXV 13B (11 = 5.5 × 4096 / 2048, :960), otherwise → LTXV (5.5)
   - SD: an (all-in-one) main model of 3.3B or more → SDXL (0.8, :219), below → SD1.5, SD2, SDXL refiner (all 1.0, :69, 116, 180)
 - Other factors: SD3 1.6, Flux 3.1, Chroma 3.2, LongCat 2.5, HiDream 2.0 (default), Lumina2 1.4, Z-Image 2.8,
@@ -269,14 +277,15 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
 These use **the earlier per-modality formula for the whole model** (ComfyUI's default factor 2.0 is not used: it would overestimate
 non-diffusion tools such as SAM3, Depth Anything and frame interpolation).
 
-<!-- fallback-count: 86 -->
-86 of the 329 entries in the bundled list:
+<!-- fallback-count: 83 -->
+83 of the 330 entries in the bundled list:
 
-- 22 text to speech, 10 3D (the `act_3d_gb` formula; ComfyUI's 3D estimate has a different shape)
+- 23 text to speech, 10 3D (the `act_3d_gb` formula; ComfyUI's 3D estimate has a different shape)
 - 27 with an unknown family (13 image, 13 video, 1 music)
 - 20 with a family but no formula: SeedVR2 4, Stable Audio 3 4 (the list does not tell which of the two VAE configurations it uses),
   SD video (SVD, AnimateDiff) 3, Ming 2 (no VAE formula), Qwen Image video workflows 2, Depth Anything 3 2, SAM3 2, MiniMax Music 1
-- 7 with an unknown size: Flux3 Klein 4 (no header and no `params_b`), Wan 2 (same), SD 1
+- 3 with an unknown size: Wan 2 (the list has no main file), SD 1 (a `.ckpt`, whose header cannot be read)
+  - The 4 Flux3 Klein entries are mapped from 0.15.1 ("How families are mapped" above)
 
 Mapping more families is future work ("Known limits" below).
 
@@ -622,9 +631,9 @@ How to read it:
   - At the app's settings (512px, 49 frames), Wan 2.1 1.3B is Good offloaded on 6GB and on 8GB (swapped in turn it would use 97% on 8GB; Marginal before 0.11.0).
 - **Future work** (#100):
   1. Text-stage working memory ComfyUI does not estimate: image tokens of Qwen2.5-VL, Flux2's Mistral, the YuE2 score stage (8192 tokens),
-     the KV of the ACE-Step 1.5 LM, and so on
+     the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), and so on
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used
-  3. Reduce the models without a per-stage formula (86): the Flux3 size, the Stable Audio 3 VAE, the SeedVR2 and Ming VAEs, and so on
+  3. Reduce the models without a per-stage formula (83): the Stable Audio 3 VAE, the SeedVR2 and Ming VAEs, and so on (Flux3 Klein was mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
      `MIN_WEIGHT_MEMORY_RATIO = 0` (model_management.py:458-460@426f5ee), and dynamic VRAM is the default from 0.16. Images now use

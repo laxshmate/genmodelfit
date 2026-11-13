@@ -241,11 +241,19 @@ ACE-Step 1.5(実測の無い `audio_ace_step_1_5_split`、NVIDIA、メインメ�
 
 `comfy_family` / `comfy_vae`(`families.py`。docs/hardware「系統の表」)と本体の大きさで、`working.py` の表の行を決めます。
 
-- **大きさは本体のファイルの `header_params`**(safetensors / GGUF の見出しの要素数。無ければ一覧の `params_b`)の区分で決める
+- **大きさは本体のファイルの `header_params`**(safetensors / GGUF の見出しの要素数。無ければ手の表 `working.KNOWN_PARAMS`、
+  それも無ければ一覧の `params_b`)の区分で決める
   (dim・hidden_size は読まない。キャッシュ・スキーマを変えず、決まった値になる):
   - Wan: 2.5B 未満 → dim 1536、7B 未満 → 3072(Wan 2.2 5B)、それ以上 → 5120。係数 = dim / 2222(supported_models.py:1374)。
     VACE は × 1.2(:1456)、WanDancer は 1.8(:1590)
   - Flux2: 6B 未満 → hidden 3072(Klein 4B)、12B 未満 → 4096(Klein 9B)、それ以上 → 6144(dev 32B)。係数 = 3.1 × 4 × hidden / 2604(:820)
+  - Flux3(0.15.1): Flux2 を継ぐ(:847)ので係数の式は同じ。参照の潜在も数える(model_base.py:1110)。
+    知っているのは Klein(6B 未満 → hidden 3072)だけで、それより大きいものは当てない
+    - Flux3 Klein の本体は gated で、匿名では見出しを読めない(401)。そこで手の表 `KNOWN_PARAMS` に、
+      HF API の `safetensors.total`(black-forest-labs/flux-3-image-klein: 5,548,681,984、-base: 5,538,458,368。
+      2026-11-11)を持つ。この 2 つの数は、ComfyUI の Flux3 のクラス(comfy/ldm/flux3/model.py:79@426f5ee)の既定
+      (hidden 3072・depth 5・single 28。flow_map の有無だけ違う)で数えた値と完全に一致する
+      (`tests/test_working.py` が数え直す)。hidden が 2560・3584 なら 1B 以上ずれる
   - LTX: 14B 以上 → LTXAV(LTX-2 / 2.3。係数 0.077、:980)、10B 以上 → LTXV 13B(11 = 5.5 × 4096 / 2048、:960)、ほか → LTXV(5.5)
   - SD: 本体(全部入り)が 3.3B 以上 → SDXL(0.8、:219)、未満 → SD1.5・SD2・SDXL refiner(どれも 1.0、:69・116・180)
 - そのほかの係数: SD3 1.6・Flux 3.1・Chroma 3.2・LongCat 2.5・HiDream 2.0(既定)・Lumina2 1.4・Z-Image 2.8・
@@ -264,14 +272,15 @@ ACE-Step 1.5(実測の無い `audio_ace_step_1_5_split`、NVIDIA、メインメ�
 次のものは、**モデル全体を今までの種類ごとの式**で出します(ComfyUI の既定の係数 2.0 は使わない。
 SAM3・Depth Anything・フレーム補間などの拡散でない道具が過大になるため)。
 
-<!-- fallback-count: 86 -->
-同梱の一覧(329 件)で 86 件:
+<!-- fallback-count: 83 -->
+同梱の一覧(330 件)で 83 件:
 
-- 読み上げ 22 件・3D 10 件(係数 `act_3d_gb` の式。3D の作業用メモリは ComfyUI の見込みの形が違う)
+- 読み上げ 23 件・3D 10 件(係数 `act_3d_gb` の式。3D の作業用メモリは ComfyUI の見込みの形が違う)
 - 系統が分からない 27 件(画像 13・動画 13・音楽 1)
 - 系統はあるが式が無い 20 件: SeedVR2 4・Stable Audio 3 4(VAE の 2 つの設定のどちらか一覧から分からない)・SD の動画(SVD・AnimateDiff)3・
   Ming 2(VAE の式が無い)・Qwen Image の動画のワークフロー 2・Depth Anything 3 2・SAM3 2・MiniMax Music 1
-- 大きさが分からない 7 件: Flux3 Klein 4(見出しも `params_b` も無い)・Wan 2(同)・SD 1
+- 大きさが分からない 3 件: Wan 2(一覧に本体のファイルが無い)・SD 1(`.ckpt` で見出しを読めない)
+  - Flux3 Klein の 4 件は 0.15.1 から当てる(上の「系統の当て方」)
 
 当てられる系統を増やすのは宿題(下の「分かっている限界」)。
 
@@ -613,9 +622,9 @@ music・video は張り付いていない実測が 1 件以下のため評価で
   - Wan 2.1 1.3B は、アプリの設定(512px・49 コマ)で 6GB も 8GB も逃がして Good(8GB で順に載せ替えると使用率 97%。0.11.0 より前は Marginal)。
 - **宿題**(#100):
   1. 文章の読み取りの作業用メモリ: Qwen2.5-VL の画像のトークン、Flux2 の Mistral、YuE2 の楽譜の段(8192 トークン)、
-     ACE-Step 1.5 の LM の KV など、ComfyUI が見込まないもの
+     ACE-Step 1.5 の LM の KV、Flux3 の指示文の書き直し(Qwen3.5 9B)など、ComfyUI が見込まないもの
   2. 段ごとの山を bench で測る(段の境目で区切る)。作業用メモリだけの実測(上の「実測の使い方」7)を使えるようにする
-  3. 当てられないモデル(86 件)を減らす(Flux3 の大きさ、Stable Audio 3 の VAE、SeedVR2・Ming の VAE など)
+  3. 当てられないモデル(83 件)を減らす(Stable Audio 3 の VAE、SeedVR2・Ming の VAE など。Flux3 Klein は 0.15.1 で当てた)
   4. RTX 3070 の測り直し(下の「照合」)と、Wan2.1 832x480・81 コマ
   5. **対応した(0.15.0、画像だけ)**: 逃がすときに GPU に残す割合(0.4)。ComfyUI の NVIDIA は `MIN_WEIGHT_MEMORY_RATIO = 0`
      (model_management.py:458-460@426f5ee)で、0.16 からは動的 VRAM が既定。画像は上の「動的 VRAM で逃がすとき」の式にした。
