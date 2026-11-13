@@ -228,7 +228,14 @@ def test_suggestions_put_installed_first_and_drop_measured(db, tmp_path):
         # 消さないと実行のたびに 4.7 GB ずつ溜まる(2026-11-11)
         for p in made:
             p.unlink(missing_ok=True)
-    assert again[0].model_id == last.model_id and again[0].installed.state == "yes"
+    # 同じファイルを使うほかの項目(SeedVR2 の画像と動画など)も入っているので、先頭に来るのはそのどれか。
+    # 入っているものは、入っていないものより前に並ぶ
+    states = [x.installed.state for x in again]
+    n_yes = states.count("yes")
+    assert n_yes >= 1 and states[:n_yes] == ["yes"] * n_yes
+    yes = {x.model_id for x in again if x.installed.state == "yes"}
+    assert last.model_id in yes
+    assert all({f.name for f in db.get(i).files} <= {f.name for f in m.files} for i in yes)
     # この GPU で測ったら出さない
     db2 = load_db(use_cache=False)
     db2.measurements.append(meas(model_id=first[0].model_id))

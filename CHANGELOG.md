@@ -39,6 +39,16 @@ All notable changes to this project are documented here. The format is based on
   only; counted from the official headers), and a UNet-only file matching the SDXL UNet uses the SDXL row. They now use
   the same per-stage values as the official SD models (all-on-GPU 8.2 → 9.0 GB for SDXL) and the CPU judgment of the SD
   family (on 2 GB, Too tight → Marginal on the CPU, like the official SDXL). Models without a per-stage formula: 76 → 71.
+- **SeedVR2 (the 3 official int8 upscale templates) now uses the per-stage working memory**: ComfyUI's default factor
+  2.0, and the author's fp16 byte formulas for its VAE (decode: output-frame pixels × 3150 + 384 MiB; encode: input-frame
+  pixels × 2550 + 576 MiB; × 5 / × 3 in fp32). The templates tile the VAE at 512 px, so the VAE is judged at that
+  tile. The video template does not split the latent frames by default (its "Split Latent" switch is off), so the
+  denoise stage counts all of them, and the reasons say that turning the switch on may let it run on less VRAM. The
+  settings' width and height are the output size. Video upscale (3B) at 832×480 × 81: all-on-GPU 10.2 → 10.3 GB; 8 GB
+  goes from Marginal (offload, 97.9%) to Too tight (98.5%). Image upscale (3B / 7B) at 1024²: all-on-GPU +0.9 GB (the
+  untiled encode estimate, 3.05 GB) and no level changes; 3B on 6 GB now offloads instead of loading in turn. No other
+  model changes (NVIDIA 4–32 GB × main memory 16 / 32 / 64 GB). The old custom-node template is not mapped. Models
+  without a per-stage formula: 71 → 68.
 
 ### Fixed
 

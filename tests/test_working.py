@@ -98,6 +98,9 @@ PINNED = {
     "image_ming_image_01_design_t2i": ("ming_image", "wan", 0.8960, 4.2969, 0.2686, 3.0732),
     "image_ming_image_01_design_image_edit": ("ming_image", "wan", 1.7920, 4.2969, 0.2686, 3.1465),
     "audio_minimax_music_3": ("minimax_music3", "dav", 0.1009, 9.8776, 3.6638, 0.0),
+    "utility_seedvr2_3b_int8_upscale_image": ("seedvr2", "seedvr2", 0.6400, 3.0528, 1.1851, 0.0),
+    "utility_seedvr2_7b_int8_upscale_image": ("seedvr2", "seedvr2", 0.6400, 3.0528, 1.1851, 0.0),
+    "utility_seedvr2_3b_int8_upscale_video": ("seedvr2", "seedvr2", 5.1188, 1.5110, 1.1461, 0.0),
 }
 
 
@@ -152,6 +155,21 @@ def test_formula_by_hand():
     assert mm3[2] == pytest.approx(2583 * 2 * 0.01 * 2.0 / 1024, abs=1e-4)
     assert mm3[3] == pytest.approx((2583 * 512 * 1400 + 800_000_000) * 4 / GIB, abs=1e-4)
     assert mm3[4] == pytest.approx((256 * 512 * 1400 + 800_000_000) * 4 / GIB, abs=1e-4)
+    # SeedVR2 の 1024² の高解像度化: 潜在 1 × 128 × 128、係数 2.0(既定)。VAE は fp16 のバイトの式
+    # (ldm/seedvr/vae.py:1415-1433)で、復号はテンプレートのタイル 512² の見込み(画素 × 3150 + 384 MiB)、
+    # 符号化は ComfyUI がタイルにしない大きさで見込む(画素 × 2550 + 576 MiB。sd.py:1491)。使う量は両方 512²
+    sv = PINNED["utility_seedvr2_3b_int8_upscale_image"]
+    assert sv[2] == pytest.approx(128 * 128 * 2 * 0.01 * 2.0 / 1024, abs=1e-4)
+    dec512 = 512 * 512 * 3150 + 384 * 1024**2
+    assert sv[3] == pytest.approx(max(dec512, 1024 * 1024 * 2550 + 576 * 1024**2) / GIB, abs=1e-4)
+    assert sv[4] == pytest.approx(max(dec512, 512 * 512 * 2550 + 576 * 1024**2) / GIB, abs=1e-4)
+    # 動画 832×480×81: 生成の段は全部のコマ(潜在 21 × 60 × 104。
+    # テンプレートの「Split Latent」は既定で切ってある)。
+    # VAE はコマ数によらず 1 コマの面積(タイルは潜在 60 × 64 = 480 × 512 画素)
+    svv = PINNED["utility_seedvr2_3b_int8_upscale_video"]
+    assert svv[2] == pytest.approx(21 * 60 * 104 * 2 * 0.01 * 2.0 / 1024, abs=1e-4)
+    assert svv[3] == pytest.approx((832 * 480 * 2550 + 576 * 1024**2) / GIB, abs=1e-4)
+    assert svv[4] == pytest.approx((480 * 512 * 2550 + 576 * 1024**2) / GIB, abs=1e-4)
     banks = 3 * 2048 * 512 * 256 * 4
     assert ming[5] == pytest.approx((banks + 600 * 2048 * 64) / GIB, abs=1e-4)
     assert PINNED["image_ming_image_01_design_image_edit"][5] == pytest.approx(
@@ -869,3 +887,46 @@ def test_sd_prints_do_not_catch_other_families(db):
     for m in db.models:
         if m.modality == "image" and families._sd_by_params(m):
             assert families.family_of(m) == "sd", m.id
+
+
+# --- SeedVR2(docs/accuracy.md「系統の当て方」) ----------------------------------------------------
+
+
+def test_seedvr2_video_frames_and_split_note(db):
+    """公式の動画のテンプレートは既定でコマを分けない(「Split Latent」の PrimitiveBoolean が False)ので、
+    生成の段は潜在のコマ数に比例する。VAE は 1 コマの面積で見込むのでコマ数で増えない。
+    分ける手を理由に書く。"""
+    mid = "utility_seedvr2_3b_int8_upscale_video"
+    a, b = _st(db, mid, frames=33), _st(db, mid, frames=65)  # 潜在 9 コマ・17 コマ
+    assert pytest.approx(a.S * 17 / 9) == b.S
+    assert (a.V, a.V_tile) == pytest.approx((b.V, b.V_tile))
+    assert any("Split Latent" in n for n in a.notes)
+    assert not any("Split Latent" in n for n in _st(db, "utility_seedvr2_3b_int8_upscale_image").notes)
+
+
+def test_seedvr2_fp32_uses_the_eager_factor(db):
+    """半精度を使わない GPU では、復号 × 5・符号化 × 3(2 バイトあたり。ldm/seedvr/vae.py:409-411)。"""
+    m = db.get("utility_seedvr2_3b_int8_upscale_image")
+    s = E.settings_for(m, None)
+    dec512 = 512 * 512 * 3150 + 384 * 1024**2
+    enc = 1024 * 1024 * 2550 + 576 * 1024**2
+    st = stage_memory(m, s, gpu_fp32=True)
+    assert st.vae_bytes == 4
+    assert pytest.approx(max(dec512 * 10, enc * 6) / GIB, abs=1e-4) == st.V
+    # bf16 の無い GPU は fp16 で動く(working_dtypes の先頭)ので変わらない
+    assert pytest.approx(stage_memory(m, s).V) == stage_memory(m, s, no_bf16=True).V
+
+
+def test_seedvr2_has_no_tile_note(db):
+    """テンプレートが初めからタイルに分けるので、「タイルに分けて動かす(遅い)」の注意は出さない。"""
+    m = db.get("utility_seedvr2_3b_int8_upscale_image")
+    e = E.estimate(m, nv(4), None, db.measurements)
+    assert not any("tiles (slower" in r or "タイルに分けて動かす" in r for r in e.reasons)
+
+
+def test_seedvr2_custom_node_template_is_not_mapped(db):
+    """カスタムノード(seedvr2_videoupscaler)の古いテンプレートは ComfyUI の実装でなく、本体のファイルも
+    分からないので当てない。"""
+    m = db.get("utility_seedvr2_image_upscale")
+    assert "seedvr2_videoupscaler" in m.template.requires_custom_nodes
+    assert _st(db, "utility_seedvr2_image_upscale") is None
