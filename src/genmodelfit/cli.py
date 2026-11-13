@@ -8876,7 +8876,8 @@ Before measuring one screen shows the model and precision, the settings (as in t
 the ones changed), which ComfyUI and how it was found, whether the files are installed, a rough
 time and that nothing is sent, then asks [Y/n] (--yes skips it). The time is a rough guide: the
 median of measurements of the same model, else a rough value per type, scaled by the ratio of
-pixels, frames or length when the settings are changed. When the template cannot take a
+pixels, frames or length when the settings are changed. The guide for the template's own settings
+does not use the times of measurements made with changed settings. When the template cannot take a
 requested setting, or the ComfyUI lacks nodes it needs, it stops before downloading or
 generating.
 A model that is not installed is downloaded first, with the same questions and consent rules as
@@ -9412,7 +9413,8 @@ MODEL はモデルの名前・ワークフローの ID・その一部で、downl
 測る前に 1 画面で、モデルと精度、設定(テンプレートのまま、または変えた設定)、どの ComfyUI か・
 どう見つけたか、ファイルが入っているか、時間の目安、何も送らないことを見せ、[Y/n] で尋ねる
 (--yes で尋ねない)。時間は目安: 同じモデルの実測の中央値、無ければ種類ごとのおおよその値。
-設定を変えたときは画素数・コマ数・長さの比で伸び縮みさせる。テンプレートが頼んだ設定を受け付け
+設定を変えたときは画素数・コマ数・長さの比で伸び縮みさせる。テンプレートのままの目安には、設定を
+変えた実測の時間は使わない。テンプレートが頼んだ設定を受け付け
 ないとき・ComfyUI に要るノードが無いときは、落とす前・生成の前に止める。
 入っていないモデルは、download と同じ確かめ・同意の決まりで先に落とす。落としたものは、終わると
 (失敗・Ctrl+C でも)一覧と合計の量を見せて消すかを [y/N] で尋ねる(この実行で新しく落としたファイル
