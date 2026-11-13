@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [0.15.1] - Unreleased
 
+### Added
+
+- **`tools/template_branches.py`** shows, for a template, which branch each switch takes by default and which nodes
+  start or stop running when it is flipped (`optional.switch_branches`, the same graph walk as the optional parts).
+  It is for checking a template before mapping a per-stage formula: the SeedVR2 video template has a frame-splitting
+  branch that its "Split Latent" switch leaves off by default.
+
 ### Changed
 
 - **FLUX 3 Image Klein (4 templates) now uses the per-stage working memory** instead of the earlier per-modality
