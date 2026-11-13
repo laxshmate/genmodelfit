@@ -132,6 +132,19 @@ WORKS: dict[str, Work] = {
         ),
         Work("lumina2", 1.4, "img8", "kl", _KL, f"{SM}:1209@{C}", ref=True),
         Work("zimage", 2.8, "img8", "kl", _KL, f"{SM}:1239@{C}", ref=True),
+        # Ming Image: ZImage を継ぐ(係数 2.8。supported_models.py:1268)。潜在は Wan 2.1 の形の 3 次元
+        # (latent_formats.py:779-782)で、VAE の見出しも Wan 2.1 の VAE の枝に入る(sd.py:842・868-883)。
+        # 参照の潜在は Lumina2 の extra_conds_shapes が数える(model_base.py:1550・1594-1598)
+        Work(
+            "ming_image",
+            2.8,
+            "wan21",
+            "wan",
+            _WAN,
+            f"{SM}:1239・1268@{C}",
+            te="ming",
+            ref=True,
+        ),
         Work("omnigen2", 1.95, "img8", "kl", _KL, f"{SM}:1926@{C}", ref=True),
         Work("boogu", 2.15, "img8", "kl", _KL, f"{SM}:1960@{C}", ref=True),
         Work("k5_image", 1.25, "img8", "kl", _KL, f"{SM}:2350@{C}"),
@@ -497,8 +510,10 @@ def _tile_encode(v: VaeWork, s: Shape) -> Shape:
 # --- 文章の段 ------------------------------------------------------------------------------------
 
 
-def _te_gib(key: str, seconds: float, names: str) -> float:
-    """文章の段の作業用メモリ(GiB。bf16 の GPU の値。bf16 の無い GPU は呼び出し側で 2 倍)。"""
+def _te_gib(key: str, seconds: float, names: str, images: int = 0) -> float:
+    """文章の段の作業用メモリ(GiB。bf16 の GPU の値。bf16 の無い GPU は呼び出し側で 2 倍。
+    TE_FIXED_DTYPE は除く)。
+    images は文章と一緒に読む入力の画像の枚数。"""
     if key == "ace15_lm":
         # トークン = 5 × 秒(min_tokens。ace15.py:243-246・281)× 0.4375 MiB
         # (4B の LM は 0.5625。ace15.py:323-326)、
@@ -515,6 +530,13 @@ def _te_gib(key: str, seconds: float, names: str) -> float:
         cache = 2 * 28 * 8 * 128 * n
         prefill = n * n + n * (6144 * 3 + 2048 * 8)
         return (cache + prefill) * 2 / GIB
+    if key == "ming":
+        # MoE の層の専門家の重み 3 × hidden 2048 × 512 × 256 個を fp32 で持つ分と、トークン × 2048 × 64 バイト
+        # (text_encoders/ming_image.py:332-336、BailingMoeV2Config: 20-32)。
+        # 画像と問い合わせの塊は 600 トークン。
+        # テンプレートの末尾に問い合わせの塊が 1 つ必ずある(:297・310)。文の 1 トークン(128 KiB)は数えない
+        banks = 3 * 2048 * 512 * 256 * 4
+        return (banks + 600 * (1 + images) * 2048 * 64) / GIB
     return 0.0
 
 
@@ -522,7 +544,10 @@ TE_SOURCES = {
     "ace15_lm": f"text_encoders/ace15.py:243-246・323-326・384-391@{C}",
     "gemma": f"text_encoders/lt.py:246-256@{C}",
     "yue2": f"text_encoders/yue2.py:129-137@{C}",
+    "ming": f"text_encoders/ming_image.py:20-32・297・310・332-336@{C}",
 }
+# 精度によらない文章の段(fp32 の重みの分など)。bf16 の無い GPU でも 2 倍しない
+TE_FIXED_DTYPE = frozenset({"ming"})
 
 
 # --- 系統の当て方 ---------------------------------------------------------------------------------
@@ -615,7 +640,8 @@ def work_of(entry, family: str | None) -> Work | None:
     w = WORKS[key]
     kind = LATENTS[w.latent].kind
     want = {"image": ("2d", "3d"), "video": ("3d",), "music": ("1d",), "sfx": ("1d",)}.get(mod, ())
-    if kind not in want or (kind == "3d" and mod == "image" and not key.startswith("wan")):
+    image_3d = key.startswith("wan") or key == "ming_image"  # 画像を 3 次元の潜在(1 コマ)で作る行
+    if kind not in want or (kind == "3d" and mod == "image" and not image_3d):
         return None
     return w
 
@@ -790,7 +816,9 @@ def stage_memory(
     T = 0.0
     if w.te:
         sec = s.seconds if s.seconds and s.seconds > 0 else 30.0
-        T = _te_gib(w.te, sec, _names(entry)) * (2.0 if (no_bf16 or gpu_fp32) else 1.0)
+        images = 1 if tasks & REF_TASKS else 0
+        wide = (no_bf16 or gpu_fp32) and w.te not in TE_FIXED_DTYPE
+        T = _te_gib(w.te, sec, _names(entry), images) * (2.0 if wide else 1.0)
     return StageMem(S, V, V_tile, T, w.key, vkey, vae_bytes, ratio, notes, untiled=v.untiled)
 
 

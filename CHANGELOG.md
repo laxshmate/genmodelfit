@@ -23,6 +23,12 @@ All notable changes to this project are documented here. The format is based on
   30 seconds the all-on-GPU value of medium goes from 15.4 to 18.3 GB (the large VAE estimate, 2.9 GB tiled) and of
   small music from 4.71 to 4.83 GB; small music on 8 GB goes from Perfect to Good (60.4%). Other levels, including
   the CPU ones, do not change. Models without a per-stage formula: 83 → 79.
+- **Ming Image (2 templates) now uses the per-stage working memory.** It makes images with a 3-D latent (the Wan 2.1
+  shape, one frame), which only Wan was allowed to do, and its VAE header falls in ComfyUI's Wan 2.1 VAE branch. The
+  text stage now has ComfyUI's estimate for Ming's encoder: its MoE expert weights in fp32 (3.0 GiB) plus 600 tokens
+  per query block or input image, not doubled on GPUs without bf16. The offload value goes from 2.2 to 5.1 GB, so on
+  4 GB both become Too tight and image edit on 6 GB goes from Good to Marginal; 8 GB and more do not change level.
+  Models without a per-stage formula: 79 → 77.
 
 ### Fixed
 
