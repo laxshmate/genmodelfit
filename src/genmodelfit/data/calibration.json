@@ -1,6 +1,6 @@
 {
  "source": "calibration.json",
- "date": "2026-10-31",
+ "date": "2026-11-13",
  "method": "全部載せの VRAM = overhead + 重み + 作業用メモリ。作業用メモリは段ごとに当てられるモデルは ComfyUI の見込み max(S, V_eff, T)(係数なし)、ほかは種類ごとの式。合わせるのは act_3d_gb だけで、固定分と画像・動画・音声の係数は 0.10 の値に固定(frozen)。相対誤差の 2 乗和(張り付いた実測は片側) + 事前値への罰(重み 0.0001)を、範囲付きの座標降下で最小化。精度は leave-one-out",
  "n": 9,
  "n_censored": 3,
@@ -291,6 +291,226 @@
    "quantity": "work",
    "predicted_gb": 0.78,
    "error_pct": 8.9
+  },
+  {
+   "model_id": "audio_stable_audio_example",
+   "modality": "sfx",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "seconds": 47.6,
+    "steps": 50,
+    "precision": "fp32"
+   },
+   "measured_gb": 3.84,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 3.91,
+   "error_pct": 1.8
+  },
+  {
+   "model_id": "audio_stable_audio_example",
+   "modality": "sfx",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "seconds": 30.0,
+    "steps": 50,
+    "precision": "fp32"
+   },
+   "measured_gb": 2.56,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 2.46,
+   "error_pct": -3.7
+  },
+  {
+   "model_id": "audio_yue2_text2music",
+   "modality": "music",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "seconds": 97.8,
+    "steps": 32,
+    "precision": "int8"
+   },
+   "measured_gb": 4.31,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.37,
+   "error_pct": -68.1
+  },
+  {
+   "model_id": "image_sdxl_simple",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 25,
+    "precision": "fp16"
+   },
+   "measured_gb": 2.53,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.06,
+   "error_pct": -58.0
+  },
+  {
+   "model_id": "image_sdxl_simple",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 1536,
+    "height": 1536,
+    "steps": 25,
+    "precision": "fp16"
+   },
+   "measured_gb": 5.5,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.06,
+   "error_pct": -80.7
+  },
+  {
+   "model_id": "image_z_image_turbo_int8",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 8,
+    "precision": "int8"
+   },
+   "measured_gb": 2.25,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.06,
+   "error_pct": -52.7
+  },
+  {
+   "model_id": "image_z_image_turbo_int8",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 1536,
+    "height": 1536,
+    "steps": 8,
+    "precision": "int8"
+   },
+   "measured_gb": 4.94,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 2.02,
+   "error_pct": -59.2
+  },
+  {
+   "model_id": "text_to_video_wan",
+   "modality": "video",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 832,
+    "height": 480,
+    "frames": 33,
+    "steps": 30,
+    "precision": "fp16"
+   },
+   "measured_gb": 4.41,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 0.76,
+   "error_pct": -82.8
+  },
+  {
+   "model_id": "text_to_video_wan",
+   "modality": "video",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 832,
+    "height": 480,
+    "frames": 17,
+    "steps": 30,
+    "precision": "fp16"
+   },
+   "measured_gb": 3.94,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 0.42,
+   "error_pct": -89.3
+  },
+  {
+   "model_id": "text_to_video_wan",
+   "modality": "video",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 832,
+    "height": 480,
+    "frames": 49,
+    "steps": 30,
+    "precision": "fp16"
+   },
+   "measured_gb": 4.69,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.1,
+   "error_pct": -76.6
+  },
+  {
+   "model_id": "utility_seedvr2_3b_int8_upscale_image",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "maintainer",
+   "n_submissions": null,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 2880,
+    "height": 1612,
+    "steps": 1,
+    "precision": "int8"
+   },
+   "measured_gb": 1.94,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 2.83,
+   "error_pct": 45.7
   }
  ]
 }

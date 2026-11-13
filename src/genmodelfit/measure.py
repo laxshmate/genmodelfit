@@ -313,11 +313,17 @@ def time_hint(
     typical(種類ごとのおおよその値 TYPICAL_SECONDS)。10 秒単位に切り上げる。モデルを落とす時間は入れない。
     settings(設定を変えた測定。#116)を渡すと、それぞれの実測の時間を設定の比(work_ratio)で伸び縮みさせて
     から中央値を取る(typical は種類ごとの既定の設定での値として伸び縮みさせる)。読み込みの時間も
-    同じ比で動かすので、小さい設定では短めに出る(目安)。"""
+    同じ比で動かすので、小さい設定では短めに出る(目安)。
+    settings が None(テンプレートのまま)なら、設定を変えた実測(settings_override)は使わない
+    (比が 1 なので、1536 px や 17 コマの時間をそのまま混ぜてしまう)。"""
     secs = [
         float(m.seconds) * work_ratio(entry, settings, m.settings)
         for m in measurements
-        if m.model_id == entry.id and m.seconds and m.seconds > 0 and (m.outcome or "ok") == "ok"
+        if m.model_id == entry.id
+        and m.seconds
+        and m.seconds > 0
+        and (m.outcome or "ok") == "ok"
+        and not (settings is None and getattr(m, "settings_override", None))
     ]
     if secs:
         value, basis = statistics.median(secs), "measured"

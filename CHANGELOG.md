@@ -13,6 +13,14 @@ All notable changes to this project are documented here. The format is based on
   start or stop running when it is flipped (`optional.switch_branches`, the same graph walk as the optional parts).
   It is for checking a template before mapping a per-stage formula: the SeedVR2 video template has a frame-splitting
   branch that its "Split Latent" switch leaves off by default.
+- **11 working-memory measurements on an RTX 5080 16GB** (bench, 2026-11-13: SDXL, Z-Image Turbo int8, Wan 2.1 1.3B,
+  Stable Audio Open, YuE2, SeedVR2 3B image) are bundled for the cross-check only; they set no level and shift
+  no estimate. They show that a 16 GB GPU decodes the VAE untiled: the KL VAE uses 0.52–0.59 × ComfyUI's untiled figure
+  and the Wan 2.1 VAE 0.76–0.90 ×, above the usage formula (the tiled value) and below the untiled figure that decides
+  whether all-on-GPU can be chosen. Stable Audio Open matches within ±4%, and for YuE2 swapping in the tiled audio
+  decode lowered the peak from 4.3 to 2.0 GB. The formulas are unchanged (docs/accuracy.md, "Cross-check").
+  Their run times now feed `measure`'s time guide like other measurements: YuE2, SeedVR2 3B and Stable Audio Open go
+  from the rough per-type value to the measured median.
 
 ### Changed
 
@@ -59,6 +67,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **`measure`'s time guide for the template's own settings no longer mixes in runs made with changed settings**
+  (`settings_override`). Their times were taken at a ratio of 1, so a 1536 px or 17-frame run counted as if it were
+  the template's.
 - **`measure` / `share` ask before starting a ComfyUI found in the current folder.** Starting it runs that folder's
   python (`.venv`, `venv`, `python_embeded`), so running `measure` inside a crafted folder could run its code. They now
   show the folder and the python and ask `Start it? [y/N]`; without a terminal or with `--json` that ComfyUI is not

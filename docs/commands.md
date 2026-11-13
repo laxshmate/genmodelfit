@@ -845,6 +845,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 - MODEL is a model name, a workflow id or a part of either, chosen like download (only workflows with a ComfyUI template); `--resolution`, `--frames` and `--length` change the settings like bench.
 - Before measuring one screen shows the model and precision, the settings (as in the template, or the ones changed), which ComfyUI and how it was found, whether the files are installed, a rough time and that nothing is sent, then asks [Y/n] (`--yes` skips it).
 - The time is a rough guide: the median of measurements of the same model, else a rough value per type, scaled by the ratio of pixels, frames or length when the settings are changed.
+- The guide for the template's own settings does not use the times of measurements made with changed settings.
 - When the template cannot take a requested setting, or the ComfyUI lacks nodes it needs, it stops before downloading or generating.
 - A model that is not installed is downloaded first, with the same questions and consent rules as download.
 - At the end (also after a failure or Ctrl+C) it lists what it downloaded with the total size and asks [y/N] whether to delete it: only files this run newly downloaded, never ones that were already there; `--yes` or no terminal keeps them, `--delete-downloaded` deletes without asking.
