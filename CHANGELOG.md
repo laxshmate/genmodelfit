@@ -29,6 +29,10 @@ All notable changes to this project are documented here. The format is based on
   per query block or input image, not doubled on GPUs without bf16. The offload value goes from 2.2 to 5.1 GB, so on
   4 GB both become Too tight and image edit on 6 GB goes from Good to Marginal; 8 GB and more do not change level.
   Models without a per-stage formula: 79 → 77.
+- **MiniMax Music 3 now uses the per-stage working memory**, with ComfyUI's factor 2.0, its latent length and its DAV
+  decoder estimate ((L × 512 × 1400 + 800 million) elements in float32; 3.7 GB tiled at 30 seconds). The all-on-GPU
+  value goes from 14.8 to 18.5 GB and the offload value from 4.9 to 5.2 GB; on 6 GB it goes from Good to Marginal, and
+  8 GB and more do not change level. Models without a per-stage formula: 77 → 76.
 
 ### Fixed
 

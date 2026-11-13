@@ -267,6 +267,9 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
     (latent_formats.py:779-782; one frame for an image), and ComfyUI's checks put the VAE header (`ming_image_vae_bf16` of
     Comfy-Org/Ming-Image, 2026-11-11) in the Wan 2.1 VAE branch (sd.py:842, 868-883; no key of the Wan 2.2 layout; dim 96,
     RGBA). Reference latents are counted too (model_base.py:1550, 1594-1598)
+  - MiniMax Music 3 (0.15.1): factor 2.0 (:2428). The latent has 128 channels and L = int(round(seconds × 25) × 44100 / 24000 × 960 / 512)
+    (nodes_minimax_music.py:60-63, ldm/minimax_music/dit.py:16-17). The VAE (DAV) uses (L × 512 × 1400 + 800 million) elements × 4 bytes
+    (float32 only; sd.py:533-547). ComfyUI does not estimate the autoregressive LM of the text stage, so it is 0
   - Stable Audio 3 (0.15.1): factor 7 (:634). The latent has 256 channels and seconds × 44100 / 4096 frames (sample.py:61-65
     shrinks the empty latent to the 4096 ratio). The VAE is inside the all-in-one file, and ComfyUI picks one of two
     configurations from a header key (sd.py:1006-1018; the large one decodes with 1500 × L × 4096, the small one with
@@ -276,10 +279,10 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
 - Other factors: SD3 1.6, Flux 3.1, Chroma 3.2, LongCat 2.5, HiDream 2.0 (default), Lumina2 1.4, Z-Image 2.8, Ming Image 2.8,
   Omnigen2 1.95 (Boogu 2.15), Kandinsky5 1.25, Krea2 2.2, Qwen Image 1.8, JoyImage 1.8, Anima 0.95, Lens 4.0,
   Ideogram4 11.6, MOSS-Image 14.6, ERNIE 10.0, MageFlow 6.5, Qwen Image 2.1 6.0, HiDream O1 0.033, PixelDiT 0.04,
-  HunyuanVideo 1.8, HunyuanVideo 1.5 4.0, CogVideoX 2.0 (default), MiniMax H3 0.114, ACE-Step 1.5 4.7, ACE-Step 1 0.5,
+  HunyuanVideo 1.8, HunyuanVideo 1.5 4.0, CogVideoX 2.0 (default), MiniMax H3 0.114, ACE-Step 1.5 4.7, ACE-Step 1 0.5, MiniMax Music 3 2.0,
   Stable Audio Open 2.0 (default), Stable Audio 3 7.0, YuE2 4.0 (source lines in `working.WORKS`).
 - VAEs (split out in #100): `wan22` (Wan 2.2 5B, 16× compression), `qwen21` (Qwen Image 2.1, 16× compression), `flux2` (the Flux2 VAE × 4),
-  `oobleck` (ACE-Step 1.5, Stable Audio Open), `sa3_large` / `sa3_small` (Stable Audio 3), `yue2`, `pixel` (pixel space). The Qwen Image VAE is the Wan 2.1 VAE.
+  `oobleck` (ACE-Step 1.5, Stable Audio Open), `sa3_large` / `sa3_small` (Stable Audio 3), `dav` (MiniMax Music 3; float32 only), `yue2`, `pixel` (pixel space). The Qwen Image VAE is the Wan 2.1 VAE.
   When the list's `comfy_vae` does not fit the row's latent (another part's VAE, or a key of an older list), the row's default VAE is used.
 - Temporal compression: 4 for Wan, HunyuanVideo and CogVideoX, 8 for LTX, 17k+5 frames ↔ 5k+2 for MiniMax H3 (sd.py:1051).
   Pixel-space families (HiDream O1, PixelDiT) are 1 in space too.
@@ -289,13 +292,13 @@ The row of `working.py` comes from `comfy_family` / `comfy_vae` (`families.py`; 
 These use **the earlier per-modality formula for the whole model** (ComfyUI's default factor 2.0 is not used: it would overestimate
 non-diffusion tools such as SAM3, Depth Anything and frame interpolation).
 
-<!-- fallback-count: 77 -->
-77 of the 330 entries in the bundled list:
+<!-- fallback-count: 76 -->
+76 of the 330 entries in the bundled list:
 
 - 23 text to speech, 10 3D (the `act_3d_gb` formula; ComfyUI's 3D estimate has a different shape)
 - 27 with an unknown family (13 image, 13 video, 1 music)
-- 14 with a family but no formula: SeedVR2 4,
-  SD video (SVD, AnimateDiff) 3, Qwen Image video workflows 2, Depth Anything 3 2, SAM3 2, MiniMax Music 1
+- 13 with a family but no formula: SeedVR2 4,
+  SD video (SVD, AnimateDiff) 3, Qwen Image video workflows 2, Depth Anything 3 2, SAM3 2
 - 3 with an unknown size: Wan 2 (the list has no main file), SD 1 (a `.ckpt`, whose header cannot be read)
   - The 4 Flux3 Klein entries are mapped from 0.15.1 ("How families are mapped" above)
 
@@ -643,9 +646,9 @@ How to read it:
   - At the app's settings (512px, 49 frames), Wan 2.1 1.3B is Good offloaded on 6GB and on 8GB (swapped in turn it would use 97% on 8GB; Marginal before 0.11.0).
 - **Future work** (#100):
   1. Text-stage working memory ComfyUI does not estimate: image tokens of Qwen2.5-VL, Flux2's Mistral, the YuE2 score stage (8192 tokens),
-     the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), and so on
+     the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), the autoregressive LM of MiniMax Music 3, and so on
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used
-  3. Reduce the models without a per-stage formula (77): the SeedVR2 VAE, and so on (Flux3 Klein, Stable Audio 3 and Ming Image were mapped in 0.15.1)
+  3. Reduce the models without a per-stage formula (76): the SeedVR2 VAE, and so on (Flux3 Klein, Stable Audio 3, Ming Image and MiniMax Music 3 were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
      `MIN_WEIGHT_MEMORY_RATIO = 0` (model_management.py:458-460@426f5ee), and dynamic VRAM is the default from 0.16. Images now use
