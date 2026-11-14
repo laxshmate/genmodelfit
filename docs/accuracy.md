@@ -60,7 +60,7 @@ three quantities are computed (`estimate.py`, `working.py`).
 | quantity | formula | meaning |
 |---|---|---|
 | `vram_gb` (all on GPU) | fixed + weights of all parts + max(S, V_eff, T) | all weights stay loaded, plus the working memory of the heaviest stage |
-| `vram_resident_gb` (kept loaded) | fixed + weights of all parts + max(S, V, T) (V untiled) | used only to decide whether all-on-GPU can be chosen (it is not chosen above 98%; "Tiles" below, #102) |
+| `vram_resident_gb` (kept loaded) | fixed + weights of all parts + max(2·S, V, T) (V untiled; 2·S under "S" below) | used only to decide whether all-on-GPU can be chosen (it is not chosen above 98%; "Tiles" below, #102) |
 | `vram_sequential_gb` (swapped in turn) | fixed + max(text-stage weights + T, denoise-stage weights + S, decode-stage weights + V_eff, other) | parts are unloaded between stages. A bit slower but usable |
 | `vram_offload_gb` (offload, images with dynamic VRAM) | fixed + max(working memory of each stage + min(weights of the stage, 0.5)), up to the next row's value | 0.15. Images, NVIDIA, ComfyUI 0.16+, PyTorch 2.8+ ("Offloading with dynamic VRAM" below). Slow |
 | `vram_offload_gb` (offload, otherwise) | fixed + max(weights of each stage × 0.4 + working memory of that stage) | runs with part of the weights left in main memory (lowvram). Slow |
@@ -119,6 +119,13 @@ ComfyUI's code (GPL-3.0) is neither imported nor copied. Only the numbers and th
 
 - 1× (one pass). ComfyUI batches cond and uncond together only when `memory_required × 1.5 < free`, otherwise it runs them one by one
   (samplers.py:273-284). What it needs to run is 1× (`minimum_memory_required`, sampler_helpers.py:178).
+- Whether all-on-GPU can be chosen (`vram_resident_gb`) uses twice as much, 2·S (0.15.1). Before sampling, ComfyUI estimates
+  `memory_required` at batch × 2 (sampler_helpers.py:177@6e8488e, whatever the CFG) and loads the weights leaving that much free
+  (sampler_helpers.py:201@6e8488e → `load_models_gpu`). The per-stage measurements of 2026-11-14 ("Cross-check" below) agree: on 16 GB,
+  with plenty free, the sampling stage was 0.85–1.21 × 2·S, so the two were run together. The usage (`vram_gb`), sequential and offload
+  keep 1×.
+  - Only the kept-loaded value changes (level and run mode do not change in 1,980 pairs at the default settings on 4–24 GB; the
+    kept-loaded value rose for 17 image and 45 video models).
 - Area = the number of latent elements without channels (image (H/s)·(W/s), video latent frames × (H/s) × (W/s), audio latent frames).
 - Families that pass packed latents (LTXAV of LTX-2 / 2.3 and MiniMax H3; NestedTensor of video and audio) also count the channels and
   the audio latent in the area (samplers.py:1281-1283, utils.py:1445-1453).
@@ -166,7 +173,7 @@ to free V (sd.py:1278-1280@426f5ee); if it does not fit, other models are unload
 (sd.py:1269-1357, 1422-1474). V_tile is the value of the **smallest tile, independent of VRAM** (adding VRAM never lowers the level).
 
 Whether the all-on-GPU mode can be chosen is decided with the **untiled V** (#102, 2026-10-28): if the kept-loaded amount
-`vram_resident_gb` = fixed + weights of all parts + max(S, V, T) exceeds 98%, ComfyUI unloads the model before decoding, so all-on-GPU
+`vram_resident_gb` = fixed + weights of all parts + max(2·S, V, T) exceeds 98%, ComfyUI unloads the model before decoding, so all-on-GPU
 is not chosen and the row becomes swapped in turn (up to Good) or offload. On 21 runs on an RTX 5080 16GB this predicted whether ComfyUI
 unloaded part of the models in 20 (12 with V_eff; "Cross-check" below). The amounts used do not take V because the working memory
 actually used is 0.5 to 1.0 times V, which would worsen the peak prediction (V is ComfyUI's estimate for deciding how to load). A
@@ -1008,7 +1015,7 @@ Peaks split at the stage boundaries (2026-11-14, bench's `stages`; docs/schema.m
 
 - Every peak is after sampling (VAE decode). The minimum after sampling is 0.09 GB in every run: ComfyUI releases the sampler's reservation before decoding, so the later stage's peak is the VAE alone.
   - This confirms, with the stages split, the ratio read from the whole-run peaks above (0.52–0.59).
-- The sampling stage is 1.7–2.4× formula S. Formula S counts only the generation's computation, and the reservation pool also holds the latent, the conditioning and the like, which likely explains the gap (not separated). SDXL peaks at the VAE stage, so the judgement does not change.
+- The sampling stage is 1.7–2.4× formula S and 0.85–1.21× 2·S. With plenty free, ComfyUI runs the conditional and unconditional passes together ("S" above; 0.15.1 uses 2·S to decide whether all-on-GPU can be chosen). SDXL peaks at the VAE stage, so the judgement does not change.
 - Before sampling (text encoding) is 0.12–0.41 GB; the formula's T is 0.
 - Models whose peak is the sampling stage, such as Wan 2.1, were not measured (on 2026-11-14 there was not enough free disk).
 

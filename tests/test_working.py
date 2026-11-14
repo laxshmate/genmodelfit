@@ -115,6 +115,15 @@ def test_pinned_stage_values(db, mid):
     assert pytest.approx(T, abs=1e-4) == st.T
 
 
+def test_resident_uses_the_comfyui_estimate_of_two_batches(db):
+    """全部載せを選べるかは、ComfyUI がサンプラの前に見込む 2 倍の S(sampler_helpers.py:177@6e8488e)で
+    決め、使う量(peak)は動くのに要る 1 倍の S(:178)のまま。生成の段が山のモデル(SeedVR2 の動画)で確かめる。"""
+    st = stage_memory(db.get("utility_seedvr2_3b_int8_upscale_video"), Settings())
+    assert st.S_full == pytest.approx(2 * st.S) and st.S_full > max(st.V, st.T)
+    assert st.resident_peak == pytest.approx(st.S_full)
+    assert st.peak == pytest.approx(max(st.S, st.V_eff, st.T))
+
+
 def test_formula_by_hand():
     """式の形を手で確かめる(出典の式そのまま)。"""
     # SDXL 1024²: 潜在 128×128、S = 128·128 × 2 B × 0.01 × 0.8 MiB、V = 2178 × 128 × 128 × 64 × 2 B
