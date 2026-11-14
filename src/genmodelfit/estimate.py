@@ -1390,8 +1390,10 @@ _POSITIVE = ("width", "height", "frames", "seconds", "steps")
 # 値は根拠の 1 行
 # _TEMPLATE_NODES は、2026-11-13 に取った公式テンプレートを ComfyUI 0.45.2 の object_info で API の形に直し、
 # 出力からたどって確かめた項目の根拠の頭。幅×高さに縮めるノード(ResizeImageMaskNode の scale dimensions)・
-# 利用者の数(PrimitiveInt など)から式で大きさを作るもの・切り替えで手の大きさにできるもの(Mage Flow)は、
-# 大きさの入力があるので入れない(bench がまだ読めないだけ)
+# 利用者の数(PrimitiveInt など。総画素数・長辺・倍率でも、つながった数なら)から大きさを作るもの・
+# 切り替えで手の大きさにできるもの(Mage Flow)は、大きさの入力があるので入れない
+# (bench がまだ読めないだけ。#187)。総画素数・長辺・倍率がノードの直接の値のもの
+# (1 MP・長辺 2048・×4 など)は入れる
 _TEMPLATE_NODES = "テンプレートのノード(2026-11-14 に出力からたどった)。幅・高さの入力が無く、"
 
 NO_SIZE_INPUT: dict[str, str] = {
@@ -1407,7 +1409,8 @@ NO_SIZE_INPUT: dict[str, str] = {
     "flux_depth_lora_example": _TEMPLATE_NODES
     + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
     "flux_fill_inpaint_example": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
-    "flux_fill_outpaint_example": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "flux_fill_outpaint_example": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像に ImagePadForOutpaint の決まった余白を足して決まる",
     "flux_kontext_dev_basic": _TEMPLATE_NODES
     + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
     "hidream_e1_1": _TEMPLATE_NODES + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
@@ -1477,10 +1480,6 @@ NO_SIZE_INPUT: dict[str, str] = {
     + "大きさは LoadVideo の動画のまま決まる",
     "utility_image_segment_sam3": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
     "utility_moge3_geometry_estimation": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
-    "utility_sdpose_multi_person": _TEMPLATE_NODES
-    + "大きさは LoadImage の画像から ResizeImageMaskNode(長辺を PrimitiveInt にそろえる)で決まる",
-    "utility_sdpose_multi_person_video": _TEMPLATE_NODES
-    + "大きさは LoadVideo の動画から ResizeImageMaskNode(長辺を PrimitiveInt にそろえる)で決まる",
     "utility_sdpose_ood_image_to_pose": _TEMPLATE_NODES
     + "大きさは LoadImage の画像から ResizeImageMaskNode(scale longer dimension 1024)で決まる",
     "utility_sdpose_ood_video_to_pose_map": _TEMPLATE_NODES
