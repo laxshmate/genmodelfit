@@ -2236,8 +2236,9 @@ def _check_stages(r: Report, mm: dict[str, Any]) -> None:
             bad(f"{where}.peak_gb", hi, f"実測のピーク {peak} 以下です", f"at most the measured peak {peak}")
         if not (_num(lo) and 0 <= lo <= hi):
             bad(f"{where}.min_gb", lo, " 0 以上で peak_gb 以下です", "0 or more and at most peak_gb")
-        if not (isinstance(n, int) and not isinstance(n, bool) and n >= 1):
-            bad(f"{where}.samples", n, " 1 以上の整数です", "an integer of 1 or more")
+        # 読む間隔 0.015 秒で 1 日(実行の時間の上限 86400 秒)読んでも 600 万回に届かない
+        if not (isinstance(n, int) and not isinstance(n, bool) and 1 <= n <= 10_000_000):
+            bad(f"{where}.samples", n, " 1 以上 1000 万以下の整数です", "an integer from 1 to 10,000,000")
 
 
 def _check_new_fields(r: Report, mm: dict[str, Any], vram: Any, ram: Any) -> None:
