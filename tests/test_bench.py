@@ -1781,3 +1781,32 @@ def test_size_through_a_switch_follows_its_default_branch():
     unknown = wf(False)
     unknown["9"] = {"class_type": "SomeNode", "inputs": {}}
     assert not size_input(unknown)
+
+
+def test_switch_value_from_another_switch_or_to_a_non_size_input():
+    """切り替えの値が別の切り替えから来るなど分からなければ読まない。大きさの数が切り替えを通ってコマ数にも
+    行くなら、書くとコマ数まで変わるので書かない(レビューの指摘)。"""
+    from genmodelfit.workflow import _non_size_users, _size_value
+
+    wf = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["5", 0], "height": ["8", 0]}},
+        "5": {
+            "class_type": "ComfySwitchNode",
+            "inputs": {"switch": ["6", 0], "on_true": ["7", 0], "on_false": ["7", 0]},
+        },
+        "6": {
+            "class_type": "ComfySwitchNode",
+            "inputs": {"switch": True, "on_true": ["9", 0], "on_false": ["9", 0]},
+        },
+        "9": {"class_type": "PrimitiveBoolean", "inputs": {"value": True}},
+        "7": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+        "8": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+    }
+    assert _size_value(wf, "1", "width") is None  # 切り替えの値が切り替えから来る
+    wf["5"]["inputs"]["switch"] = True
+    assert _size_value(wf, "1", "width") == 1024
+    assert _non_size_users(wf, "7") == []
+    wf["2"] = {"class_type": "SomeVideoNode", "inputs": {"length": ["5", 0]}}  # 切り替えの先がコマ数にも
+    assert _non_size_users(wf, "7") == ["2"]
+    new, notes, _ = _set_and_read(wf, 768, 512)
+    assert notes and new["7"]["inputs"]["value"] == 1024

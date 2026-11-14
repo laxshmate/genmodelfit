@@ -826,20 +826,28 @@ def _other_users(api: dict[str, dict[str, Any]], link: list[Any]) -> list[str]:
     )
 
 
-def _non_size_users(api: dict[str, dict[str, Any]], pid: str) -> list[str]:
-    """PrimitiveInt pid の値を、大きさの入力(_SIZE_KEYS)・式・PrimitiveInt・切り替え以外に使うノード。"""
-    return sorted(
-        {
-            nid
-            for nid, n in api.items()
-            for k, v in n["inputs"].items()
-            if isinstance(v, list)
-            and len(v) == 2
-            and str(v[0]) == pid
-            and k not in _SIZE_KEYS
-            and n["class_type"] not in ("ComfyMathExpression", "PrimitiveInt", "ComfySwitchNode")
-        }
-    )
+def _non_size_users(
+    api: dict[str, dict[str, Any]], pid: str, depth: int = 0, seen: set[str] | None = None
+) -> list[str]:
+    """PrimitiveInt pid の値を、大きさの入力(_SIZE_KEYS)・式・PrimitiveInt 以外に使うノード。値をそのまま通す
+    切り替え(ComfySwitchNode)は、その先を同じ決まりでたどる(切り替えの先がコマ数などなら、それも数える)。"""
+    seen = set() if seen is None else seen
+    if pid in seen or depth > _SIZE_DEPTH:
+        return []
+    seen.add(pid)
+    out: set[str] = set()
+    for nid, n in api.items():
+        for k, v in n["inputs"].items():
+            if not (isinstance(v, list) and len(v) == 2 and str(v[0]) == pid) or k in _SIZE_KEYS:
+                continue
+            ct = n["class_type"]
+            if ct in ("ComfyMathExpression", "PrimitiveInt"):
+                continue
+            if ct == "ComfySwitchNode" and k in ("on_true", "on_false"):
+                out.update(_non_size_users(api, nid, depth + 1, seen))
+                continue
+            out.add(nid)
+    return sorted(out)
 
 
 def size_input(api: dict[str, dict[str, Any]]) -> bool:
