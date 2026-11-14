@@ -1748,3 +1748,36 @@ def test_peak_read_several_times_stays_standard(monkeypatch):
     m = res.measurement
     assert m.peak_vram_gb == pytest.approx(7.0) and m.standard is True
     assert "一瞬" not in m.note and res.nonstandard == []
+
+
+def test_size_through_a_switch_follows_its_default_branch():
+    """#187: 切り替え(ComfySwitchNode)は既定の値で選ばれる側だけをたどる。Mage Flow は既定(true)で入力の画像の
+    大きさ(大きさの入力が無い)、切り替えると手の大きさ(PrimitiveInt)。"""
+
+    def wf(on: bool) -> dict:
+        return {
+            "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["5", 0], "height": ["6", 0]}},
+            "5": {
+                "class_type": "ComfySwitchNode",
+                "inputs": {"switch": ["9", 0], "on_true": ["4", 0], "on_false": ["7", 0]},
+            },
+            "6": {
+                "class_type": "ComfySwitchNode",
+                "inputs": {"switch": ["9", 0], "on_true": ["4", 1], "on_false": ["8", 0]},
+            },
+            "4": {"class_type": "GetImageSize", "inputs": {"image": ["2", 0]}},
+            "2": {"class_type": "LoadImage", "inputs": {"image": "in.png"}},
+            "7": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+            "8": {"class_type": "PrimitiveInt", "inputs": {"value": 768}},
+            "9": {"class_type": "PrimitiveBoolean", "inputs": {"value": on}},
+        }
+
+    assert not size_input(wf(True))
+    hand = wf(False)
+    assert (effective_settings(hand).width, effective_settings(hand).height) == (1024, 768)
+    new, notes, got = _set_and_read(hand, 640, 512)
+    assert notes == [] and got == (640, 512) and new["7"]["inputs"]["value"] == 640
+    # 切り替えの値が分からなければ読まない
+    unknown = wf(False)
+    unknown["9"] = {"class_type": "SomeNode", "inputs": {}}
+    assert not size_input(unknown)

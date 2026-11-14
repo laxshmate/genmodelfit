@@ -725,7 +725,30 @@ def _root(api: dict[str, dict[str, Any]], v: Any, depth: int = 0) -> tuple[Any, 
         return _through(*_root(api, links[0][1], depth + 1))
     if ct == "GetImageSize" and out in (0, 1):
         return _through(*_image_size(api, inp.get("image"), out, depth + 1))
+    if ct == "ComfySwitchNode":
+        # 切り替えは、既定の値で選ばれる側だけをたどる(ComfyUI は選んだ側だけを要求する。
+        # comfy_extras/nodes_logic.py:146-150。#187 の Mage Flow: 既定は入力の画像の大きさ)
+        on = _switch_value(api, inp.get("switch"), depth + 1)
+        if on is None:
+            return None, None
+        return _through(*_root(api, inp.get("on_true" if on else "on_false"), depth + 1))
     return None, None
+
+
+def _switch_value(api: dict[str, dict[str, Any]], v: Any, depth: int) -> bool | None:
+    """切り替えの値(直接の真偽か、つながった PrimitiveBoolean の値)。分からなければ None。"""
+    if isinstance(v, bool):
+        return v
+    if depth > _SIZE_DEPTH or not (isinstance(v, list) and len(v) == 2):
+        return None
+    src = api.get(str(v[0]))
+    if (
+        src is None
+        or src["class_type"] != "PrimitiveBoolean"
+        or not isinstance(src["inputs"].get("value"), bool)
+    ):
+        return None
+    return src["inputs"]["value"]
 
 
 def _positive(value: Any, root: _Root | None) -> tuple[Any, _Root | None]:
@@ -804,7 +827,7 @@ def _other_users(api: dict[str, dict[str, Any]], link: list[Any]) -> list[str]:
 
 
 def _non_size_users(api: dict[str, dict[str, Any]], pid: str) -> list[str]:
-    """PrimitiveInt pid の値を、大きさの入力(_SIZE_KEYS)・式・PrimitiveInt 以外に使うノード。"""
+    """PrimitiveInt pid の値を、大きさの入力(_SIZE_KEYS)・式・PrimitiveInt・切り替え以外に使うノード。"""
     return sorted(
         {
             nid
@@ -814,7 +837,7 @@ def _non_size_users(api: dict[str, dict[str, Any]], pid: str) -> list[str]:
             and len(v) == 2
             and str(v[0]) == pid
             and k not in _SIZE_KEYS
-            and n["class_type"] not in ("ComfyMathExpression", "PrimitiveInt")
+            and n["class_type"] not in ("ComfyMathExpression", "PrimitiveInt", "ComfySwitchNode")
         }
     )
 
