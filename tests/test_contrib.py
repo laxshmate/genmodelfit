@@ -939,7 +939,7 @@ def test_settings_missing_only_for_templates_with_a_size_input(db):
 
 def test_unmeasured_models_keep_the_default_size(db):
     """実測の無い画像・動画のモデルの判定の設定と値は今までどおり(種類の既定の大きさ)。"""
-    from genmodelfit.estimate import NO_SIZE_INPUT
+    from genmodelfit.estimate import DEFAULT_SETTINGS, NO_SIZE_INPUT
 
     measured = {m.model_id for m in db.measurements}
     n = 0
@@ -949,8 +949,9 @@ def test_unmeasured_models_keep_the_default_size(db):
         est = estimate(e, pc(8), None, db.measurements)
         if est.unknown_size:
             continue
-        if e.id in NO_SIZE_INPUT:  # 手の表のモデルは大きさを持たないが、値は既定の大きさと同じ
-            at = estimate(e, pc(8), Settings(width=1024, height=1024), db.measurements)
+        if e.id in NO_SIZE_INPUT:  # 手の表のモデルは大きさを持たないが、値は種類の既定の大きさと同じ
+            d = DEFAULT_SETTINGS[e.modality]
+            at = estimate(e, pc(8), Settings(width=d.width, height=d.height), db.measurements)
             assert "width" not in est.settings and est.vram_gb == at.vram_gb, e.id
             continue
         assert est.settings["width"] and est.settings["height"], e.id

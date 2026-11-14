@@ -263,7 +263,7 @@ CPU で実時間に動く設計の読み上げ(作者の資料の文。理由に
 
 **1 文で**: 入力の画像で大きさが決まるモデルは、大きさを指定せずに判定する。
 
-- #90 で入れた(`estimate.NO_SIZE_INPUT`。メンテナが確かめた手の表)。判定の設定に大きさを持たないので、bench が大きさを書かない実測(BiRefNet・MoGe)がそのモデルの判定と合い、使われる。
+- #90 で入れた(`estimate.NO_SIZE_INPUT`。メンテナが確かめた手の表)。判定の設定に大きさを持たないので、bench が大きさを書かない実測(BiRefNet・MoGe)がそのモデルの判定と合い、使われる。0.15.1 で、画像の編集・深度推定・分割・高画質化など、テンプレートのノードで確かめた 54 件を足した([accuracy.ja.md](accuracy.ja.md)「実測の使い方」)。
 - 試験: `tests/test_scoring.py::test_g_measurements_without_size_are_used`。
 
 ## Score

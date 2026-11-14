@@ -77,6 +77,17 @@ All notable changes to this project are documented here. The format is based on
   input image still counts as no size input. Measurements of these templates saved before this fix have no size;
   `measure` offers other sizes for them only after a new measurement at the template's settings (it proposes one again
   when the ComfyUI version changes).
+- **54 official templates whose size comes from the input image are added to the hand table of templates without a
+  size input** (`estimate.NO_SIZE_INPUT`, 2 → 56): image editing (Qwen Image Edit, FLUX.2, FLUX Kontext, HiDream E1,
+  OmniGen2 and others), depth and normal estimation (Marigold, Lotus, Depth Anything 3, MoGe 3), segmentation (SAM 3),
+  pose (SDPose single-person), upscaling (SeedVR2) and frame interpolation. Each was checked by converting the
+  template with ComfyUI 0.45.2's node list and following its nodes from the outputs: the size is the input image's, at
+  most brought to a total pixel count, a longer side or a multiple set directly on the node. Their judging settings no
+  longer claim the type's default size (1024² or 832×480), and size-less measurements of them (what bench writes) now
+  match the judgment. No VRAM, level or basis changes (all 278 image and video entries compared on 8, 12, 16 and
+  24 GB). Templates that resize the input to a fixed width × height, take the size from a user number (`PrimitiveInt`,
+  directly or through a math node), or can switch to a hand-set size are left out: they have a size input that bench
+  cannot read yet (#187).
 - **`measure`'s time guide for the template's own settings no longer mixes in runs made with changed settings**
   (`settings_override`). Their times were taken at a ratio of 1, so a 1536 px or 17-frame run counted as if it were
   the template's.
