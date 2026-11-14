@@ -1388,6 +1388,12 @@ _POSITIVE = ("width", "height", "frames", "seconds", "steps")
 # どの PC でも変えないため)。新しいテンプレートは、最初の bench の記録(提出の PR の settings_missing)を
 # 見て足す(docs/accuracy.md「実測の使い方」)。画像・動画のモデルだけ(3d・音声は既定の設定に大きさが無い)。
 # 値は根拠の 1 行
+# _TEMPLATE_NODES は、2026-11-13 に取った公式テンプレートを ComfyUI 0.45.2 の object_info で API の形に直し、
+# 出力からたどって確かめた項目の根拠の頭。幅×高さに縮めるノード(ResizeImageMaskNode の scale dimensions)・
+# 利用者の数(PrimitiveInt など)から式で大きさを作るもの・切り替えで手の大きさにできるもの(Mage Flow)は、
+# 大きさの入力があるので入れない(bench がまだ読めないだけ)
+_TEMPLATE_NODES = "テンプレートのノード(2026-11-14 に出力からたどった)。幅・高さの入力が無く、"
+
 NO_SIZE_INPUT: dict[str, str] = {
     "utility_birefnet_remove_background": (
         "bench 2026-10-19 RTX 3070(measurements.json に幅・高さ無し)。ノードは LoadImage → BiRefNet だけで、"
@@ -1397,6 +1403,102 @@ NO_SIZE_INPUT: dict[str, str] = {
         "bench 2026-10-27 RTX 3070・ComfyUI 0.40.0(#90 の PR #92)。大きさは ResizeImageMaskNode"
         "(scale longer dimension 2048)で入力の画像から決まり、幅・高さの入力が無い"
     ),
+    "flux_canny_model_example": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "flux_depth_lora_example": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "flux_fill_inpaint_example": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "flux_fill_outpaint_example": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "flux_kontext_dev_basic": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "hidream_e1_1": _TEMPLATE_NODES + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "image-qwen_image_edit_2511_lora_inflation": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "image_anima_lllite_any_control_to_image": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(scale total pixels 1 MP)で決まる",
+    "image_anima_lllite_depth_control_to_image": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(scale total pixels 1 MP)で決まる",
+    "image_boogu_image_0_1_edit": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(scale total pixels 1 MP)で決まる",
+    "image_boogu_image_0_1_edit_int8": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(scale total pixels 1 MP)で決まる",
+    "image_firered_image_edit1_1": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(scale total pixels 1 MP)で決まる",
+    "image_flux2": _TEMPLATE_NODES + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "image_flux2_fp8": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "image_flux2_klein_9b_kv_image_edit": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "image_joyai_image_edit": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "image_longcat_image_edit": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "image_lotus_depth_v1_1": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "image_marigold_v2_albedo_estimation": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "image_marigold_v2_depth_estimation": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "image_marigold_v2_surface_normal_estimation": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "image_omnigen2_image_edit": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "image_qwen_Image_2512_controlnet": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(scale total pixels 1.6 MP)で決まる",
+    "image_qwen_image_controlnet_patch": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1.68 MP)で決まる",
+    "image_qwen_image_edit": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "image_qwen_image_edit_2509": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "image_qwen_image_edit_2509_relight": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "image_qwen_image_edit_2511": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "image_qwen_image_edit_2511_int8": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "image_qwen_image_instantx_controlnet": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "image_qwen_image_union_control_lora": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "image_z_image_turbo_fun_union_controlnet": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "template_qwen_image_edit_2511_systms_action": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "template_qwen_multiangle.app": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "templates-1_click_multiple_character_angles-v1.0": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "templates-1_click_multiple_scene_angles-v1.0": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で決まる",
+    "templates-portrait_light_migration": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "templates_rob_image_to_real.app": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "templates_rob_portrait_light_migration.app": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から FluxKontextImageScale で決まる",
+    "utility-frame_interpolation-film": _TEMPLATE_NODES + "大きさは VHS_LoadVideo の動画のまま決まる",
+    "utility_depth_anything3_image_depth_estimation": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像のまま決まる",
+    "utility_depth_anything3_video_depth_estimation": _TEMPLATE_NODES
+    + "大きさは LoadVideo の動画のまま決まる",
+    "utility_image_segment_sam3": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "utility_moge3_geometry_estimation": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "utility_sdpose_multi_person": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(長辺を PrimitiveInt にそろえる)で決まる",
+    "utility_sdpose_multi_person_video": _TEMPLATE_NODES
+    + "大きさは LoadVideo の動画から ResizeImageMaskNode(長辺を PrimitiveInt にそろえる)で決まる",
+    "utility_sdpose_ood_image_to_pose": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(scale longer dimension 1024)で決まる",
+    "utility_sdpose_ood_video_to_pose_map": _TEMPLATE_NODES
+    + "大きさは LoadVideo の動画から ResizeImageMaskNode(scale longer dimension 1024)で決まる",
+    "utility_seedvr2_3b_int8_upscale_image": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(×4)で決まる",
+    "utility_seedvr2_3b_int8_upscale_video": _TEMPLATE_NODES
+    + "大きさは LoadVideo の動画から ResizeImageMaskNode(×2)で決まる",
+    "utility_seedvr2_7b_int8_upscale_image": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(×4)で決まる",
+    "utility_video_frame_interpolation": _TEMPLATE_NODES + "大きさは LoadVideo の動画のまま決まる",
+    "utility_video_segment_sam3": _TEMPLATE_NODES + "大きさは LoadVideo の動画のまま決まる",
+    "utility_z_image_turbo_2k_upscaler.app": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)・4 倍の拡大・ImageScaleBy(×0.5)で決まる",
+    "video_bernini_r_image_editing": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(scale longer dimension 1280)で決まる",
+    "video_fastvideo_fasth3_i2v": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ImageScaleToTotalPixels(0.4 MP)で決まる",
 }
 
 
