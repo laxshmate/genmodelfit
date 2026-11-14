@@ -17,6 +17,7 @@ from genmodelfit.estimate import (
     limits_for,
     load_coefficients,
     norm_precision,
+    optional_kind,
 )
 from genmodelfit.models import Gpu, Measurement, ModelEntry, ModelFile, Settings, SystemInfo, Template
 from genmodelfit.recommend import evaluate, recommend
@@ -525,7 +526,8 @@ def test_bundled_seed_sizes_unchanged_by_dedupe(db):
             continue
         if any(not x.size_bytes for x in m.files):  # 大きさが一部しか無い一式はテンプレートの大きさを使う
             continue
-        files = [x for x in m.files if x.size_bytes]
+        # 既定で読み込まない部品(無効のノードの LoRA など。#81)は数えない
+        files = [x for x in m.files if x.size_bytes and optional_kind(x) is None]
         # 全部入りの内訳の割合は丸めてあるので、合計は 0.2% ほどずれる
         assert components(m).total == pytest.approx(sum(x.size_bytes for x in files) / GIB, rel=0.003), m.id
 
@@ -770,3 +772,64 @@ def test_dynamic_offload_notes(db):
     assert any("ディスクから読み直す" in r and "SATA" in r for r in e16.reasons)
     # メインメモリの判定は緩めない(逃がすときは固定分 + 全部品のまま。16 GB では仮想メモリで marginal)
     assert e16.ram_gb == e32.ram_gb and e16.fit == "marginal"
+
+
+# --- fp32 で保存された本体(ComfyUI の unet_dtype)と、照合だけの実測 ------------------------------------
+
+
+def _gpu_pc(compute_dtype: str | None, bf16: bool | None, vram: float = 12.0) -> SystemInfo:
+    g = Gpu(name="Test GPU", vendor="nvidia", vram_total_gb=vram, backend="cuda")
+    g.compute_dtype, g.bf16 = compute_dtype, bf16
+    return SystemInfo(os="test", cpu="test", cpu_cores=8, ram_total_gb=32, ram_available_gb=32, gpus=[g])
+
+
+def test_fp32_stored_model_is_loaded_at_two_bytes_on_half_precision_gpus(db):
+    """ComfyUI は fp32 で保存された本体を、半精度の GPU では 2 バイト(系統が fp16 を持てば fp16、持たなくても
+    bf16 の GPU なら bf16)で載せる(model_management.py の unet_dtype・should_use_fp16)。半精度を使わない
+    GPU と CPU では fp32 のまま。"""
+    from genmodelfit.estimate import apply_precision, source_precision
+
+    sa = db.get("audio_stable_audio_example")  # StableAudio(fp16 を持つ)・fp32 のファイル
+    assert source_precision(sa) == "fp32"
+    whole = components(sa).denoise
+    half = apply_precision(components(sa), sa, Settings())
+    assert half.denoise == pytest.approx(whole / 2) and any("fp32" in n for n in half.notes)
+    # 保存と同じ精度の指定(bench はファイルの精度を記録する)も同じ。違う精度を指定したら今までどおり換算
+    assert apply_precision(components(sa), sa, Settings(precision="fp32")).denoise == pytest.approx(whole / 2)
+    assert apply_precision(components(sa), sa, Settings(precision="fp8")).denoise == pytest.approx(whole / 4)
+    modern = estimate(sa, _gpu_pc("fp16", True), None, [])
+    no_half = estimate(sa, _gpu_pc("fp32", False), None, [])  # 半精度を使わない GPU(GTX 16 系など)
+    # 本体はファイルの大きさに戻る(作業用メモリ・VAE の 2 倍も加わるので、少なくとも本体の分は増える)
+    assert no_half.vram_gb >= modern.vram_gb + whole / 2 * load_coefficients().weight_factor - 0.02
+    # CPU は fp32 で持つ: メインメモリは換算する前と同じ
+    cpu = estimate(sa, pc(0), None, [])
+    assert cpu.ram_gb >= no_half.vram_gb - 2.0
+    # ComfyUI の系統が分からない fp32 のモデルは換算しない(安全側)
+    unknown = [e for e in db.models if source_precision(e) == "fp32" and not getattr(e, "comfy_family", None)]
+    for e in unknown[:3]:
+        assert apply_precision(components(e), e, Settings()).denoise == pytest.approx(components(e).denoise)
+
+
+def test_check_only_measurements_are_not_used_for_estimates(db):
+    """照合だけに使う実測(check_only。--disable-dynamic-vram で測った全体の量など)は、段階にも値のずらしにも
+    使わない(docs/accuracy.md「照合」)。"""
+    from genmodelfit.estimate import cross_check_only
+
+    e = db.get("image_sdxl_simple")
+    m = Measurement(
+        model_id=e.id,
+        gpu_name="NVIDIA GeForce RTX 5080",
+        gpu_vram_gb=16.0,
+        peak_vram_gb=12.0,
+        settings=Settings(width=1024, height=1024),
+        offload="none",
+        vram_metric="torch_reserved",
+        outcome="ok",
+        standard=True,
+    )
+    assert not cross_check_only(m)
+    used = estimate(e, pc(16), None, [m])
+    assert used.basis == "measured"
+    m.check_only = True
+    assert cross_check_only(m)
+    assert estimate(e, pc(16), None, [m]) == estimate(e, pc(16), None, [])

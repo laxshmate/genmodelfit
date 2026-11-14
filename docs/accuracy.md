@@ -667,9 +667,23 @@ Cross-check (measured differently, so not used for fitting; predicted with the c
 | text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 17 frames | working memory (measurement without weights) | 3.94 | 0.42 | -89% |
 | text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 49 frames | working memory (measurement without weights) | 4.69 | 1.10 | -77% |
 | utility_seedvr2_3b_int8_upscale_image | NVIDIA GeForce RTX 5080 | maintainer | 2880x1612 | working memory (measurement without weights) | 1.94 | 2.83 | +46% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | all on GPU | 9.22 | 9.00 | -2% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | all on GPU | 11.75 | 13.87 | +18% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 33 frames | all on GPU | 11.69 | 11.38 | -3% |
+| audio_ace_step_1_5_checkpoint | NVIDIA GeForce RTX 5080 | maintainer | 120 s | all on GPU | 13.81 | 22.26 | +61% |
+| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | maintainer | 47.6 s | all on GPU | 6.06 | 9.04 | +49% |
+| image_anima_base_v1 | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | all on GPU | 6.66 | 7.02 | +5% |
+| utility_moge3_geometry_estimation | NVIDIA GeForce RTX 5080 | maintainer | - | all on GPU | 4.81 | 4.04 | -16% |
 
 How to read it:
 
+- The 7 "all on GPU" rows (2026-11-14) are whole amounts measured by bench at the template's settings with ComfyUI started with `--disable-dynamic-vram` (the old behaviour; the weights are in the torch reservation too).
+  It is not what most users run (dynamic VRAM by default), so all but MoGe 3 are used only for the cross-check (`check_only`; they set no level and shift no estimate).
+  - SDXL, Wan 2.1 and Anima match within ±5%.
+  - For Z-Image Turbo int8 (+18%) and Wan 2.1, ComfyUI unloaded part of the weights (`offload: partial`): the parts' weights did not fit in what was free after the display and the reserve.
+  - For ACE-Step 1.5 (+61%, the template's 120 s), the minimum after sampling is 2.25 GB: ComfyUI unloads the model before the VAE. genmodelfit's judgement also picks sequential swapping, since the kept-loaded amount (weights + the untiled VAE, 11.4 GB) exceeds 16 GB. This row is compared with the all-on-GPU value, so the gap is the difference of run mode.
+  - Stable Audio Open (+49%) went down from +77% when 0.15.1 counted ComfyUI loading the fp32-stored model in fp16 (docs/hardware.md "Precision (dtype and VRAM chosen by ComfyUI)"). The rest is the text encoder (T5; its file precision is not known from the name, so it is not converted) and the fixed part.
+  - MoGe 3 (−16%) is a template without a size input, and this measurement is used for its judgement (the estimate becomes the measured 4.81 GB).
 - Rows other than 3D are not fitted, so "fit on all" and "LOO" are the same: they are cross-check errors.
 - For the 2 image rows (Z-Image int8 +5.1%, SDXL +12.5%) the heaviest stage is ComfyUI's VAE figure (tile value 1.06 GB), which leans high
   (the VAE figure is about 1.8× the measurement; "Per-stage working memory (#100)" above).
@@ -1013,7 +1027,7 @@ How to read it:
   - The hand-written YuE2 and SeedVR2 rows and the rows with changed settings carry `settings_override`, so they are not used as the template's settings (`measure`'s suggestions) or for the time guide at the template's settings.
 - **MoGe 3** (not bundled): it measured 2.47 GB, about 10× the per-type formula (0.24 GB). As with BiRefNet, the image coefficient is too small for tools.
   - Why it was not bundled: the template takes its size from the input image and has no size input. Bundling a sizeless image measurement needed the hand table `estimate.NO_SIZE_INPUT`.
-  - 0.15.1 added 54 templates including MoGe 3 to the hand table ("How measurements are used" above). The row will be bundled after measuring again.
+  - 0.15.1 added 54 templates including MoGe 3 to the hand table ("How measurements are used" above). The whole amount was measured again and bundled on 2026-11-14 (4.81 GB; the "all on GPU" row of the cross-check table above).
 - **The formulas are not changed**: the ratio to V was measured on one GPU and does not follow from ComfyUI's code
   (accuracy fixes are made only where ComfyUI's code is certain).
 

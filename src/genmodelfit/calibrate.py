@@ -33,6 +33,7 @@ from .estimate import (
     FITTED,
     Coefficients,
     activation_features,
+    apply_precision,
     components,
     formula_need,
     is_censored,
@@ -109,10 +110,12 @@ def _rows(db: Database, c: Coefficients | None, *, same_metric: bool) -> list[Ro
             continue
         if (getattr(m, "vram_metric", None) == CALIBRATION_METRIC) != same_metric:
             continue
-        parts = components(e)
+        s = settings_for(e, m.settings, sized=not no_size_input(e))
+        # 判定と同じく精度を換算する(fp32 で保存された本体を ComfyUI が 2 バイトで載せる分など。
+        # estimate.apply_precision)
+        parts = apply_precision(components(e), e, s)
         if parts.unknown:
             continue
-        s = settings_for(e, m.settings, sized=not no_size_input(e))
         n = formula_need(e, s, c, parts)
         weights = parts.total * c.weight_factor
         if n.stages is not None:

@@ -360,6 +360,9 @@ class Measurement:
     # 変えたときだけ True を書く)。None・False はテンプレートのまま(記録の無い古い行もそう扱う)。
     # measure の「テンプレートのままの実測がこの GPU にあるか」に使う
     settings_override: bool | None = None
+    # 照合だけに使う実測(段階にも値のずらしにも使わない。メンテナが同梱の行に手で付ける。
+    # docs/schema.md「Measurement」)。True のときだけ書く
+    check_only: bool | None = None
     # 以下はほかの利用者の実測のまとめの行だけ(#90)
     gpu_known: bool | None = None  # False = 名前の表に無い GPU(記録として残すだけで判定に使わない)
     n_sources: int | None = None  # 使った提出の、別々の出どころ(リポジトリに足したコミット = PR)の数
