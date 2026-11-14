@@ -15,7 +15,8 @@ All notable changes to this project are documented here. The format is based on
   stage has its peak, minimum and number of reads; the text output shows them on one line. Only when ComfyUI runs on
   the same PC and sampler lines exist; not in contrib submissions yet. On an RTX 5080, SDXL at 768–1536 px peaks after
   sampling at 0.60–0.64 × ComfyUI's untiled VAE figure, with the sampler's reservation released first (minimum
-  0.09 GB), and the sampling stage is 1.7–2.4 × formula S (docs/accuracy.md "Cross-check"). No formula changes.
+  0.09 GB), and the sampling stage is 1.7–2.4 × formula S (docs/accuracy.md "Cross-check"). Wan 2.1 1.3B at 832×480 (33 and 81
+  frames), whose usage peaks at sampling, used 1.10–1.13 × 2·S there and 0.88–0.89 × V after it. No formula changes.
 - **`tools/template_branches.py`** shows, for a template, which branch each switch takes by default and which nodes
   start or stop running when it is flipped (`optional.switch_branches`, the same graph walk as the optional parts).
   It is for checking a template before mapping a per-stage formula: the SeedVR2 video template has a frame-splitting
