@@ -986,7 +986,7 @@ OOM の行もデータとして歓迎するが、`outcome: "oom"` を保たな�
 | `warnings` | str[] | 適用できなかった設定、アップロードした入力など(表示の言語 `en` / `ja`) |
 | `failed` | str | ComfyUI で実行に失敗したときだけ(OOM またはほかの実行エラー。終了コード 1)。`measurement.outcome` は `oom` / `error` |
 | `timing` | object \| null | (0.13.0、#132)時間の内訳。contrib の提出の `measurement.timing` と同じキー(contrib を参照。分からない値は null) |
-| `stages` | object \| null | (0.15.1、#100 の宿題 2)torch の確保量(`torch_vram_total`)を、サンプラの前・最中・後に分けたもの。`before_sampling`・`sampling`・`after_sampling` は、それぞれ `{peak_gb, min_gb, samples}`(GiB。その時間に読めた回が無ければ null)。`sampler_runs` はサンプラの実行の数(2 回以上なら、`sampling` は最初の始まりから最後の終わりまで)。時刻は、ComfyUI のログの進み具合の行(`timing` と同じ行)と `/history` の実行の始まり・終わりで決める。境目のまわり(始まりは 1 秒、最初の行が経過 0 秒なら 0.1 秒。終わりは 0.1 秒)はどの段にも入れない。ComfyUI が同じ PC のとき(時計が同じ)で、サンプラの行があるときだけ。無ければ null。`min_gb` は、その段に入ったときに前の段の確保を返したかの目安(返していなければ、後の段の `peak_gb` は前の段の山を含む)。提出の記録(contrib)にはまだ入れない |
+| `stages` | object \| null | (0.15.1、#100 の宿題 2)torch の確保量(`torch_vram_total`)を、サンプラの前・最中・後に分けたもの。`before_sampling`・`sampling`・`after_sampling` は、それぞれ `{peak_gb, min_gb, samples}`(GiB。その時間に読めた回が無ければ null)。`sampler_runs` はサンプラの実行の数(2 回以上なら、`sampling` は最初の始まりから最後の終わりまでで、回の間のモデルの入れ替えなども入る)。時刻は、ComfyUI のログの進み具合の行(`timing` と同じ行)と `/history` の実行の始まり・終わりで決める。境目のまわり(始まりは 1 秒、最初の行が経過 0 秒なら 0.1 秒。終わりは 0.1 秒)はどの段にも入れない。ComfyUI が同じ PC のとき(時計が同じ)で、サンプラの行があるときだけ。無ければ null。`min_gb` は、その段に入ったときに前の段の確保を返したかの目安(返していなければ、後の段の `peak_gb` は前の段の山を含む)。提出の記録(contrib)にはまだ入れない |
 | `submission` | object | `--submission` か `--share` を付けたときだけ: `{saved_to, path_in_repo}`(提出用の JSON。contrib を参照)。`--share` では `share` も入る(`share --json` の `file`・`ok`・`refused`・`checklist`・`report`・`share`・`opened`・`copied`・`marked_shared`。ブラウザは開かない) |
 
 bench が Measurement を埋める方法(測り方):

@@ -428,13 +428,16 @@ class Monitor:
 
     def sample_once(self, *, ram: bool = True) -> None:
         with contextlib.suppress(BenchError, ValueError, KeyError, TypeError):
+            asked = time.time()
             dev = (self.client.system_stats().get("devices") or [{}])[0]
+            # 読んだ時刻は問い合わせの前後の中間(応答が遅れても、段の境目でずれにくい。段ごとの山)
+            at = (asked + time.time()) / 2
             with self._lock:
                 p = self.peaks
                 torch_now = int(dev.get("torch_vram_total") or 0)
                 p.torch_vram = max(p.torch_vram, torch_now)
                 self.torch_values.append(torch_now)
-                self.torch_times.append(time.time())
+                self.torch_times.append(at)
                 used = int(dev.get("vram_total") or 0) - int(dev.get("vram_free") or 0)
                 p.device_used = max(p.device_used, used)
                 p.samples += 1

@@ -1452,8 +1452,16 @@ def test_cli_bench_json_has_timing(capsys):
         "cold_load",
     }
     assert t["sampling_s"] == 1.0 and t["sec_per_step"] == 0.04
-    # 段ごとの山(#100 の宿題 2)のキーはいつもある(偽の ComfyUI のサンプラは短く、分けられれば dict)
-    assert "stages" in json.loads(out)
+    # 段ごとの山(#100 の宿題 2)。偽の ComfyUI はすぐ終わり、ログの時刻(サンプラは 0.5〜1.6 秒)は
+    # 先の時刻なので、段に分けた形は返るが、読めた回は無い
+    # (段への割り付けは test_stage_peaks_* が合成の値で確かめる)
+    st = json.loads(out)["stages"]
+    assert st["sampler_runs"] == 1 and set(st) == {
+        "sampler_runs",
+        "before_sampling",
+        "sampling",
+        "after_sampling",
+    }
 
 
 # --- 一瞬の山(#131) --------------------------------------------------------------------------------

@@ -1008,7 +1008,7 @@ Peaks split at the stage boundaries (2026-11-14, bench's `stages`; docs/schema.m
 
 - Every peak is after sampling (VAE decode). The minimum after sampling is 0.09 GB in every run: ComfyUI releases the sampler's reservation before decoding, so the later stage's peak is the VAE alone.
   - This confirms, with the stages split, the ratio read from the whole-run peaks above (0.52–0.59).
-- The sampling stage is 1.8–2.4× formula S. Formula S counts only the generation's computation, and the reservation pool also holds the latent, the conditioning and the like, which likely explains the gap (not separated). SDXL peaks at the VAE stage, so the judgement does not change.
+- The sampling stage is 1.7–2.4× formula S. Formula S counts only the generation's computation, and the reservation pool also holds the latent, the conditioning and the like, which likely explains the gap (not separated). SDXL peaks at the VAE stage, so the judgement does not change.
 - Before sampling (text encoding) is 0.12–0.41 GB; the formula's T is 0.
 - Models whose peak is the sampling stage, such as Wan 2.1, were not measured (on 2026-11-14 there was not enough free disk).
 
