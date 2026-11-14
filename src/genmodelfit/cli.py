@@ -1978,6 +1978,28 @@ def cmd_diff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _stages_text(st: dict[str, Any]) -> str:
+    """bench の段ごとの山(BenchResult.stages)を 1 行に。読めなかった段は「-」。"""
+    names = {
+        "before_sampling": tr("サンプラの前", "before sampling"),
+        "sampling": tr("サンプラ", "sampling"),
+        "after_sampling": tr("サンプラの後", "after sampling"),
+    }
+    bits = []
+    for k, label in names.items():
+        v = st.get(k)
+        if isinstance(v, dict):
+            bits.append(
+                tr(
+                    f"{label} 最大 {v['peak_gb']:.2f} GB(最小 {v['min_gb']:.2f})",
+                    f"{label} peak {v['peak_gb']:.2f} GB (min {v['min_gb']:.2f})",
+                )
+            )
+        else:
+            bits.append(f"{label} -")
+    return tr("・", ", ").join(bits)
+
+
 def cmd_bench(args: argparse.Namespace) -> int:
     from .bench import BenchError, options_from_args, run, save, save_decision
     from .workflow import WorkflowError
@@ -2019,6 +2041,8 @@ def cmd_bench(args: argparse.Namespace) -> int:
         print(f"Settings:  {', '.join(p for p in parts if p) or '(as in the template)'}")
         print(f"Result:    {m.outcome}{'' if m.standard else ' (non-standard conditions)'}")
         print(f"Peak VRAM: {m.peak_vram_gb:.2f} GB (the ComfyUI process)")
+        if result.stages:
+            print(f"By stage:  {_stages_text(result.stages)}")
         if m.peak_ram_gb is not None:
             print(f"Peak RAM:  {m.peak_ram_gb:.2f} GB")
         print(f"Time:      {m.seconds:g} s (from sending to the end, including model loading)")
@@ -2045,6 +2069,8 @@ def cmd_bench(args: argparse.Namespace) -> int:
     print(f"設定:     {'、'.join(p for p in parts if p) or '(テンプレートのまま)'}")
     print(f"結果:     {m.outcome}{'' if m.standard else '(標準でない条件)'}")
     print(f"最大 VRAM: {m.peak_vram_gb:.2f} GB(ComfyUI のプロセス)")
+    if result.stages:
+        print(f"段ごと:   {_stages_text(result.stages)}")
     if m.peak_ram_gb is not None:
         print(f"最大メモリ: {m.peak_ram_gb:.2f} GB")
     print(f"時間:     {m.seconds:g} 秒(送ってから終わるまで、モデルの読み込み込み)")

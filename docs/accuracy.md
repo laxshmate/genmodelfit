@@ -693,7 +693,9 @@ How to read it:
      the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), the autoregressive LM of MiniMax Music 3, and so on
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used.
      On 2026-11-13, 11 RTX 5080 rows were added to the cross-check, and for YuE2 the VAE node was swapped for its tiled version
-     to show that the peak is the VAE stage ("Cross-check" below). There is no bench that splits at stage boundaries yet
+     to show that the peak is the VAE stage ("Cross-check" below). 0.15.1 added to bench's `--json` the peaks split into before,
+     during and after the sampler (`stages`; checked on 3 SDXL runs on 2026-11-14, "Cross-check" below). Left: measure models whose
+     peak is the sampling stage (Wan and others), put it in the contrib submission, keep per-stage rows in the cross-check
   3. Reduce the models without a per-stage formula (68) (Flux3 Klein, Stable Audio 3, Ming Image, MiniMax Music 3, 5 SD models found by fingerprint and 3 SeedVR2 templates were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
@@ -991,10 +993,24 @@ How to read it:
   - The template upscales the input image 4×, so bench cannot read the size. The output size 2880x1612 was written by hand.
   - The hand-written YuE2 and SeedVR2 rows and the rows with changed settings carry `settings_override`, so they are not used as the template's settings (`measure`'s suggestions) or for the time guide at the template's settings.
 - **MoGe 3** (not bundled): it measured 2.47 GB, about 10× the per-type formula (0.24 GB). As with BiRefNet, the image coefficient is too small for tools.
-  - Why it is not bundled: the template takes its size from the input image and has no size input.
-  - Bundling a sizeless image measurement needs the hand table `estimate.NO_SIZE_INPUT`, which changes the judgement settings, so it is kept apart from this cross-check.
+  - Why it was not bundled: the template takes its size from the input image and has no size input. Bundling a sizeless image measurement needed the hand table `estimate.NO_SIZE_INPUT`.
+  - 0.15.1 added 54 templates including MoGe 3 to the hand table ("How measurements are used" above). The row will be bundled after measuring again.
 - **The formulas are not changed**: the ratio to V was measured on one GPU and does not follow from ComfyUI's code
   (accuracy fixes are made only where ComfyUI's code is certain).
+
+Peaks split at the stage boundaries (2026-11-14, bench's `stages`; docs/schema.md "bench"). SDXL measured on ComfyUI 0.45.2 with dynamic VRAM, after `/free`. Torch reservations, GiB:
+
+| Size | Before sampling | Sampling | Formula S | After sampling | Formula V (untiled) | After ÷ V |
+|---|---:|---:|---:|---:|---:|---:|
+| 768px | 0.12 | 0.34 | 0.14 | 1.47 | 2.39 | 0.62 |
+| 1024px | 0.38 | 0.44 | 0.26 | 2.53 | 4.25 | 0.60 |
+| 1536px | 0.41 | 1.03 | 0.58 | 6.12 | 9.57 | 0.64 |
+
+- Every peak is after sampling (VAE decode). The minimum after sampling is 0.09 GB in every run: ComfyUI releases the sampler's reservation before decoding, so the later stage's peak is the VAE alone.
+  - This confirms, with the stages split, the ratio read from the whole-run peaks above (0.52–0.59).
+- The sampling stage is 1.7–2.4× formula S. Formula S counts only the generation's computation, and the reservation pool also holds the latent, the conditioning and the like, which likely explains the gap (not separated). SDXL peaks at the VAE stage, so the judgement does not change.
+- Before sampling (text encoding) is 0.12–0.41 GB; the formula's T is 0.
+- Models whose peak is the sampling stage, such as Wan 2.1, were not measured (on 2026-11-14 there was not enough free disk).
 
 ### RTX 3070 sweep (2026-10-27, **not used as evidence**)
 

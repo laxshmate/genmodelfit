@@ -417,6 +417,8 @@ class Monitor:
         self.peaks = Peaks()
         # 読めた torch の確保量(bytes)を順に(一瞬の山の判定。steady_peak)
         self.torch_values: list[int] = []
+        # 読めた時刻(UNIX 秒。torch_values と同じ順。段ごとの山 stage_peaks に使う)
+        self.torch_times: list[float] = []
         self._next_ram = 0.0
         self.last_used_mib: float | None = None  # nvidia-smi が読んだ最後の GPU 全体の使用量(MiB)
         self._stop = threading.Event()
@@ -426,12 +428,16 @@ class Monitor:
 
     def sample_once(self, *, ram: bool = True) -> None:
         with contextlib.suppress(BenchError, ValueError, KeyError, TypeError):
+            asked = time.time()
             dev = (self.client.system_stats().get("devices") or [{}])[0]
+            # 読んだ時刻は問い合わせの前後の中間(応答が遅れても、段の境目でずれにくい。段ごとの山)
+            at = (asked + time.time()) / 2
             with self._lock:
                 p = self.peaks
                 torch_now = int(dev.get("torch_vram_total") or 0)
                 p.torch_vram = max(p.torch_vram, torch_now)
                 self.torch_values.append(torch_now)
+                self.torch_times.append(at)
                 used = int(dev.get("vram_total") or 0) - int(dev.get("vram_free") or 0)
                 p.device_used = max(p.device_used, used)
                 p.samples += 1
@@ -1138,6 +1144,59 @@ def timing_breakdown(
     return out
 
 
+# 段の境目のまわりで、どちらの段か決めない幅(秒)。サンプラの始まりはログの経過時間(秒の整数)から逆算するので
+# 1 秒までずれる。終わりはステップの行の時刻なので、ずれはログの書き込みと読む間隔の分だけ(0.5 秒にすると、
+# RTX 5080 の SDXL 1024² の復元(0.4 秒)がどの段にも入らなかった。2026-11-14)
+STAGE_GUARD_START_S = 1.0
+STAGE_GUARD_END_S = 0.1
+STAGE_KEYS = ("before_sampling", "sampling", "after_sampling")
+
+
+def stage_peaks(
+    samples: list[tuple[float, int]],
+    entry: dict[str, Any],
+    log_entries: list[dict[str, Any]],
+    *,
+    local: bool,
+    steps: Iterable[int] | None = None,
+) -> dict[str, Any] | None:
+    """torch の確保量(時刻 UNIX 秒, bytes)を、サンプラの前・最中・後に分けた最大と最小(GiB。宿題 2、#100)。
+    時刻はログの進み具合の行(timing_breakdown と同じ行)と /history の実行の始まり・終わりで決める。
+    同じ PC のときだけ(時計が同じ)。サンプラの行が無い・読めた回が無い段は None。
+    最小は、その段に入ったときに前の段の確保を返したかの目安(返していなければ、後の段の最大は前の段の山を含む)。"""
+    if not local or not samples:
+        return None
+    ts = _timestamps(entry)
+    start = ts.get("execution_start")
+    end = ts.get("execution_success") or ts.get("execution_error") or ts.get("execution_interrupted")
+    allowed = {int(x) for x in steps or () if isinstance(x, int) and x > 0}
+    runs = [r for r in _progress_runs(log_entries) if r["n"] == r["total"] and r["total"] in allowed]
+    runs = [r for r in runs if r.get("first_t") is not None and r.get("last_t") is not None]
+    if not runs or start is None or end is None:
+        return None
+    s0 = runs[0]["first_t"] - runs[0]["first_elapsed"]
+    s1 = runs[-1]["last_t"]
+    t_start, t_end = start / 1000, end / 1000
+    if not (t_start <= s0 <= s1 <= t_end + 1.0):
+        return None
+    # 最初の行が始まりの行(経過 0 秒)なら、始まりのずれはログの書き込みの遅れだけ
+    g0 = STAGE_GUARD_START_S if runs[0]["first_elapsed"] > 0 else STAGE_GUARD_END_S
+    windows = {
+        "before_sampling": (t_start, s0 - g0),
+        "sampling": (s0 + g0, s1 - STAGE_GUARD_END_S),
+        "after_sampling": (s1 + STAGE_GUARD_END_S, t_end),
+    }
+    out: dict[str, Any] = {"sampler_runs": len(runs)}
+    for key, (a, b) in windows.items():
+        vals = [v for t, v in samples if a <= t <= b]
+        out[key] = (
+            {"peak_gb": round(max(vals) / GIB, 2), "min_gb": round(min(vals) / GIB, 2), "samples": len(vals)}
+            if vals
+            else None
+        )
+    return out
+
+
 def sampler_steps(workflow: Any) -> set[int]:
     """送ったワークフロー(API 形式)のサンプラのステップ数(#132。時間の内訳で、進み具合の行を選ぶのに使う)。
     steps の入力(と、KSamplerAdvanced の start_at_step・end_at_step で切った数)。"""
@@ -1238,6 +1297,8 @@ class BenchResult:
     error_kind: dict[str, Any] | None = None
     # 最大 VRAM が一瞬だけの山だった(#131。brief_peak)。measure はこれだけで標準でない回を「試した」と覚える
     brief_peak: bool = False
+    # torch の確保量をサンプラの前・最中・後に分けたもの(#100 の宿題 2。stage_peaks)。分けられなければ None
+    stages: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         m = asdict(self.measurement)
@@ -1246,6 +1307,8 @@ class BenchResult:
             | ({"failed": self.failed} if self.failed else {})
             # 時間の内訳(#132。contrib の measurement.timing と同じ項目。取れなければ null)
             | {"timing": self.timing}
+            # 段ごとの山(#100 の宿題 2。docs/schema.md「bench」。提出の記録にはまだ入れない)
+            | {"stages": self.stages}
         )
 
 
@@ -1905,6 +1968,13 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
         ),
         error_kind=_history_error_kind(entry, wf) if entry else None,
         brief_peak=brief is not None,
+        stages=stage_peaks(
+            list(zip(mon.torch_times, mon.torch_values, strict=False)),
+            entry or {},
+            log_new,
+            local=local,
+            steps=sampler_steps(wf),
+        ),
     )
 
 

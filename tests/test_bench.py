@@ -1382,11 +1382,65 @@ def test_bench_records_timing_with_fake_comfyui():
     assert t["load_s"] == pytest.approx(0.4, abs=0.05) and t["decode_s"] == pytest.approx(1.0, abs=0.05)
 
 
+def _stage_log(t0: float, first_elapsed: str = "00:00") -> list[dict[str, Any]]:
+    """t0 + 10 秒にサンプラの最初の行、t0 + 20 秒に最後の行(20 ステップ)。"""
+
+    def at(dt: float) -> str:
+        return datetime.fromtimestamp(t0 + dt).isoformat()
+
+    return [
+        {"t": at(10), "m": f"\r  0%|          | 0/20 [{first_elapsed}<?, ?it/s]"},
+        {"t": at(20), "m": "\r100%|##########| 20/20 [00:10<00:00,  2.0it/s]"},
+    ]
+
+
+def _stage_entry(t0: float) -> dict[str, Any]:
+    msgs = [
+        ["execution_start", {"timestamp": t0 * 1000}],
+        ["execution_success", {"timestamp": (t0 + 30) * 1000}],
+    ]
+    return {"status": {"messages": msgs}}
+
+
+def test_stage_peaks_splits_at_the_sampler_boundaries():
+    """#100 の宿題 2: torch の確保量を、サンプラの前・最中・後に分ける。境目のまわりはどの段にも入れない。"""
+    t0 = 1_700_000_000.0
+    # 前は 2 GB、境目の直前(9.95 秒)に 9 GB、最中は 6 GB、後(VAE)は 4 GB に戻ってから 7 GB
+    samples = [(t0 + 1, 2 * GIB), (t0 + 9.95, 9 * GIB), (t0 + 12, 6 * GIB), (t0 + 19, 6 * GIB)]
+    samples += [(t0 + 21, 4 * GIB), (t0 + 25, 7 * GIB)]
+    st = bench.stage_peaks(samples, _stage_entry(t0), _stage_log(t0), local=True, steps={20})
+    assert st["sampler_runs"] == 1
+    assert st["before_sampling"] == {
+        "peak_gb": 2.0,
+        "min_gb": 2.0,
+        "samples": 1,
+    }  # 9.95 秒は境目の 0.1 秒の内
+    assert st["sampling"] == {"peak_gb": 6.0, "min_gb": 6.0, "samples": 2}
+    assert st["after_sampling"] == {"peak_gb": 7.0, "min_gb": 4.0, "samples": 2}
+    # 最初の行の経過が 0 秒でなければ、始まりは 1 秒までずれるので、境目の幅を 1 秒にする
+    late = bench.stage_peaks(samples, _stage_entry(t0), _stage_log(t0 + 1, "00:01"), local=True, steps={20})
+    assert late["before_sampling"]["samples"] == 1 and late["sampling"]["samples"] == 2
+
+
+def test_stage_peaks_is_none_without_what_it_needs():
+    t0 = 1_700_000_000.0
+    samples = [(t0 + 12, 6 * GIB)]
+    entry, log = _stage_entry(t0), _stage_log(t0)
+    assert bench.stage_peaks(samples, entry, log, local=False, steps={20}) is None  # 時計が別
+    assert bench.stage_peaks([], entry, log, local=True, steps={20}) is None
+    assert bench.stage_peaks(samples, entry, log, local=True, steps={30}) is None  # 合うサンプラの行が無い
+    assert bench.stage_peaks(samples, {}, log, local=True, steps={20}) is None  # 実行の時刻が無い
+    # 読めた回の無い段は None
+    st = bench.stage_peaks(samples, entry, log, local=True, steps={20})
+    assert st["before_sampling"] is None and st["after_sampling"] is None and st["sampling"]["samples"] == 1
+
+
 def test_cli_bench_json_has_timing(capsys):
     """bench --json に時間の内訳(#132)。"""
     with FakeComfy() as fake:
         assert cli.main(["bench", "image_sdxl_simple", "--url", fake.url, "--json"]) == 0
-    t = json.loads(capsys.readouterr().out)["timing"]
+    out = capsys.readouterr().out
+    t = json.loads(out)["timing"]
     assert set(t) == {
         "queue_s",
         "load_s",
@@ -1398,6 +1452,16 @@ def test_cli_bench_json_has_timing(capsys):
         "cold_load",
     }
     assert t["sampling_s"] == 1.0 and t["sec_per_step"] == 0.04
+    # 段ごとの山(#100 の宿題 2)。偽の ComfyUI はすぐ終わり、ログの時刻(サンプラは 0.5〜1.6 秒)は
+    # 先の時刻なので、段に分けた形は返るが、読めた回は無い
+    # (段への割り付けは test_stage_peaks_* が合成の値で確かめる)
+    st = json.loads(out)["stages"]
+    assert st["sampler_runs"] == 1 and set(st) == {
+        "sampler_runs",
+        "before_sampling",
+        "sampling",
+        "after_sampling",
+    }
 
 
 # --- 一瞬の山(#131) --------------------------------------------------------------------------------

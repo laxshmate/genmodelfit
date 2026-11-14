@@ -9,6 +9,13 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **`bench --json` splits the peak at the sampler's boundaries** (`stages`; #100 homework 2). The torch reservation is
+  read with its time and grouped into before, during and after the sampler, using the progress lines of ComfyUI's log
+  (the same lines as `timing`) and the run's start and end; a margin around each boundary goes into no stage. Each
+  stage has its peak, minimum and number of reads; the text output shows them on one line. Only when ComfyUI runs on
+  the same PC and sampler lines exist; not in contrib submissions yet. On an RTX 5080, SDXL at 768–1536 px peaks after
+  sampling at 0.60–0.64 × ComfyUI's untiled VAE figure, with the sampler's reservation released first (minimum
+  0.09 GB), and the sampling stage is 1.7–2.4 × formula S (docs/accuracy.md "Cross-check"). No formula changes.
 - **`tools/template_branches.py`** shows, for a template, which branch each switch takes by default and which nodes
   start or stop running when it is flipped (`optional.switch_branches`, the same graph walk as the optional parts).
   It is for checking a template before mapping a per-stage formula: the SeedVR2 video template has a frame-splitting
