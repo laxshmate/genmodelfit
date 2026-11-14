@@ -703,7 +703,9 @@ How to read it:
   - At the app's settings (512px, 49 frames), Wan 2.1 1.3B is Good offloaded on 6GB and on 8GB (swapped in turn it would use 97% on 8GB; Marginal before 0.11.0).
 - **Future work** (#100):
   1. Text-stage working memory ComfyUI does not estimate: image tokens of Qwen2.5-VL, Flux2's Mistral, the YuE2 score stage (8192 tokens),
-     the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), the autoregressive LM of MiniMax Music 3, and so on
+     the KV of the ACE-Step 1.5 LM, Flux3's prompt rewriting (Qwen3.5 9B), the autoregressive LM of MiniMax Music 3, and so on.
+     On 2026-11-14 the stage before sampling was measured for LongCat Image (Qwen2.5-VL 7B) and Z-Image Turbo (Qwen3 4B) ("Cross-check" below).
+     That stage also holds the sampler's preparation, so the text reading alone is not separated; the formula's T stays 0
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used.
      On 2026-11-13, 11 RTX 5080 rows were added to the cross-check, and for YuE2 the VAE node was swapped for its tiled version
      to show that the peak is the VAE stage ("Cross-check" below). 0.15.1 added to bench's `--json` the peaks split into before,
@@ -1039,6 +1041,26 @@ the stage before sampling):
   run). Whether all-on-GPU can be chosen uses 2·S from 0.15.1.
 - After sampling (VAE) is 0.88–0.89 × V, matching the 0.76–0.90 × read from whole-run peaks (above).
 - The sampling stage's minimum is 0.84–0.85 × its peak: the reservation changes little between steps.
+
+Models with a large text stage (homework 1), same day and conditions, template settings (Z-Image with only the size changed):
+
+| Template | Text encoder | Size | Before sampling | Sampling | Formula S | ÷ 2·S | After sampling | Formula V |
+|---|---|---|---:|---:|---:|---:|---:|---:|
+| image_longcat_text_to_image | Qwen2.5-VL 7B (fp8) | 1024px | 1.03 | 1.22 | 0.80 | 0.76 | 2.28 | 4.25 |
+| image_longcat_image_edit | Qwen2.5-VL 7B (fp8), with an image | input image (1 MP) | 2.06 | 2.38 | 1.60 | 0.74 | 2.84 | 4.25 |
+| image_z_image_turbo | Qwen3 4B (bf16) | 1024px | 0.62 | 0.84 | 0.90 | 0.47 | 2.28 | 4.25 |
+| image_z_image_turbo | Qwen3 4B (bf16) | 1536px | 1.25 | 1.56 | 2.02 | 0.39 | 4.97 | 9.57 |
+
+- Before sampling is 0.6–2.1 GB, more than the formula's T (0). Editing uses about twice text-only (the image tokens, and the VAE
+  encode of the input image into a latent).
+  - This stage also holds the sampler's preparation (conditioning, noise, model loading), and for Z-Image it grew with the size
+    (0.62 → 1.25). The text reading alone is not separated. ComfyUI does not estimate this stage either, so the formula's T stays 0.
+  - ComfyUI's log keeps only the sampler's last progress line, so the sampler's start is "end − elapsed (whole seconds, truncated)"
+    and the start margin of 1 s is used.
+- Sampling stage: LongCat, with CFG, is 0.74–0.76 × 2·S; Z-Image Turbo, with CFG 1, is 0.77–0.93 × S (one pass, since the
+  unconditional is not computed). The usage formula's 1× S matches the CFG-1 model, and the 2·S used to decide all-on-GPU (ComfyUI's
+  estimate, whatever the CFG) is an upper bound on the safe side for both.
+- After sampling is 0.52–0.67 × V, about the same as the KL VAE's 0.52–0.64 × above.
 
 ### RTX 3070 sweep (2026-10-27, **not used as evidence**)
 
