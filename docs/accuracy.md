@@ -119,11 +119,17 @@ ComfyUI's code (GPL-3.0) is neither imported nor copied. Only the numbers and th
 
 - 1× (one pass). ComfyUI batches cond and uncond together only when `memory_required × 1.5 < free`, otherwise it runs them one by one
   (samplers.py:273-284). What it needs to run is 1× (`minimum_memory_required`, sampler_helpers.py:178).
-- Whether all-on-GPU can be chosen (`vram_resident_gb`) uses twice as much, 2·S (0.15.1). Before sampling, ComfyUI estimates
-  `memory_required` at batch × 2 (sampler_helpers.py:177@6e8488e, whatever the CFG) and loads the weights leaving that much free
-  (sampler_helpers.py:201@6e8488e → `load_models_gpu`). The per-stage measurements of 2026-11-14 ("Cross-check" below) agree: on 16 GB,
-  with plenty free, the sampling stage was 0.85–1.21 × 2·S, so the two were run together. The usage (`vram_gb`), sequential and offload
-  keep 1×.
+- Whether all-on-GPU can be chosen (`vram_resident_gb`: whether the run can reach the decode without unloading parts) uses twice as
+  much, 2·S (0.15.1). Before sampling, ComfyUI estimates `memory_required` at batch × 2 (sampler_helpers.py:177@6e8488e, whatever
+  the CFG), and `load_models_gpu` unloads other loaded models (text encoder, VAE and the like) to free weights × 1.1 + that estimate
+  + a reserve (sampler_helpers.py:201, model_management.py:1001@6e8488e). Whether the main model's weights are only partly loaded is
+  decided with 1× (model_management.py:1025). Dynamic-VRAM models are not unloaded for each other (:914-918), so this applies to the
+  old behaviour (`--disable-dynamic-vram`, Intel, Apple and the like). The usage (`vram_gb`), sequential and
+  offload keep 1×.
+  - When the reference latent is on only one of the conditions, 2·S comes out high (the safe side).
+  - In the per-stage measurements of 2026-11-14 ("Cross-check" below), the sampling stage on 16 GB with plenty free was 0.85–1.21 ×
+    2·S. That is about usage (with more free than `memory_required × 1.5`, the conditional and unconditional passes run together;
+    samplers.py:282), not direct evidence for the unloading decision.
   - Only the kept-loaded value changes (level and run mode do not change in 1,980 pairs at the default settings on 4–24 GB; the
     kept-loaded value rose for 17 image and 45 video models).
 - Area = the number of latent elements without channels (image (H/s)·(W/s), video latent frames × (H/s) × (W/s), audio latent frames).
@@ -1015,7 +1021,7 @@ Peaks split at the stage boundaries (2026-11-14, bench's `stages`; docs/schema.m
 
 - Every peak is after sampling (VAE decode). The minimum after sampling is 0.09 GB in every run: ComfyUI releases the sampler's reservation before decoding, so the later stage's peak is the VAE alone.
   - This confirms, with the stages split, the ratio read from the whole-run peaks above (0.52–0.59).
-- The sampling stage is 1.7–2.4× formula S and 0.85–1.21× 2·S. With plenty free, ComfyUI runs the conditional and unconditional passes together ("S" above; 0.15.1 uses 2·S to decide whether all-on-GPU can be chosen). SDXL peaks at the VAE stage, so the judgement does not change.
+- The sampling stage is 1.7–2.4× formula S and 0.85–1.21× 2·S. With plenty free, ComfyUI runs the conditional and unconditional passes together (samplers.py:282). SDXL peaks at the VAE stage, so the judgement does not change.
 - Before sampling (text encoding) is 0.12–0.41 GB; the formula's T is 0.
 - Models whose peak is the sampling stage, such as Wan 2.1, were not measured (on 2026-11-14 there was not enough free disk).
 
