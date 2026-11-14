@@ -523,6 +523,56 @@ def test_size_from_a_half_scaled_empty_image():
     assert notes == [] and got == (768, 512) and new["3"] == wf["3"]
 
 
+def test_only_known_expression_shapes_pass_the_size():
+    """式は、利用者の数をそのまま・倍数に丸める・半分にする形だけを大きさとして通す。2 倍にするなど、
+    出力の大きさが数と違う形は読まない(違う大きさを記録しないため)。ImageScaleBy も 0.5・1 だけ。"""
+    from genmodelfit.workflow import _size_expr
+
+    for e in ("a/2", "a & -8", "floor(a/32)*32", "(a // 32) * 32", "max(16, floor(a / 16) * 16)"):
+        assert _size_expr(e, "a"), e
+    assert _size_expr("max(((w + 15) // 16) * 16, 256)", "w")
+    for e in ("a*2", "floor(a/32)*16", "a+1", "a/3", "b/2"):
+        assert not _size_expr(e, "a"), e
+    wf = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["5", 1], "height": ["6", 1]}},
+        "5": {"class_type": "ComfyMathExpression", "inputs": {"expression": "a*2", "values.a": ["7", 0]}},
+        "6": {"class_type": "ComfyMathExpression", "inputs": {"expression": "a", "values.a": ["8", 0]}},
+        "7": {"class_type": "PrimitiveInt", "inputs": {"value": 512}},
+        "8": {"class_type": "PrimitiveInt", "inputs": {"value": 512}},
+    }
+    assert not size_input(wf)
+    scaled = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["4", 0], "height": ["4", 1]}},
+        "4": {"class_type": "GetImageSize", "inputs": {"image": ["3", 0]}},
+        "3": {"class_type": "ImageScaleBy", "inputs": {"image": ["2", 0], "scale_by": 2.0}},
+        "2": {"class_type": "EmptyImage", "inputs": {"width": 640, "height": 640}},
+    }
+    from genmodelfit.workflow import _size_value
+
+    assert _size_value(scaled, "1", "width") is None  # 空の画像そのものは大きさのノードとして別に数える
+
+
+def test_size_number_used_for_something_else_is_not_written():
+    """大きさのもとの PrimitiveInt がコマ数などにも使われていれば、書くとほかの設定まで変わるので書かない。"""
+    wf = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["7", 0], "height": ["8", 0]}},
+        "7": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+        "8": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+        "9": {"class_type": "SomeVideoNode", "inputs": {"length": ["7", 0]}},
+    }
+    new, notes, got = _set_and_read(wf, 768, 512)
+    assert notes and "9" in notes[0] and new["7"]["inputs"]["value"] == 1024
+    assert got == (1024, 512)  # 高さだけは書ける(bench は頼んだ設定と違うので生成の前に止まる)
+    # 0(ImageScale の「縦横比から自動」)は大きさにしない
+    zero = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["4", 0], "height": ["4", 1]}},
+        "4": {"class_type": "GetImageSize", "inputs": {"image": ["3", 0]}},
+        "3": {"class_type": "ImageScale", "inputs": {"image": ["2", 0], "width": 0, "height": 512}},
+        "2": {"class_type": "LoadImage", "inputs": {"image": "in.png"}},
+    }
+    assert effective_settings(zero).width is None
+
+
 def test_width_and_height_from_one_number_cannot_differ():
     wf = {
         "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["7", 0], "height": ["7", 0]}},

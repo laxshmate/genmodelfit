@@ -116,7 +116,9 @@ All notable changes to this project are documented here. The format is based on
   `ResolutionSelector` reached through a calculation, or one number feeding both width and height with different values
   asked for, is not changed. Official image and video templates whose size bench reads: 124 → 145 (Ideogram 4, Lens,
   Ming Image, LTX 2 / 2.3 / 2.5, Wan Dancer / VACE / Animate 2 / SCAIL 2, Capybara image edit and others); whose size
-  cannot be changed: 16 → 8. The expressions are not evaluated (ComfyUI computes them).
+  cannot be changed: 16 → 8. The expressions are not evaluated (ComfyUI computes them); only the shapes found in
+  official templates pass (as is, rounded to a multiple, halved), `ImageScaleBy` only at 0.5 or 1, and a source number
+  also used by a non-size input is not written.
 - **`measure`'s time guide for the template's own settings no longer mixes in runs made with changed settings**
   (`settings_override`). Their times were taken at a ratio of 1, so a 1536 px or 17-frame run counted as if it were
   the template's.

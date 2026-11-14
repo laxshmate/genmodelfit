@@ -651,6 +651,35 @@ def _resolution_selector(node: dict[str, Any]) -> tuple[int, int] | None:
 _SIZE_DEPTH = 8
 # 入力の画像を決まった幅×高さに縮めるノード(ResizeImageMaskNode の scale dimensions)の入力の名前
 _RESIZE_DIMS = {0: "resize_type.width", 1: "resize_type.height"}
+# 大きさとして通す式の形(空白を除き、変数は X)。利用者の数をそのまま・倍数に丸める・半分にする(LTX は
+# 後で 2 倍に上げる)だけ。公式テンプレートにある形(2026-11-14)。ほかの形は大きさを読まない(#187)
+_SIZE_EXPRS = [
+    re.compile(p)
+    for p in (
+        r"X",
+        r"X/2",
+        r"X&-(\d+)",
+        r"floor\(X/(\d+)\)\*\1",
+        r"floor\(X/(\d+)\)\*\1/2",
+        r"\(X//(\d+)\)\*\1",
+        r"max\((\d+),floor\(X/(\d+)\)\*\2\)",
+        r"max\((\d+),\(int\(X\)//(\d+)\)\*\2\)",
+        r"max\(\(\(X\+(\d+)\)//(\d+)\)\*\2,(\d+)\)",
+    )
+]
+# 大きさとして通す ImageScaleBy の倍率(LTX 2 の半分で作って 2 倍に上げる形)
+_SIZE_SCALES = (0.5, 1)
+# 大きさのもとの PrimitiveInt を使ってよい入力(これ以外にも使われていれば書き換えない)
+_SIZE_KEYS = {"width", "height", "resize_type.width", "resize_type.height", "target_width", "target_height"}
+
+
+def _size_expr(expr: Any, var: str) -> bool:
+    """式が、利用者の数 var を大きさとして通す形(_SIZE_EXPRS)か。"""
+    if not isinstance(expr, str) or not re.fullmatch(r"[A-Za-z_]\w*", var):
+        return False
+    s = re.sub(r"\s+", "", expr)
+    s = re.sub(rf"(?<![A-Za-z_0-9]){re.escape(var)}(?![A-Za-z_0-9])", "X", s)
+    return any(p.fullmatch(s) for p in _SIZE_EXPRS)
 
 
 @dataclass(frozen=True)
@@ -681,7 +710,7 @@ def _root(api: dict[str, dict[str, Any]], v: Any, depth: int = 0) -> tuple[Any, 
     ct, inp = src["class_type"], src["inputs"]
     if ct == "PrimitiveInt":
         if _literal(src, "value"):
-            return inp["value"], _Root("set", nid, "value")
+            return _positive(inp["value"], _Root("set", nid, "value"))
         # 値が別のノード(ResolutionSelector など)から来ても、書くのはこの PrimitiveInt
         # (利用者が数を打つのと同じ。後ろの式はそのまま効く)
         value, _ = _root(api, inp.get("value"), depth + 1)
@@ -690,11 +719,21 @@ def _root(api: dict[str, dict[str, Any]], v: Any, depth: int = 0) -> tuple[Any, 
         wh = _resolution_selector(src)
         return (None, None) if wh is None else (wh[out], _Root("rs", nid, out))
     if ct == "ComfyMathExpression":
-        links = [x for k, x in inp.items() if k.startswith("values.") and isinstance(x, list)]
-        return _through(*_root(api, links[0], depth + 1)) if len(links) == 1 else (None, None)
+        links = [(k, x) for k, x in inp.items() if k.startswith("values.") and isinstance(x, list)]
+        if len(links) != 1 or not _size_expr(inp.get("expression"), links[0][0].removeprefix("values.")):
+            return None, None
+        return _through(*_root(api, links[0][1], depth + 1))
     if ct == "GetImageSize" and out in (0, 1):
         return _through(*_image_size(api, inp.get("image"), out, depth + 1))
     return None, None
+
+
+def _positive(value: Any, root: _Root | None) -> tuple[Any, _Root | None]:
+    """正の数だけを大きさにする(0 は ImageScale などで「縦横比から自動」)。"""
+    try:
+        return (value, root) if value is not None and float(value) > 0 else (None, None)
+    except (TypeError, ValueError):
+        return None, None
 
 
 def _through(value: Any, root: _Root | None) -> tuple[Any, _Root | None]:
@@ -723,13 +762,15 @@ def _image_size(api: dict[str, dict[str, Any]], img: Any, out: int, depth: int) 
             return None, None
         key = _RESIZE_DIMS[out]
     elif ct == "ImageScaleBy":
+        if inp.get("scale_by") not in _SIZE_SCALES:
+            return None, None
         return _through(*_image_size(api, inp.get("image"), out, depth + 1))
     elif "width" in inp and "height" in inp and not _SIZE_SKIP.match(ct):
         key = ("width", "height")[out]
     else:
         return None, None
     if _literal(src, key):
-        return inp[key], _Root("set", rid, key)
+        return _positive(inp[key], _Root("set", rid, key))
     return _root(api, inp.get(key), depth + 1)
 
 
@@ -759,6 +800,22 @@ def _other_users(api: dict[str, dict[str, Any]], link: list[Any]) -> list[str]:
         and str(v[0]) == str(link[0])
         and v[1] == link[1]
         and not (nid in size and k in ("width", "height"))
+    )
+
+
+def _non_size_users(api: dict[str, dict[str, Any]], pid: str) -> list[str]:
+    """PrimitiveInt pid の値を、大きさの入力(_SIZE_KEYS)・式・PrimitiveInt 以外に使うノード。"""
+    return sorted(
+        {
+            nid
+            for nid, n in api.items()
+            for k, v in n["inputs"].items()
+            if isinstance(v, list)
+            and len(v) == 2
+            and str(v[0]) == pid
+            and k not in _SIZE_KEYS
+            and n["class_type"] not in ("ComfyMathExpression", "PrimitiveInt")
+        }
     )
 
 
@@ -801,7 +858,25 @@ def apply_settings(
                     _, root = _root(api, api[nid]["inputs"][k])
                     if root is not None and root.kind == "set":
                         # 値のもと(PrimitiveInt の値・縮めるノードの幅と高さ)を書く。同じ値を使うノード
-                        # (式・入力の画像を縮めるノードなど)もそろって変わる(#187)
+                        # (式・入力の画像を縮めるノードなど)もそろって変わる(#187)。PrimitiveInt が
+                        # 大きさ以外(コマ数など)にも使われていれば、ほかの設定まで変わるので書かない
+                        odd = (
+                            _non_size_users(api, root.node)
+                            if api[root.node]["class_type"] == "PrimitiveInt"
+                            else []
+                        )
+                        if odd:
+                            notes.append(
+                                tr(
+                                    f"ノード {nid} の {k} の値(ノード {root.node})は"
+                                    f"ノード {', '.join(odd)} も大きさ以外に使うので"
+                                    f" {label[0]} を変えられません",
+                                    f"node {nid}: the value of {k} (node {root.node}) is also used by node"
+                                    f" {', '.join(odd)} for something other than the size,"
+                                    f" so the {label[1]} cannot be changed",
+                                )
+                            )
+                            continue
                         roots[(root.node, root.key)].add((k, value))
                         hit = True
                         continue
