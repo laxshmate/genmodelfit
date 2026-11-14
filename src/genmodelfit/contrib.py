@@ -157,6 +157,9 @@ MEASUREMENT_KEYS = {
     "timing",  # 時間の内訳(ComfyUI の /history とログから。分からない項目は null)
     "spilled",  # ピークの VRAM が GPU の総量を超えた(共有メモリへ逃げた)印。true のときだけ書く
     "spilled_gb",  # 総量を超えた量(GiB)。spilled のときだけ
+    # 段ごとの山(#100 の宿題 2。bench の BenchResult.stages)。contrib_schema 3 の任意の項目で、
+    # 分けられたときだけ書く(settings_override と同じく contrib_schema は上げない)
+    "stages",
 }
 _FILES_FP = re.compile(r"[0-9a-f]{64}")
 # 測ったときの見積もり(#132。docs/schema.md「contrib」)
@@ -178,6 +181,10 @@ ESTIMATE_LEVELS = ("perfect", "good", "marginal", "too_tight")
 ESTIMATE_MODES = ("gpu", "sequential", "offload", "cpu", "none")
 ESTIMATE_BASES = ("measured", "estimated")
 # 時間の内訳(#132)。どれも秒で、分からなければ null
+# 段ごとの山(#100 の宿題 2)。torch の確保量をサンプラの前・最中・後に分けたもの(bench.stage_peaks)
+STAGE_NAMES = ("before_sampling", "sampling", "after_sampling")
+STAGES_KEYS = {"sampler_runs", *STAGE_NAMES}
+STAGE_KEYS = {"peak_gb", "min_gb", "samples"}
 TIMING_KEYS = {
     "queue_s",  # 送ってから実行が始まるまで
     "load_s",  # 実行の始まりからサンプラの始まりまで(モデルの読み込みと文の符号化)
@@ -693,6 +700,11 @@ def _unknown_fields(data: dict[str, Any]) -> list[str]:
             sub(mm.get("settings"), SETTINGS_KEYS, "measurement.settings")
             sub(mm.get("estimate"), ESTIMATE_KEYS, "measurement.estimate")
             sub(mm.get("timing"), TIMING_KEYS, "measurement.timing")
+            stages = mm.get("stages")
+            sub(stages, STAGES_KEYS, "measurement.stages")
+            if isinstance(stages, dict):
+                for name in STAGE_NAMES:
+                    sub(stages.get(name), STAGE_KEYS, f"measurement.stages.{name}")
     items = data.get("failures")
     if failures and isinstance(items, list):
         for i, f in enumerate(items[:MAX_FAILURES]):
@@ -866,13 +878,15 @@ def build_submission(
     estimate: dict[str, Any] | None = None,
     timing: dict[str, Any] | None = None,
     db_info: dict[str, Any] | None = None,
+    stages: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """bench の実測 1 件 → 提出用の JSON(contrib_schema 3)。
 
     system は測った PC(ComfyUI が同じ PC のときだけ渡す)。OS の種類・メインメモリ・GPU の世代を取る。
     source(自由に書ける文)は入れない。note は個人の情報らしいところを消して入れる。
     estimate(measurement_estimate)・timing(bench の BenchResult.timing)・db_info(db_info)は
-    渡したときだけ入れる(#132)。最後まで動いた(ok)のにピークの VRAM が GPU の総量を超えたら
+    渡したときだけ入れる(#132)。stages(bench の BenchResult.stages。段ごとの山)も渡したときだけ。
+    最後まで動いた(ok)のにピークの VRAM が GPU の総量を超えたら
     spilled と超えた量を付ける(共有メモリへ逃げた。見積もり・段階には使わない)。"""
     note = scrub_text(m.note, extra_secrets)
     if note and len(note) > MAX_NOTE_CHARS:
@@ -906,8 +920,18 @@ def build_submission(
             **({"estimate": dict(estimate)} if estimate else {}),
             **({"timing": {k: timing.get(k) for k in TIMING_ORDER}} if timing else {}),
             **({"spilled": True, "spilled_gb": spill} if spill else {}),
+            **({"stages": _clean_stages(stages)} if stages else {}),
         },
     }
+
+
+def _clean_stages(stages: dict[str, Any]) -> dict[str, Any]:
+    """段ごとの山の決まった項目だけ(bench.stage_peaks の形)。"""
+    out: dict[str, Any] = {"sampler_runs": stages.get("sampler_runs")}
+    for name in STAGE_NAMES:
+        v = stages.get(name)
+        out[name] = {k: v.get(k) for k in ("peak_gb", "min_gb", "samples")} if isinstance(v, dict) else None
+    return out
 
 
 TIMING_ORDER = (
@@ -1799,7 +1823,11 @@ def validate_submission(
     if schema < 3:
         # contrib_schema 3 の項目(#132)。古い版の提出には入れない
         new3 = [f"$.{k}" for k in ("db",) if k in data]
-        new3 += [f"$.measurement.{k}" for k in ("estimate", "timing", "spilled", "spilled_gb") if k in mm0]
+        new3 += [
+            f"$.measurement.{k}"
+            for k in ("estimate", "timing", "spilled", "spilled_gb", "stages")
+            if k in mm0
+        ]
         if failures:
             new3.append(f"kind {FAILURES_KIND}")
         for where in new3:
@@ -2174,6 +2202,44 @@ def _seconds_ok(x: Any, allow_zero: bool = True) -> bool:
     return _num(x) and (x >= 0 if allow_zero else x > 0) and x <= 86400
 
 
+def _check_stages(r: Report, mm: dict[str, Any]) -> None:
+    """段ごとの山(measurement.stages。#100 の宿題 2)。torch の確保量なので vram_metric は torch_reserved、
+    各段の最大は実測のピーク以下(丸めの 0.01 GiB まで)、最小は最大以下、読めた回は 1 以上。"""
+    stages = mm.get("stages")
+    if stages is None or not _check_keys(r, stages, STAGES_KEYS, "$.measurement.stages", STAGES_KEYS):
+        return
+
+    def bad(where: str, v: Any, ja: str, en: str) -> None:
+        r.error("value", tr(f"{where} は{ja}: {v!r}", f"{where} must be {en}: {v!r}"))
+
+    if mm.get("vram_metric") != "torch_reserved":
+        bad(
+            "measurement.vram_metric",
+            mm.get("vram_metric"),
+            " stages があるとき torch_reserved です",
+            "torch_reserved when stages is given",
+        )
+    runs = stages.get("sampler_runs")
+    if not (isinstance(runs, int) and not isinstance(runs, bool) and 1 <= runs <= 1000):
+        bad("measurement.stages.sampler_runs", runs, " 1 以上の整数です", "an integer of 1 or more")
+    peak = mm.get("peak_vram_gb")
+    for name in STAGE_NAMES:
+        v = stages.get(name)
+        where = f"measurement.stages.{name}"
+        if v is None or not _check_keys(r, v, STAGE_KEYS, f"$.{where}", STAGE_KEYS):
+            continue
+        hi, lo, n = v.get("peak_gb"), v.get("min_gb"), v.get("samples")
+        if not (_num(hi) and 0 <= hi <= MAX_GPU_VRAM_GB):
+            bad(f"{where}.peak_gb", hi, " 0 以上の GiB です", "GiB of 0 or more")
+            continue
+        if _num(peak) and hi > peak + 0.01:
+            bad(f"{where}.peak_gb", hi, f"実測のピーク {peak} 以下です", f"at most the measured peak {peak}")
+        if not (_num(lo) and 0 <= lo <= hi):
+            bad(f"{where}.min_gb", lo, " 0 以上で peak_gb 以下です", "0 or more and at most peak_gb")
+        if not (isinstance(n, int) and not isinstance(n, bool) and n >= 1):
+            bad(f"{where}.samples", n, " 1 以上の整数です", "an integer of 1 or more")
+
+
 def _check_new_fields(r: Report, mm: dict[str, Any], vram: Any, ram: Any) -> None:
     """contrib_schema 3 の実測の項目(#132): 見積もり・時間の内訳・VRAM を超えた印。"""
     est = mm.get("estimate")
@@ -2241,6 +2307,7 @@ def _check_new_fields(r: Report, mm: dict[str, Any], vram: Any, ram: Any) -> Non
                     "measurement.timing.cold_load must be true / false / null",
                 ),
             )
+    _check_stages(r, mm)
     if "spilled" not in mm and "spilled_gb" not in mm:
         return
     spilled, extra, peak = mm.get("spilled"), mm.get("spilled_gb"), mm.get("peak_vram_gb")

@@ -13,7 +13,8 @@ All notable changes to this project are documented here. The format is based on
   read with its time and grouped into before, during and after the sampler, using the progress lines of ComfyUI's log
   (the same lines as `timing`) and the run's start and end; a margin around each boundary goes into no stage. Each
   stage has its peak, minimum and number of reads; the text output shows them on one line. Only when ComfyUI runs on
-  the same PC and sampler lines exist; not in contrib submissions yet. On an RTX 5080, SDXL at 768–1536 px peaks after
+  the same PC and sampler lines exist. `measure`'s contrib submission carries them as `measurement.stages`
+  (optional in contrib_schema 3; checked against the measured peak; not used for aggregation, estimates or levels). On an RTX 5080, SDXL at 768–1536 px peaks after
   sampling at 0.60–0.64 × ComfyUI's untiled VAE figure, with the sampler's reservation released first (minimum
   0.09 GB), and the sampling stage is 1.7–2.4 × formula S (docs/accuracy.md "Cross-check"). Wan 2.1 1.3B at 832×480 (33 and 81
   frames), whose usage peaks at sampling, used 1.10–1.13 × 2·S there and 0.88–0.89 × V after it. LongCat Image (Qwen2.5-VL 7B) and Z-Image Turbo

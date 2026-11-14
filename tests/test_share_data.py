@@ -101,6 +101,52 @@ def test_v3_submission_carries_estimate_timing_and_db(db):
     assert all(v is not False for v in checks.values()), checks
 
 
+STAGES = {
+    "sampler_runs": 1,
+    "before_sampling": {"peak_gb": 0.38, "min_gb": 0.09, "samples": 46},
+    "sampling": {"peak_gb": 0.44, "min_gb": 0.44, "samples": 86},
+    "after_sampling": {"peak_gb": 6.9, "min_gb": 0.09, "samples": 8},
+}
+
+
+def test_submission_carries_stage_peaks_when_given(db):
+    """段ごとの山(#100 の宿題 2)は、bench が分けられたときだけ提出に入る(contrib_schema は 3 のまま)。"""
+    base = v3(db)
+    assert "stages" not in base["measurement"]
+    sub = contrib.build_submission(meas(), pc(), stages={**STAGES, "extra": 1})
+    assert sub["contrib_schema"] == 3
+    assert sub["measurement"]["stages"] == STAGES  # 決まった項目だけ
+    assert errors(sub, db) == []
+
+
+@pytest.mark.parametrize(
+    ("edit", "needle"),
+    [
+        (lambda s: s["sampling"].update(peak_gb=7.5), "peak_gb"),  # 実測のピーク(6.9)より大きい
+        (lambda s: s["sampling"].update(min_gb=0.5), "min_gb"),  # 最大より大きい最小
+        (lambda s: s["sampling"].update(samples=0), "samples"),
+        (lambda s: s.update(sampler_runs=0), "sampler_runs"),
+        (lambda s: s["sampling"].update(extra=1), "extra"),
+        (lambda s: s.pop("after_sampling"), "after_sampling"),
+    ],
+)
+def test_bad_stage_peaks_are_rejected(db, edit, needle):
+    sub = contrib.build_submission(meas(), pc(), stages=copy.deepcopy(STAGES))
+    edit(sub["measurement"]["stages"])
+    assert any(needle in e for e in errors(sub, db)), errors(sub, db)
+
+
+def test_stage_peaks_need_torch_reservations_and_schema_3(db):
+    sub = contrib.build_submission(meas(vram_metric="gpu_used"), pc(), stages=copy.deepcopy(STAGES))
+    assert any("vram_metric" in e and "stages" in e for e in errors(sub, db)), errors(sub, db)
+    old = contrib.build_submission(meas(), pc(), stages=copy.deepcopy(STAGES))
+    old["contrib_schema"] = 2
+    assert any("stages" in e and "contrib_schema 3" in e for e in errors(old, db))
+    # 段の 1 つが null(その時間に読めた回が無い)は受け付ける
+    ok = contrib.build_submission(meas(), pc(), stages={**STAGES, "before_sampling": None})
+    assert errors(ok, db) == []
+
+
 def test_estimate_does_not_use_the_measurement_or_this_pcs_measurements(monkeypatch, tmp_path):
     """_measure_run の見積もりは同梱の実測だけで作る(キャッシュの実測・送る前の提出を入れない)。
     同梱の実測からも同じ GPU・同じモデルのもの(作者の PC の実測かもしれない)を除く。"""
