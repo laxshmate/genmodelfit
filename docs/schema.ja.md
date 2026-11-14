@@ -986,7 +986,7 @@ OOM の行もデータとして歓迎するが、`outcome: "oom"` を保たな�
 | `warnings` | str[] | 適用できなかった設定、アップロードした入力など(表示の言語 `en` / `ja`) |
 | `failed` | str | ComfyUI で実行に失敗したときだけ(OOM またはほかの実行エラー。終了コード 1)。`measurement.outcome` は `oom` / `error` |
 | `timing` | object \| null | (0.13.0、#132)時間の内訳。contrib の提出の `measurement.timing` と同じキー(contrib を参照。分からない値は null) |
-| `stages` | object \| null | (0.15.1、#100 の宿題 2)torch の確保量(`torch_vram_total`)を、サンプラの前・最中・後に分けたもの。`before_sampling`・`sampling`・`after_sampling` は、それぞれ `{peak_gb, min_gb, samples}`(GiB。その時間に読めた回が無ければ null)。`sampler_runs` はサンプラの実行の数(2 回以上なら、`sampling` は最初の始まりから最後の終わりまでで、回の間のモデルの入れ替えなども入る)。時刻は、ComfyUI のログの進み具合の行(`timing` と同じ行)と `/history` の実行の始まり・終わりで決める。境目のまわり(始まりは 1 秒、最初の行が経過 0 秒なら 0.1 秒。終わりは 0.1 秒)はどの段にも入れない。ComfyUI が同じ PC のとき(時計が同じ)で、サンプラの行があるときだけ。無ければ null。`min_gb` は、その段に入ったときに前の段の確保を返したかの目安(返していなければ、後の段の `peak_gb` は前の段の山を含む)。提出の記録(contrib)にはまだ入れない |
+| `stages` | object \| null | (0.15.1、#100 の宿題 2)torch の確保量(`torch_vram_total`)を、サンプラの前・最中・後に分けたもの。`before_sampling`・`sampling`・`after_sampling` は、それぞれ `{peak_gb, min_gb, samples}`(GiB。その時間に読めた回が無ければ null)。`sampler_runs` はサンプラの実行の数(2 回以上なら、`sampling` は最初の始まりから最後の終わりまでで、回の間のモデルの入れ替えなども入る)。時刻は、ComfyUI のログの進み具合の行(`timing` と同じ行)と `/history` の実行の始まり・終わりで決める。境目のまわり(始まりは 1 秒、最初の行が経過 0 秒なら 0.1 秒。終わりは 0.1 秒)はどの段にも入れない。ComfyUI が同じ PC のとき(時計が同じ)で、サンプラの行があるときだけ。無ければ null。`min_gb` は、その段に入ったときに前の段の確保を返したかの目安(返していなければ、後の段の `peak_gb` は前の段の山を含む)。`measure` の提出の記録(contrib)では `measurement.stages` に入る |
 | `submission` | object | `--submission` か `--share` を付けたときだけ: `{saved_to, path_in_repo}`(提出用の JSON。contrib を参照)。`--share` では `share` も入る(`share --json` の `file`・`ok`・`refused`・`checklist`・`report`・`share`・`opened`・`copied`・`marked_shared`。ブラウザは開かない) |
 
 bench が Measurement を埋める方法(測り方):
@@ -1332,11 +1332,12 @@ genmodelfit が書かないもの: ホスト名、ユーザー名、パス、GPU
 | `measurement.estimate` | object | 測ったモデル・設定に対する、その時点の genmodelfit の見積もり。その実測と、同じ PC のほかの実測を**使わずに**作る(使うのは同梱の実測だけ: 作者の実測とほかの利用者のまとめ。作者の実測はこの PC のものかもしれないので、同じ GPU・同じモデルの実測も除く。`measurements: bundled-excluding-this-gpu` がその印): `fit_level`(`perfect` / `good` / `marginal` / `too_tight`)、`run_mode`(`gpu` / `sequential` / `offload` / `cpu` / `none`)、`vram_gb`(段階を決めた VRAM)、`vram_resident_gb`、`work_gb`(作業用メモリの式の値。いちばん重い段)、`ram_required_gb`、`seconds`(`measure` の時間の目安)、`basis`(`measured` / `estimated`)。どの値も null がありうる。ComfyUI が別の PC のとき・大きさが分からないときは書かない |
 | `measurement.timing` | object | 時間の内訳(秒。分からなければ null): `queue_s`(送ってから始まるまで)、`load_s`(始まりからサンプラの最初のステップまで。読み込みと文の符号化)、`sampling_s`(サンプラの合計)、`sec_per_step`、`decode_s`(サンプラの最後のステップから終わりまで。VAE の復元と保存)、`save_s`(今はいつも null。HTTP では分けられない)、`total_s`(`seconds` と同じ)、`cold_load`(true = genmodelfit が起動した ComfyUI で初めての読み込み、false = 同じ ComfyUI で `/free` のあとの 2 回目、null = 分からない) |
 | `measurement.spilled` | true | 最後まで動いた(`outcome: ok`)のに、ピークの VRAM が GPU の総量 × 1.02 + 0.25 GB を超えた(Windows で共有メモリに逃げた)ときだけ。true のときだけ書く |
+| `measurement.stages` | object | (0.15.1、任意。contrib_schema 3 だけ。#100 の宿題 2)段ごとの山。bench の `stages` と同じ形: `sampler_runs`(1 以上の整数)と、`before_sampling`・`sampling`・`after_sampling`(それぞれ `{peak_gb, min_gb, samples}` か null)。決まり: `vram_metric` は `torch_reserved`、`peak_gb` は `peak_vram_gb` + 0.01 以下、`min_gb` は 0 以上で `peak_gb` 以下、`samples` は 1 以上。bench が分けられたときだけ書く。まとめ・見積もり・段階には使わない(照合の材料) |
 | `measurement.spilled_gb` | number | ピークの VRAM − GPU の総量(GiB)。`spilled` といっしょ |
 
 時間の内訳の取り方(HTTP だけ。websocket は使わない): `/history` の `status.messages` の `execution_start`・`execution_success`(か `_error`)の時刻と、ComfyUI のログ(`/internal/logs/raw`)の進み具合の行(tqdm。`20/20 [00:05<00:00, 3.80it/s]`)。2 つの時計を比べる値(`queue_s`・`load_s`・`decode_s`)は、ComfyUI が同じ PC のときだけ書く。使う進み具合の行は、前に説明の無い行(`Fetching 3 files: …` などは使わない)で、送ったワークフローのサンプラの `steps` と同じステップ数のものだけ。合う行が無い・実行の時間より長いときは `sampling_s`・`sec_per_step` は null。時間の内訳・見積もりが検査に通らないときは、それを外して実測を送る。
 
-決まり: 1・2 のファイルの `db`・`estimate`・`timing`・`spilled`・`spilled_gb` は誤り。`spilled` は true だけで、`outcome: ok` のときだけ。ピークは総量の線を超え、GPU の総量 + メインメモリ(× 1.05 + 1 GiB。メインメモリが分からなければ GPU の総量)まで。`spilled_gb` はピーク − 総量と 0.1 GiB 以内で合うこと。spilled の提出は受け付けるが、まとめ・見積もり・段階・`calibrate` には**使わない**(「この GPU では共有メモリに逃げる(遅い)」の材料。使い方は別の Issue で決める)。
+決まり: 1・2 のファイルの `db`・`estimate`・`timing`・`spilled`・`spilled_gb`・`stages` は誤り。`spilled` は true だけで、`outcome: ok` のときだけ。ピークは総量の線を超え、GPU の総量 + メインメモリ(× 1.05 + 1 GiB。メインメモリが分からなければ GPU の総量)まで。`spilled_gb` はピーク − 総量と 0.1 GiB 以内で合うこと。spilled の提出は受け付けるが、まとめ・見積もり・段階・`calibrate` には**使わない**(「この GPU では共有メモリに逃げる(遅い)」の材料。使い方は別の Issue で決める)。
 
 ### 失敗の記録(`kind: genmodelfit-failures`、#132)
 

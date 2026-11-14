@@ -713,7 +713,8 @@ How to read it:
      On 2026-11-13, 11 RTX 5080 rows were added to the cross-check, and for YuE2 the VAE node was swapped for its tiled version
      to show that the peak is the VAE stage ("Cross-check" below). 0.15.1 added to bench's `--json` the peaks split into before,
      during and after the sampler (`stages`; checked on 3 SDXL runs and 2 Wan 2.1 1.3B runs on 2026-11-14, "Cross-check" below).
-     Left: put it in the contrib submission, keep per-stage rows in the cross-check, measure on other GPUs
+     It also goes into `measure`'s contrib submission (`measurement.stages`). Left: keep per-stage rows in the
+     cross-check, measure on other GPUs (other users' submissions will gather them)
   3. Reduce the models without a per-stage formula (68) (Flux3 Klein, Stable Audio 3, Ming Image, MiniMax Music 3, 5 SD models found by fingerprint and 3 SeedVR2 templates were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
