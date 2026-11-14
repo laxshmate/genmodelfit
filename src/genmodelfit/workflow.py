@@ -17,6 +17,7 @@ from __future__ import annotations
 import copy
 import math
 import re
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
@@ -646,21 +647,99 @@ def _resolution_selector(node: dict[str, Any]) -> tuple[int, int] | None:
     return round(ratio[0] * scale / mult) * mult, round(ratio[1] * scale / mult) * mult
 
 
+# 大きさの値をたどる深さの上限(つながりが輪になっていても止まる)
+_SIZE_DEPTH = 8
+# 入力の画像を決まった幅×高さに縮めるノード(ResizeImageMaskNode の scale dimensions)の入力の名前
+_RESIZE_DIMS = {0: "resize_type.width", 1: "resize_type.height"}
+
+
+@dataclass(frozen=True)
+class _Root:
+    """大きさの値のもと。kind が set なら node の key に書けばその値が変わる(直接の値・PrimitiveInt の値・
+    縮めるノードの幅と高さ)。rs は ResolutionSelector が大きさのノードに直接渡す値(node の出力 index)で、
+    書き換える根は無い(大きさのノードの入力を置き換える)。fixed は、式・ImageScaleBy を通った先の
+    ResolutionSelector で、大きさのノードの入力を置き換えると途中の計算が抜けるので書き換えない。"""
+
+    kind: str
+    node: str
+    key: str | int
+
+
+def _root(api: dict[str, dict[str, Any]], v: Any, depth: int = 0) -> tuple[Any, _Root | None]:
+    """つながり v(["ノード", 出力の番号])が運ぶ大きさの値と、そのもと(_Root)。分からなければ (None, None)。
+    たどるもの: PrimitiveInt(値が別のノードから来ればその先)、ResolutionSelector(ComfyUI と同じ計算)、
+    入力が 1 つだけつながった ComfyMathExpression(利用者の数を丸める・半分にして後で 2 倍に上げるなど。
+    値はつながった数のまま。式は ComfyUI が実行時に計算する)、GetImageSize(幅・高さ)の画像が
+    ResizeImageMaskNode の scale dimensions で決まった幅×高さに縮めたものなら、その幅・高さ。
+    入力の画像そのものの大きさ(LoadImage など)は分からない(大きさの入力ではない)。#187"""
+    if depth > _SIZE_DEPTH or not (isinstance(v, list) and len(v) == 2):
+        return None, None
+    nid, out = str(v[0]), v[1]
+    src = api.get(nid)
+    if src is None:
+        return None, None
+    ct, inp = src["class_type"], src["inputs"]
+    if ct == "PrimitiveInt":
+        if _literal(src, "value"):
+            return inp["value"], _Root("set", nid, "value")
+        # 値が別のノード(ResolutionSelector など)から来ても、書くのはこの PrimitiveInt
+        # (利用者が数を打つのと同じ。後ろの式はそのまま効く)
+        value, _ = _root(api, inp.get("value"), depth + 1)
+        return (None, None) if value is None else (value, _Root("set", nid, "value"))
+    if ct == "ResolutionSelector" and out in (0, 1):
+        wh = _resolution_selector(src)
+        return (None, None) if wh is None else (wh[out], _Root("rs", nid, out))
+    if ct == "ComfyMathExpression":
+        links = [x for k, x in inp.items() if k.startswith("values.") and isinstance(x, list)]
+        return _through(*_root(api, links[0], depth + 1)) if len(links) == 1 else (None, None)
+    if ct == "GetImageSize" and out in (0, 1):
+        return _through(*_image_size(api, inp.get("image"), out, depth + 1))
+    return None, None
+
+
+def _through(value: Any, root: _Root | None) -> tuple[Any, _Root | None]:
+    """式・画像の大きさを通った先のもと。ResolutionSelector(rs)なら、大きさのノードの入力を置き換えると
+    途中の計算(LTX の a/2 など)が抜けるので、書き換えない(fixed)。"""
+    if root is not None and root.kind == "rs":
+        return value, _Root("fixed", root.node, root.key)
+    return value, root
+
+
+def _image_size(api: dict[str, dict[str, Any]], img: Any, out: int, depth: int) -> tuple[Any, _Root | None]:
+    """画像のつながり img の幅(out 0)・高さ(1)の値とそのもと(GetImageSize がたどる先。#187)。
+    決まった幅×高さに縮める ResizeImageMaskNode(scale dimensions)、幅と高さを持つノード(EmptyImage・
+    ImageScale など)はその幅・高さ。ImageScaleBy はその前の画像の大きさのまま(LTX 2 の、半分で作って
+    後で 2 倍に上げる形。式の a/2 と同じく、値は利用者の数)。入力の画像そのもの(LoadImage など)は
+    分からない。"""
+    if depth > _SIZE_DEPTH or not (isinstance(img, list) and len(img) == 2):
+        return None, None
+    rid = str(img[0])
+    src = api.get(rid)
+    if src is None:
+        return None, None
+    ct, inp = src["class_type"], src["inputs"]
+    if ct == "ResizeImageMaskNode":
+        if inp.get("resize_type") != "scale dimensions":
+            return None, None
+        key = _RESIZE_DIMS[out]
+    elif ct == "ImageScaleBy":
+        return _through(*_image_size(api, inp.get("image"), out, depth + 1))
+    elif "width" in inp and "height" in inp and not _SIZE_SKIP.match(ct):
+        key = ("width", "height")[out]
+    else:
+        return None, None
+    if _literal(src, key):
+        return inp[key], _Root("set", rid, key)
+    return _root(api, inp.get(key), depth + 1)
+
+
 def _size_value(api: dict[str, dict[str, Any]], nid: str, key: str) -> Any:
-    """大きさのノードの幅・高さの値。直接の値か、つながった PrimitiveInt の値か、ResolutionSelector が出す値
-    (公式テンプレートの文章から画像の多くは、大きさをこの 2 つから受ける)。分からなければ None。"""
+    """大きさのノードの幅・高さの値。直接の値か、つながりをたどった値(_root。PrimitiveInt・ResolutionSelector・
+    利用者の数の式・決まった幅×高さに縮めた入力の画像)。分からなければ None。"""
     v = api[nid]["inputs"].get(key)
     if not isinstance(v, list):
         return v
-    src = api.get(str(v[0])) if len(v) == 2 else None
-    if src is None:
-        return None
-    if src["class_type"] == "PrimitiveInt" and _literal(src, "value"):
-        return src["inputs"]["value"]
-    if src["class_type"] == "ResolutionSelector" and v[1] in (0, 1):
-        wh = _resolution_selector(src)
-        return None if wh is None else wh[v[1]]
-    return None
+    return _root(api, v)[0]
 
 
 def _settable(api: dict[str, dict[str, Any]], nid: str, key: str) -> bool:
@@ -668,7 +747,7 @@ def _settable(api: dict[str, dict[str, Any]], nid: str, key: str) -> bool:
 
 
 def _other_users(api: dict[str, dict[str, Any]], link: list[Any]) -> list[str]:
-    """link(PrimitiveInt・ResolutionSelector の出力)を、大きさのノードの幅・高さ以外で使うノード。
+    """link(ResolutionSelector の出力)を、大きさのノードの幅・高さ以外で使うノード。
     画像の縮小・計算のノードが同じ値を使っていると、大きさのノードだけ書き換えても実際に動く大きさとずれる。"""
     size = set(_size_nodes(api))
     return sorted(
@@ -719,7 +798,24 @@ def apply_settings(
                     n["inputs"][k] = value
                     hit = True
                 elif k in ("width", "height") and _settable(api, nid, k):
-                    # PrimitiveInt・ResolutionSelector から来る大きさ: このノードの入力を値に置き換える
+                    _, root = _root(api, api[nid]["inputs"][k])
+                    if root is not None and root.kind == "set":
+                        # 値のもと(PrimitiveInt の値・縮めるノードの幅と高さ)を書く。同じ値を使うノード
+                        # (式・入力の画像を縮めるノードなど)もそろって変わる(#187)
+                        roots[(root.node, root.key)].add((k, value))
+                        hit = True
+                        continue
+                    if root is not None and root.kind == "fixed":
+                        notes.append(
+                            tr(
+                                f"ノード {nid} の {k} は ResolutionSelector から計算を通って来るので"
+                                f" {label[0]} を変えられません",
+                                f"node {nid}: {k} comes from a ResolutionSelector through a calculation,"
+                                f" so the {label[1]} cannot be changed",
+                            )
+                        )
+                        continue
+                    # ResolutionSelector から来る大きさ: このノードの入力を値に置き換える
                     # (元のノードは書き換えない。ほかの大きさのノードも同じ回で置き換わる)。
                     # 同じ値をほかのノードも使うなら、動く大きさが混ざるので変えない(bench は生成の前に止まる)
                     others = _other_users(api, api[nid]["inputs"][k])
@@ -746,10 +842,24 @@ def apply_settings(
             notes.append(tr(f"{label[0]} を設定できるノードがありません", f"no node can set the {label[1]}"))
 
     size = _size_nodes(wf)
+    # 書く値のもと → (幅か高さか, 値)。幅と高さが同じもとから来て値が違えば、書けない
+    roots: dict[tuple[str, str | int], set[tuple[str, int]]] = defaultdict(set)
     if width is not None:
         set_all(("width",), int(width), size, ("幅", "width"))
     if height is not None:
         set_all(("height",), int(height), size, ("高さ", "height"))
+    for (rid, rkey), uses in roots.items():
+        values = {v for _, v in uses}
+        if len(values) > 1:
+            notes.append(
+                tr(
+                    f"幅と高さが同じ値(ノード {rid} の {rkey})から来るので、違う幅と高さにできません",
+                    f"the width and height come from the same value (node {rid}, {rkey}),"
+                    " so they cannot differ",
+                )
+            )
+            continue
+        wf[rid]["inputs"][rkey] = values.pop()
     if frames is not None:
         set_all(FRAME_KEYS, int(frames), size, ("フレーム数", "frame count"))
     if seconds is not None:
