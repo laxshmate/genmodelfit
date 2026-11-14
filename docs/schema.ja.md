@@ -959,6 +959,7 @@ Template: `name`、`title`、`category`、`min_comfyui_version`、`open_source`�
 | `consistent` | bool \| null | community の行: 使った提出が 2 件以上で、その幅が中央値の 15% 以内で、グループに OOM が無い。係数の較正(`calibrate`)に入るのは consistent の行だけ。見積もりは、1 件の提出からの `ok` の行すべてを使う(2026-10-22) |
 | `gpu_backend` | str \| null | (0.9.0)bench が見た、実測した GPU の PyTorch のバックエンド: `cuda`(NVIDIA)/ `rocm`(AMD。ComfyUI は `type: cuda` と報告するので、`pytorch_version` の `+rocm` か GPU の名前で見分ける)/ `xpu`(Intel)/ `mps`(Apple)。null は記録なし(同梱の行はすべて NVIDIA)。#26 と、ベンダーをまたぐ較正での実測のベンダーを決める(`estimate.measurement_vendor`)。null のときだけ GPU の名前を使う(Apple の MPS は名前を `mps` と報告する)。`contrib aggregate` は community の行にこれを残す |
 | `files_fp` | str \| null | (#90)測ったときの一覧のモデルのファイルの指紋(`estimate.files_fingerprint`。下の「提出の流れの決まり」)。今の一覧の指紋と違えば、その実測は使わない。null は記録が無い(作者の measurements.json・古い行。今までどおり使う) |
+| `check_only` | bool \| null | (0.15.1、任意。同梱の行だけ)照合(docs/accuracy.ja.md「照合」)だけに使い、段階にも値のずらしにも使わない実測に、メンテナが手で `true` を付ける(ComfyUI を `--disable-dynamic-vram` で起動して測った全体の量など、多くの利用者の動きと違う測り方)。`estimate.cross_check_only` が作業用メモリだけの実測と合わせて見分ける |
 | `settings_override` | bool \| null | (0.12.0、#116。任意)bench・measure がテンプレートの設定を変えて測ったとき(`--width`・`--height`・`--resolution`・`--frames`・`--length`・`--steps`)だけ `true`。null・無しはテンプレートのまま(キーの無い古い行も)。`measure` が、この PC でこの GPU のテンプレートの設定のまま測ったかを見分けるのに使う |
 | `gpu_known` | bool \| null | (#90、#101)community の行: false は GPU 名が汎用の名前・名前の代わりの値(記録として残し、判定には使わない) |
 | `n_sources` | int \| null | (#90)community の行: 値に使った別々の出どころ(提出を送った人。#113)の数 |

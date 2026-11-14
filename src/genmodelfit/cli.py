@@ -1046,6 +1046,8 @@ def _info_measurements(m, e, rows, s: SystemInfo, limit: int = 3) -> list[str]:
                     "(作業用の分だけ。重みは Dynamic VRAM で出し入れ)",
                     " (working memory only; weights streamed by Dynamic VRAM)",
                 )
+            elif getattr(r, "check_only", None):
+                peak += tr("(照合だけに使う実測)", " (used only for the cross-check)")
         secs = tr(f"、{r.seconds:g} 秒", f", {r.seconds:g} s") if r.seconds else ""
         if r.origin == "community":
             src = tr(f"ほかの利用者 {r.n_submissions or 1} 件", f"other users, {r.n_submissions or 1}")

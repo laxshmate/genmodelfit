@@ -18,7 +18,7 @@ import pytest
 from genmodelfit import cli, contrib
 from genmodelfit.calibrate import build_check_rows, build_rows, calibrate
 from genmodelfit.db import COMMUNITY_FILE, Database, bundled_text, load, parse_measurements
-from genmodelfit.estimate import estimate, pick_measurement, usable, working_only
+from genmodelfit.estimate import cross_check_only, estimate, pick_measurement, usable, working_only
 from genmodelfit.models import BASIS_DETAILS, Gpu, Measurement, Settings, SystemInfo
 
 FIX = Path(__file__).parent / "fixtures" / "contrib"
@@ -660,11 +660,12 @@ def _floor(entry, s: Settings) -> float:
 def test_basis_ordering(db):
     """ほかの利用者の実測は 1 件から、両方の向きに使う(2026-10-22、llmfit に合わせた)。"""
     entry = db.get("image_sdxl_simple")
-    # 作業用メモリだけの実測(照合だけに使う。estimate.working_only)は見積もりに使わないので数えない
+    # 照合だけに使う実測(作業用メモリだけ・check_only。estimate.cross_check_only)は見積もりに使わないので
+    # 数えない
     maint = [
         m
         for m in db.measurements
-        if m.model_id == entry.id and m.origin is None and usable(m) and not working_only(m)
+        if m.model_id == entry.id and m.origin is None and usable(m) and not cross_check_only(m)
     ]
     assert len(maint) == 1 and maint[0].settings.width == 832
     s1536 = Settings(width=1536, height=1536)

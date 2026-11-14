@@ -653,9 +653,23 @@ music・video は張り付いていない実測が 1 件以下のため評価で
 | text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・17 コマ | 作業用メモリ(重みを含まない実測) | 3.94 | 0.42 | -89% |
 | text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・49 コマ | 作業用メモリ(重みを含まない実測) | 4.69 | 1.10 | -77% |
 | utility_seedvr2_3b_int8_upscale_image | NVIDIA GeForce RTX 5080 | メンテナ | 2880x1612 | 作業用メモリ(重みを含まない実測) | 1.94 | 2.83 | +46% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | 全部載せ | 9.22 | 9.00 | -2% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | 全部載せ | 11.75 | 13.87 | +18% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・33 コマ | 全部載せ | 11.69 | 11.38 | -3% |
+| audio_ace_step_1_5_checkpoint | NVIDIA GeForce RTX 5080 | メンテナ | 120 秒 | 全部載せ | 13.81 | 22.26 | +61% |
+| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | メンテナ | 47.6 秒 | 全部載せ | 6.06 | 9.04 | +49% |
+| image_anima_base_v1 | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | 全部載せ | 6.66 | 7.02 | +5% |
+| utility_moge3_geometry_estimation | NVIDIA GeForce RTX 5080 | メンテナ | - | 全部載せ | 4.81 | 4.04 | -16% |
 
 読み方:
 
+- 「全部載せ」の 7 行(2026-11-14)は、ComfyUI を `--disable-dynamic-vram`(古い動き。重みも torch の確保量に入る)で起動して、テンプレートの設定のまま bench で測った全体の量。
+  多くの利用者の既定(動的 VRAM)と違う動きなので、MoGe 3 以外は照合だけに使う(`check_only`。段階にも値のずらしにも使わない)。
+  - SDXL・Wan 2.1・Anima は ±5% で合う。
+  - Z-Image Turbo int8(+18%)・Wan 2.1 は、ComfyUI が重みの一部を降ろした(`offload: partial`)。部品の重みの合計が、画面などに使われている分と予備を引いた空きに入らなかった。
+  - ACE-Step 1.5(+61%。テンプレートの 120 秒)は、サンプラの後の最小が 2.25 GB で、ComfyUI は VAE の前に本体を降ろしている。genmodelfit の判定も、載せたままの量(重み + タイルにしない VAE 11.4 GB)が 16 GB を超えるので順に載せ替えにする。この行は全部載せの値と比べているので、差は動かし方の違い。
+  - Stable Audio Open(+49%)は、fp32 で保存された本体を ComfyUI が fp16 で載せる分を 0.15.1 で見積もりに入れて +77% から縮んだ(docs/hardware.ja.md「精度(ComfyUI が選ぶ dtype と VRAM)」)。残りは文章の読み取り(T5、ファイルの精度が名前で分からないので換算していない)と固定分。
+  - MoGe 3(−16%)は大きさの入力の無いテンプレートで、この実測を判定に使う(見積もりは実測の 4.81 GB になる)。
 - 3D 以外の行は式に実測を合わせていないので、「全件で合わせた予測」と「LOO 予測」は同じで、照合の誤差。
 - 画像の 2 件(Z-Image int8 +5.1%・SDXL +12.5%)は、ComfyUI の VAE の見込み(タイルの値 1.06 GB)が一番重い段で、
   多めに出る向き(VAE の見込みは実測の約 1.8 倍。上の「段ごとの作業用メモリ(#100)」)。
@@ -996,7 +1010,7 @@ Apple の MPS では、ComfyUI の GPU 名が `mps` になります。
   - 手で書いた YuE2・SeedVR2 の行と設定を変えた行には `settings_override` を付けた。テンプレートの設定(`measure` の候補)や、テンプレートのままの時間の目安に使わないため。
 - **MoGe 3**(同梱していない): 実測は 2.47 GB で、種類ごとの式(0.24 GB)の約 10 倍。BiRefNet と同じく、道具には画像の係数が小さすぎる。
   - 同梱しなかった理由: テンプレートは入力の画像から大きさを決め、大きさの入力が無い。大きさの無い画像の実測を入れるには、手の表 `estimate.NO_SIZE_INPUT` に足す必要があった。
-  - 0.15.1 で、MoGe 3 を含む 54 件を手の表に足した(上の「実測の使い方」)。行は、測り直してから同梱する。
+  - 0.15.1 で、MoGe 3 を含む 54 件を手の表に足した(上の「実測の使い方」)。2026-11-14 に全体の量を測り直して同梱した(4.81 GB。上の照合の表の「全部載せ」の行)。
 - **式は変えない**: 実測と V の比は 1 つの GPU で測った値で、ComfyUI のコードから決まるものではない
   (精度の直しは ComfyUI のコードで確かなところだけ)。
 

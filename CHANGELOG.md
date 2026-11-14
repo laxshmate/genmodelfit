@@ -9,6 +9,15 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **7 whole-amount measurements on an RTX 5080 with ComfyUI started with `--disable-dynamic-vram`** (bench at the
+  template's settings, 2026-11-14: SDXL, Z-Image Turbo int8, Wan 2.1 1.3B, ACE-Step 1.5, Stable Audio Open, Anima,
+  MoGe 3). The old behaviour keeps the weights in the torch reservation, so these check the all-on-GPU estimate at
+  the template's settings. All but MoGe 3 carry the new optional `check_only` flag (`Measurement.check_only`,
+  `estimate.cross_check_only`): they are shown in the cross-check and set no level and shift no estimate, since
+  most users run dynamic VRAM. SDXL, Wan 2.1 and Anima match within ±5%; ACE-Step 1.5 at 120 s is +61% because
+  ComfyUI unloads the model before its 11.4 GB untiled VAE (genmodelfit also picks sequential there). MoGe 3, a
+  template without a size input, is used for its judgement: 4.04 → 4.81 GB, Perfect → Good on 8 GB.
+
 - **`bench --json` splits the peak at the sampler's boundaries** (`stages`; #100 homework 2). The torch reservation is
   read with its time and grouped into before, during and after the sampler, using the progress lines of ComfyUI's log
   (the same lines as `timing`) and the run's start and end; a margin around each boundary goes into no stage. Each
@@ -35,6 +44,15 @@ All notable changes to this project are documented here. The format is based on
   from the rough per-type value to the measured median.
 
 ### Changed
+
+- **A main model stored in fp32 is counted at 2 bytes on half-precision GPUs** (13 models: Stable Audio Open /
+  3 (6), SD checkpoints (3), Depth Anything 3 (2), LTX-Video, Wan Causal Forcing). ComfyUI's `unet_dtype` loads it
+  in fp16 when the family has fp16, or in bf16 on GPUs with bf16 (`comfy/model_management.py:1170-1176`), and
+  `should_use_fp16` is true on NVIDIA compute capability 8+, ROCm and MPS whatever the VRAM. The estimate used the
+  fp32 file size: Stable Audio Open on 12 GB goes from Good to Perfect (7.64 → 5.95 GB) and its cross-check from
+  +77% to +49%. GPUs without half precision, and GPUs without bf16 running a family without fp16, keep the file size
+  (`GpuPrecision.main_factor`); the CPU keeps fp32 in main memory; models with an unknown ComfyUI family are not
+  converted. The shift from a measurement uses the same baseline. Levels only go up (less memory), for 8 models.
 
 - **Whether all-on-GPU can be chosen now counts the denoise stage at 2×** (`vram_resident_gb` = fixed + weights +
   max(2·S, V, T)). Before sampling, ComfyUI estimates `memory_required` at batch × 2 (the conditional and unconditional
@@ -87,6 +105,12 @@ All notable changes to this project are documented here. The format is based on
   without a per-stage formula: 71 → 68.
 
 ### Fixed
+
+- **A setting that does not apply to the model no longer stops a measurement from matching** (`--frames` on an
+  image model, `--seconds` on a video model): only the type's settings are compared (image: width and height; video:
+  also frames; audio: seconds). With a measurement at the default settings, an irrelevant flag changed the estimate.
+- **`calibrate` converts precision as the judgement does** (`apply_precision`), so a measurement's rows use the
+  same weights as the estimate.
 
 - **bench reads and sets the size of templates whose size comes from a `PrimitiveInt` or a `ResolutionSelector`.**
   34 official templates (Z-Image, Qwen Image 2.1, Krea 2, Anima, FLUX.2 9B text to image and others) take their

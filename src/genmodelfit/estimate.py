@@ -795,12 +795,53 @@ def source_precision(entry: ModelEntry) -> str | None:
     return None
 
 
+def _loads_fp32_as_half(entry: ModelEntry, want: str | None, have: str | None) -> bool:
+    """fp32 で保存された本体を、ComfyUI が 2 バイト(fp16・bf16)で載せるか(半精度の NVIDIA の GPU が基準)。
+    unet_dtype は、系統が fp16 を持ち should_use_fp16 なら fp16、持たなくても should_use_bf16 なら bf16 を返す
+    (model_management.py:1170-1176@6e8488e)。should_use_fp16 は NVIDIA の compute capability 8 以上で、VRAM の
+    量によらず真(:1998-2000@6e8488e)。精度を指定しない・指定が保存の精度と同じ(bench が記録するのは
+    ファイルの精度)ときだけ。ComfyUI の系統が分からないモデルは換算しない(安全側)。半精度を使わない GPU・
+    bf16 を持たない GPU で fp16 を持たない系統は、gpu_precision の main_factor で元の大きさに戻す。"""
+    from .families import FAMILIES, family_of
+
+    if have != "fp32" or want not in (None, "fp32"):
+        return False
+    return (getattr(entry, "comfy_family", None) or family_of(entry) or "") in FAMILIES
+
+
+def _halve_main(parts: Parts) -> None:
+    parts.denoise *= 0.5
+    parts.experts = [x * 0.5 for x in parts.experts]
+
+
+def _base_parts(parts: Parts, entry: ModelEntry, s: Settings) -> Parts:
+    """実測からずらす量を出すときの重み: 精度の換算はしない(一覧のファイルのまま)が、fp32 で保存された本体を
+    ComfyUI が 2 バイトで載せる分(_loads_fp32_as_half)だけは、判定と同じ基準にそろえる。"""
+    if not _loads_fp32_as_half(entry, norm_precision(s.precision), source_precision(entry)):
+        return parts
+    out = replace(parts, notes=list(parts.notes), experts=list(parts.experts))
+    _halve_main(out)
+    return out
+
+
 def apply_precision(parts: Parts, entry: ModelEntry, s: Settings) -> Parts:
-    """Settings.precision が指定されたら、本体の重みをその精度に換算する(エンコーダ・VAE はそのまま)。"""
+    """Settings.precision が指定されたら、本体の重みをその精度に換算する(エンコーダ・VAE はそのまま)。
+    fp32 で保存された本体は、ComfyUI が 2 バイトで載せる分を換算する(_loads_fp32_as_half)。"""
     want = norm_precision(s.precision)
+    have = source_precision(entry)
+    if _loads_fp32_as_half(entry, want, have):
+        _halve_main(parts)
+        parts.notes.append(
+            tr(
+                "本体は fp32 で保存されているが、ComfyUI は半精度の GPU で 2 バイト(fp16・bf16)で載せるので"
+                " 0.5 倍にした",
+                "The model is stored in fp32, but ComfyUI loads it at 2 bytes (fp16 / bf16) on half-precision"
+                " GPUs, so it was halved",
+            )
+        )
+        return parts
     if not want:
         return parts
-    have = source_precision(entry)
     if want not in PRECISION_BYTES:
         parts.notes.append(
             tr(f"精度 {want} は知らない値なので換算していない", f"Unknown precision {want}; not converted")
@@ -1080,6 +1121,13 @@ def is_community(m: Measurement) -> bool:
     return getattr(m, "origin", None) == ORIGIN_COMMUNITY
 
 
+def cross_check_only(m: Measurement) -> bool:
+    """照合(docs/accuracy.md「照合」)だけに使い、段階にも値のずらしにも使わない実測。作業用メモリだけの実測
+    (working_only)と、メンテナが同梱の行に付けた check_only(ComfyUI を --disable-dynamic-vram で起動して
+    測った全体の量など、多くの利用者の動きと違う測り方)。"""
+    return working_only(m) or bool(getattr(m, "check_only", None))
+
+
 def working_only(m: Measurement) -> bool:
     """作業用メモリだけの実測か(#100。docs/schema.md「Measurement」)。torch の確保量(torch_reserved)を
     動的 VRAM(offload が dynamic)で測ったものは、重みを必要なときだけ読み込む・追い出すので重みを含まない。
@@ -1122,9 +1170,24 @@ def _measured_precision(m: Measurement, entry: ModelEntry) -> str | None:
     return norm_precision(m.settings.precision) or source_precision(entry)
 
 
+# 実測と判定の設定を比べる項目(種類ごと。知らない種類はすべて)
+_ALL_MATCH_KEYS = ("width", "height", "frames", "seconds")
+_MATCH_KEYS: dict[str, tuple[str, ...]] = {
+    "image": ("width", "height"),
+    "video": ("width", "height", "frames"),
+    "music": ("seconds",),
+    "sfx": ("seconds",),
+    "tts": ("seconds",),
+    "3d": (),
+}
+
+
 def _settings_match(a: Settings, b: Settings, entry: ModelEntry | None = None) -> bool:
-    """実測の設定 a と判定の設定 b が同じか(解像度・コマ数・長さ・枚数・精度)。"""
-    keys = ("width", "height", "frames", "seconds")
+    """実測の設定 a と判定の設定 b が同じか(解像度・コマ数・長さ・枚数・精度)。モデルが分かれば、その種類に
+    関係する項目だけを比べる(画像にコマ数を付けても、記録されるだけで見積もりは変わらない。#99)。"""
+    keys: tuple[str, ...] = (
+        _MATCH_KEYS.get(entry.modality, _ALL_MATCH_KEYS) if entry is not None else _ALL_MATCH_KEYS
+    )
     if any(getattr(a, k) != getattr(b, k) for k in keys):
         return False
     if max(1, a.batch or 1) != max(1, b.batch or 1):
@@ -1358,7 +1421,7 @@ def pick_measurement(
         for m in measurements
         if m.model_id == entry.id
         and usable(m)
-        and not working_only(m)
+        and not cross_check_only(m)
         and files_match(m, entry)
         and (not is_community(m) or (m.gpu_known is not False and measured_on_this_gpu(m, gpu)))
     ]
@@ -1593,11 +1656,13 @@ class _Model:
             # 実測からのずらしは段ごとに 0 で切る。余裕のある GPU の山からの正のずらしは全部載せにだけ足す
             if prec is not None and prec.vae_factor != 1:
                 parts.decode *= prec.vae_factor
+            _main_factor(parts, prec)
             return need_staged(parts, st, self.c, delta, full_only=self.full_only)
         # 当てられないモデル: 正のずらしは段ごとの式と同じく全部載せにだけ足す(full_only)
         extra = delta if (self.full_only and delta > 0) else 0.0
         act = activation_gb(self.entry, s, self.c) + delta - extra
         f = 1.0
+        _main_factor(parts, prec)
         if prec is not None and (prec.act_factor != 1 or prec.vae_factor != 1):
             parts.decode *= prec.vae_factor
             act = max(0.0, act) * prec.act_factor
@@ -1607,6 +1672,13 @@ class _Model:
             n.full += extra * f
             n.act += extra * f
         return n
+
+
+def _main_factor(parts: Parts, prec: GpuPrecision | None) -> None:
+    """GPU による本体の重みの倍率(GpuPrecision.main_factor)を掛ける。"""
+    if prec is not None and prec.main_factor != 1:
+        parts.denoise *= prec.main_factor
+        parts.experts = [x * prec.main_factor for x in parts.experts]
 
 
 def _with_options(prep: _Model, entry: ModelEntry, options: str) -> _Model:
@@ -1649,7 +1721,8 @@ def _no_working_info(m: Measurement, entry: ModelEntry, c: Coefficients, parts: 
     張り付いた実測・下限としてだけ使う実測(これ以上)は別の扱いなので含めない。"""
     if is_censored(m) or lower_bound_only(m):
         return False
-    n = formula_need(entry, settings_for(entry, m.settings, sized=sized), c, parts)
+    at = settings_for(entry, m.settings, sized=sized)
+    n = formula_need(entry, at, c, _base_parts(parts, entry, at))
     return m.peak_vram_gb - n.full < -max(0.0, n.act)
 
 
@@ -1667,7 +1740,8 @@ def _prepare_from(
     if m is None:
         return _Model(entry, c, None, 0.0, settings_for(entry, None, sized=sized), parts)
     at = settings_for(entry, m.settings, sized=sized)
-    n_m = formula_need(entry, at, c, parts)  # 今までどおり重みは精度を換算しない(一覧のファイルのまま)
+    # 今までどおり重みは精度を換算しない(一覧のファイルのまま。fp32 で保存された本体の分だけそろえる)
+    n_m = formula_need(entry, at, c, _base_parts(parts, entry, at))
     act_m = n_m.act  # 実測の設定での作業用メモリ(段ごとなら一番重い段)
     est = n_m.full
     delta = m.peak_vram_gb - est
@@ -1741,7 +1815,10 @@ class GpuPrecision:
 
     act_factor: float = 1.0  # 作業用メモリの倍率(fp32 で計算する GPU は 2)
     vae_factor: float = 1.0  # VAE(仕上げの段)の重みの倍率(fp32 で載せる GPU は、fp32 でない VAE を 2)
+    # 本体の重みの倍率: fp32 で保存された本体を基準(半精度の GPU)で 0.5 倍にしたのを、2 バイトで載せない
+    # GPU で元に戻す 2(_loads_fp32_as_half)
     notes: tuple[str, ...] = ()
+    main_factor: float = 1.0
     # 段ごとの作業用メモリ(#100)に渡す GPU の性質: 半精度を使わない・bf16 を持たない・AMD
     gpu_fp32: bool = False
     no_bf16: bool = False
@@ -1797,6 +1874,14 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
     manual_bf16 = getattr(g, "vendor", "nvidia") == "amd"
     family_fp32 = no_bf16 and not gpu_fp32 and fam is not None and not fam.fp16 and not manual_bf16
     act = 2.0 if gpu_fp32 or family_fp32 else 1.0
+    # fp32 で保存された本体を 2 バイトで載せない GPU(半精度を使わない・bf16 を持たず fp16 を持たない系統)は、
+    # 基準の 0.5 倍を戻してファイルの大きさにする(安全側。_loads_fp32_as_half)
+    main = (
+        2.0
+        if (gpu_fp32 or family_fp32)
+        and _loads_fp32_as_half(entry, norm_precision(s.precision), source_precision(entry))
+        else 1.0
+    )
     vae_fp32 = (gpu_fp32 or (no_bf16 and vae_kind is not None and not vae_kind.fp16)) and (
         vae_kind is None or vae_kind.key != "fp32"
     )
@@ -1888,6 +1973,7 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
         act,
         vae,
         tuple(notes),
+        main_factor=main,
         gpu_fp32=gpu_fp32,
         no_bf16=no_bf16,
         amd=amd,
@@ -2199,6 +2285,7 @@ def _estimate(
     # 重み + 固定分(作業用メモリ 0 の全部載せ)。実測で段階を決めるときの量の下限(#95。表の VRAM と同じ下限)
     floor_parts = prep.parts_for(s)
     floor_parts.decode *= prec.vae_factor
+    _main_factor(floor_parts, prec)
     floor_gb = need(floor_parts, 0.0, prep.c).full
     band, not_why = (
         measured_level(measurements, entry, s, system, prec, floor_gb)
@@ -2602,7 +2689,7 @@ def measured_level(
         for m in measurements
         if m.model_id == entry.id
         and m.standard is not False
-        and not working_only(m)
+        and not cross_check_only(m)
         and (m.outcome or "ok") in ("ok", "oom")
         and files_match(m, entry)
         and (not is_community(m) or m.gpu_known is not False)
@@ -2956,8 +3043,10 @@ def _judge_cpu(
     run = cpu_family(entry)
     if run is not None and w > 0:
         # ComfyUI は CPU では本体と VAE を fp32 で持ち、fp32 で計算する(families.CPU_FAMILIES の説明)。
-        # 2 バイトの重みは 2 倍、作業用メモリも 2 倍にする
-        two_byte = source_precision(entry) in ("fp16", "bf16")
+        # 2 バイトの重みは 2 倍、作業用メモリも 2 倍にする。fp32 で保存された本体を基準で 2 バイトにした分
+        # (_loads_fp32_as_half)も、CPU では fp32 に戻す
+        src = source_precision(entry)
+        two_byte = src in ("fp16", "bf16") or _loads_fp32_as_half(entry, None, src)
         ram = n.ram + (n.main + n.vae if two_byte else n.vae) + 2 * max(0.0, n.act)
         speed, evidence = run.speed_text(), run.evidence_text()
         reasons = [

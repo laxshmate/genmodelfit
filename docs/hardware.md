@@ -200,7 +200,9 @@ How this is applied to the estimate (`estimate.gpu_precision`; only what the cod
 | No fp8 compute | before Ada | — | fp8 weights | no change; the reason says "widened to fp16 if there is room, slow if not" |
 | None of the above | Ampere, Ada, Hopper, Blackwell | `fp16` | any | no change |
 
-**The main model weights are not changed.** Reasons:
+**A main model stored in fp32 is counted at 2 bytes** (0.15.1). `unet_dtype` returns fp16 when the family has fp16 and `should_use_fp16`, and bf16 when `should_use_bf16` even without fp16 (model_management.py:1170-1176@6e8488e). `should_use_fp16` is true on NVIDIA compute capability 8 and newer, ROCm and MPS whatever the VRAM (:1963-2000@6e8488e), so on the baseline (a half-precision NVIDIA GPU) the main model's weights are halved. On GPUs that use no half precision, and on GPUs without bf16 running a family without fp16, they stay at the file size (the safe side; `GpuPrecision.main_factor`). The CPU keeps fp32, so main memory is the file size. Models whose ComfyUI family is unknown are not converted. A GPU of unknown generation keeps the baseline (2 bytes), as unknown generations are not refused (#101). Asking for the stored fp32 (bench records the file's precision) is also counted at 2 bytes (forcing fp32 in ComfyUI is `--fp32-unet`, which the estimate does not model). ComfyUI also loads text encoders in fp16 (`text_encoder_dtype`), but their file precision is often not known from the name, so they are not converted.
+
+**Otherwise the main model weights are not changed** (the widening side). Reasons:
 
 - The behavior "load in fp32 only if it fits" uses more memory the more VRAM there is. Putting it in the estimate would increase VRAM and lower the level.
 - Weights are counted at the file's 2 bytes, and ComfyUI widens only when it fits, so whether the model runs does not change.
