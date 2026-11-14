@@ -738,6 +738,9 @@ def vae_key(entry, w: Work, comfy_vae: str | None) -> str:
 
 # --- 段ごとの作業用メモリ -------------------------------------------------------------------------
 
+# ComfyUI がサンプラの前に見込むバッチの倍率(条件と無条件の 2 つ。sampler_helpers.py:177@6e8488e)
+ESTIMATE_BATCH = 2
+
 
 @dataclass
 class StageMem:
@@ -780,8 +783,20 @@ class StageMem:
         """全部を載せたまま仕上げまで動かすときに ComfyUI が空けようとする作業用メモリ(#102。
         docs/accuracy.md「タイル」)。VAE はタイルにしない V で見込む: 復号の前に V を空けようとし
         (sd.py:1278-1280@426f5ee)、タイルは普通の復号が OOM になったときの逃げ道(sd.py:1314@426f5ee)。
-        使う量(peak)ではなく、全部載せを選べるかを決める量。"""
-        return max(self.S, self.V, self.T)
+        使う量(peak)ではなく、全部載せを選べるかを決める量。
+        生成の段は S_full(ComfyUI がサンプラの前に、ほかのモデルを追い出して空ける量の見込み)。"""
+        return max(self.S_full, self.V, self.T)
+
+    @property
+    def S_full(self) -> float:
+        """ComfyUI がサンプラの前に見込む量: memory_required をバッチ × ESTIMATE_BATCH で呼ぶ
+        (sampler_helpers.py:177@6e8488e。CFG によらない)。load_models_gpu に渡り(:201)、ほかに読み込み済みの
+        モデル(文章の読み取り・VAE など)を追い出して空ける量になる(model_management.py:1001@6e8488e。
+        動的 VRAM のモデル同士では追い出さない: :914-918)。本体の重みを一部だけ載せるかは 1 倍の S
+        (minimum_memory_required、sampler_helpers.py:178・model_management.py:1025)で決まり、動くのに要るのも
+        1 倍なので、使う量(peak)は S のまま。参照の潜在が条件の片方にしか付かないときは、多めに出る
+        (安全側)。"""
+        return self.S * ESTIMATE_BATCH
 
 
 def _dims(entry, s, lat: Latent, *, image_frames: bool) -> Shape:

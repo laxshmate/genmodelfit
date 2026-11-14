@@ -516,7 +516,7 @@ VRAM を増やすと、代表がより重い精度・動かし方に替わって
 |---|---|---|
 | `vram_gb` | float | すべて GPU に載せたときの VRAM のピーク(全部載せ) |
 | `vram_sequential_gb` | float \| null | ComfyUI が段階の間で部品を載せ替える(テキストエンコーダ → モデル → VAE)ときの VRAM のピーク(順に載せ替え)。ワークフローが複数の拡散モデルをサンプラー 1 つずつ順に動かす場合(Wan 2.2 14B の high_noise → low_noise。`ModelEntry.sampler_stages`)、モデルの段階では最大のもの(とその LoRA)だけを数える |
-| `vram_resident_gb` | float \| null | 全部を載せたまま仕上げまで動かすときに ComfyUI が空けようとする VRAM: 固定分 + すべての重み + 一番重い段の作業用メモリ(VAE は**タイルにしない**値。#102、[accuracy.ja.md「タイル」](accuracy.ja.md#タイル))。使う量(それは `vram_gb`)ではない。VRAM の 98% を超えると全部載せは選ばず、部品を順に載せ替える(`GPU~`、段階は good まで)。段ごとの作業用メモリを当てられないモデルは `vram_gb` と同じ。`vram_gb` 以上。段階を実測で決めたとき(`fit_from: measurement`)は使わない。大きさが分からないときは `null` |
+| `vram_resident_gb` | float \| null | 全部を載せたまま仕上げまで動かすときに ComfyUI が空けようとする VRAM: 固定分 + すべての重み + 一番重い段の作業用メモリ(VAE は**タイルにしない**値、生成の段は ComfyUI がサンプラの前に、ほかのモデルを追い出して空ける 2 倍の見込み(0.15.1)。#102、[accuracy.ja.md「タイル」](accuracy.ja.md#タイル))。使う量(それは `vram_gb`)ではない。VRAM の 98% を超えると全部載せは選ばず、部品を順に載せ替える(`GPU~`、段階は good まで)。段ごとの作業用メモリを当てられないモデルは `vram_gb` と同じ。`vram_gb` 以上。段階を実測で決めたとき(`fit_from: measurement`)は使わない。大きさが分からないときは `null` |
 | `vram_offload_gb` | float | 重みの一部を RAM に残したとき(lowvram / dynamic VRAM)の VRAM のピーク(逃がす)。順に動かす複数の拡散モデルは、上と同じく 1 つずつ数える |
 | `ram_gb` | float | 選んだ動かし方で要るシステム RAM。GPU(全部載せ / 載せ替え)= 3 + 最大の段階の重み。逃がす / CPU = 3 + すべての重み。足りないが RAM + ページファイル(固定のページファイル / スワップ。RAM の 1.5 倍が上限。システム管理または不明なら RAM の 1.5 倍)に収まるなら `marginal`(ページファイル。遅い)。それ以上は `too_tight` |
 | `disk_gb` | float \| null | 数えたファイルの大きさ(部品ごとに 1 つの版。[accuracy.md](accuracy.ja.md) を参照) |

@@ -31,6 +31,15 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- **Whether all-on-GPU can be chosen now counts the denoise stage at 2×** (`vram_resident_gb` = fixed + weights +
+  max(2·S, V, T)). Before sampling, ComfyUI estimates `memory_required` at batch × 2 (the conditional and unconditional
+  passes, whatever the CFG; `comfy/sampler_helpers.py:177`) and unloads other loaded models (text encoder, VAE) to free
+  weights × 1.1 + that estimate (`comfy/model_management.py:1001`; not between dynamic-VRAM models, so this applies to
+  the old behaviour). Partial loading of the main weights and what it needs to run use 1× (`:1025`, `:178`), which the
+  usage, sequential and offload values keep. On an RTX 5080 with plenty free, SDXL's sampling stage used 0.85–1.21 ×
+  2·S (1.7–2.4 × S), since the two passes run together there. Level and run mode do not change for
+  any entry at the default settings on 4–24 GB (1,980 pairs); the kept-loaded value rises for 62 models (17 image,
+  45 video), by up to 7.1 GB for Wan VACE 14B.
 - **FLUX 3 Image Klein (4 templates) now uses the per-stage working memory** instead of the earlier per-modality
   formula. Its main files are gated, so their headers cannot be read and the size was unknown; a hand table
   (`working.KNOWN_PARAMS`) now holds the parameter count from the Hugging Face API, which matches the defaults of
