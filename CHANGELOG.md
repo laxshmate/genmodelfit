@@ -106,7 +106,19 @@ All notable changes to this project are documented here. The format is based on
   match the judgment. No VRAM, level or basis changes (all 278 image and video entries compared on 8, 12, 16 and
   24 GB). Templates that resize the input to a fixed width × height, take the size from a user number (`PrimitiveInt`,
   directly or through a math node), or can switch to a hand-set size are left out: they have a size input that bench
-  cannot read yet (#187).
+  could not read at the time (#187, below).
+- **bench follows a size to where its value comes from** (#187). A user number (`PrimitiveInt`, also one fed by a
+  `ResolutionSelector`) taken through a one-input math node (rounding, half size upscaled 2× later) is the size; so is
+  the width and height an image was resized to (`ResizeImageMaskNode` scale dimensions), or of an `EmptyImage` /
+  `ImageScale` (also through `ImageScaleBy`) that a `GetImageSize` reads. A requested size is written at that source,
+  so the math nodes and the input-image resize that use it change together; the earlier rule that stopped when another
+  node used the same value now applies only to a `ResolutionSelector` feeding the size nodes directly. A
+  `ResolutionSelector` reached through a calculation, or one number feeding both width and height with different values
+  asked for, is not changed. Official image and video templates whose size bench reads: 124 → 145 (Ideogram 4, Lens,
+  Ming Image, LTX 2 / 2.3 / 2.5, Wan Dancer / VACE / Animate 2 / SCAIL 2, Capybara image edit and others); whose size
+  cannot be changed: 16 → 8. The expressions are not evaluated (ComfyUI computes them); only the shapes found in
+  official templates pass (as is, rounded to a multiple, halved), `ImageScaleBy` only at 0.5 or 1, and a source number
+  also used by a non-size input is not written.
 - **`measure`'s time guide for the template's own settings no longer mixes in runs made with changed settings**
   (`settings_override`). Their times were taken at a ratio of 1, so a 1536 px or 17-frame run counted as if it were
   the template's.

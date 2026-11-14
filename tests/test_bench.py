@@ -415,9 +415,173 @@ def test_size_from_primitive_int_is_read_and_set():
     assert (s.width, s.height) == (1024, 768)
     new, notes = apply_settings(wf, width=512, height=512)
     assert notes == []
-    assert new["1"]["inputs"]["width"] == 512 and new["1"]["inputs"]["height"] == 512
-    assert wf["1"]["inputs"]["width"] == ["7", 0]  # 元は変えない
+    # 値のもと(PrimitiveInt の値)を書く。大きさのノードはつながりのまま(同じ値を使うノードもそろう。#187)
+    assert new["7"]["inputs"]["value"] == 512 and new["8"]["inputs"]["value"] == 512
+    assert new["1"]["inputs"]["width"] == ["7", 0]
+    assert wf["7"]["inputs"]["value"] == 1024  # 元は変えない
     assert (effective_settings(new).width, effective_settings(new).height) == (512, 512)
+
+
+def _set_and_read(wf, w, h):
+    new, notes = apply_settings(wf, width=w, height=h)
+    s = effective_settings(new)
+    return new, notes, (s.width, s.height)
+
+
+def test_size_through_a_math_node_is_the_user_number():
+    """#187: 利用者の数(PrimitiveInt)を式で丸める・半分にする形(Ideogram 4・LTX 2.5 など)。大きさはその数で、
+    書くのもその PrimitiveInt(式はそのまま残り、ComfyUI が計算する)。値が ResolutionSelector から来る
+    PrimitiveInt も同じ。"""
+    wf = {
+        "1": {"class_type": "EmptyLTXVLatentVideo", "inputs": {"width": ["5", 1], "height": ["6", 1]}},
+        "5": {"class_type": "ComfyMathExpression", "inputs": {"expression": "a/2", "values.a": ["7", 0]}},
+        "6": {"class_type": "ComfyMathExpression", "inputs": {"expression": "a/2", "values.a": ["8", 0]}},
+        "7": {"class_type": "PrimitiveInt", "inputs": {"value": ["9", 0]}},
+        "8": {"class_type": "PrimitiveInt", "inputs": {"value": ["9", 1]}},
+        "9": {
+            "class_type": "ResolutionSelector",
+            "inputs": {"aspect_ratio": "1:1 (Square)", "megapixels": 1},
+        },
+    }
+    assert size_input(wf)
+    assert (effective_settings(wf).width, effective_settings(wf).height) == (1024, 1024)
+    new, notes, got = _set_and_read(wf, 768, 512)
+    assert notes == [] and got == (768, 512)
+    assert new["7"]["inputs"]["value"] == 768 and new["8"]["inputs"]["value"] == 512
+    assert new["1"]["inputs"]["width"] == ["5", 1]  # 式は残る(a/2 が抜けない)
+    # 入力が 2 つつながった式は分からない
+    two = {
+        **wf,
+        "5": {"class_type": "ComfyMathExpression", "inputs": {"values.a": ["7", 0], "values.b": ["8", 0]}},
+    }
+    assert effective_settings(two).width is None
+
+
+def test_resolution_selector_through_a_math_node_is_not_replaced():
+    """式を通った ResolutionSelector の値は、大きさのノードの入力を置き換えると途中の計算が抜けるので
+    変えない。"""
+    wf = {
+        "1": {"class_type": "EmptyLTXVLatentVideo", "inputs": {"width": ["5", 1], "height": ["6", 1]}},
+        "5": {"class_type": "ComfyMathExpression", "inputs": {"expression": "a/2", "values.a": ["9", 0]}},
+        "6": {"class_type": "ComfyMathExpression", "inputs": {"expression": "a/2", "values.a": ["9", 1]}},
+        "9": {
+            "class_type": "ResolutionSelector",
+            "inputs": {"aspect_ratio": "1:1 (Square)", "megapixels": 1},
+        },
+    }
+    assert (effective_settings(wf).width, effective_settings(wf).height) == (1024, 1024)
+    _, notes, got = _set_and_read(wf, 768, 512)
+    assert notes and "ResolutionSelector" in notes[0] and got == (1024, 1024)
+
+
+def test_size_from_an_image_resized_to_fixed_dimensions():
+    """#187: 入力の画像を決まった幅×高さに縮め(ResizeImageMaskNode の scale dimensions)、その大きさを
+    GetImageSize で受ける形(Capybara・LTX 2 の画像から動画など)。縮める幅・高さを書く。"""
+    wf = {
+        "1": {
+            "class_type": "EmptyLatentImage",
+            "inputs": {"width": ["4", 0], "height": ["4", 1], "batch_size": 1},
+        },
+        "4": {"class_type": "GetImageSize", "inputs": {"image": ["3", 0]}},
+        "3": {
+            "class_type": "ResizeImageMaskNode",
+            "inputs": {
+                "input": ["2", 0],
+                "resize_type": "scale dimensions",
+                "resize_type.width": 1024,
+                "resize_type.height": 1024,
+            },
+        },
+        "2": {"class_type": "LoadImage", "inputs": {"image": "in.png"}},
+    }
+    assert size_input(wf)
+    new, notes, got = _set_and_read(wf, 768, 512)
+    assert notes == [] and got == (768, 512)
+    assert new["3"]["inputs"]["resize_type.width"] == 768 and new["4"] == wf["4"]
+    # 総画素数・長辺で縮めるだけ(入力の画像の縦横比のまま)なら、大きさの入力ではない
+    wf["3"]["inputs"] = {"input": ["2", 0], "resize_type": "scale total pixels", "resize_type.megapixels": 1}
+    assert not size_input(wf)
+    # 入力の画像そのものの大きさも、大きさの入力ではない
+    wf["4"]["inputs"]["image"] = ["2", 0]
+    assert not size_input(wf)
+
+
+def test_size_from_a_half_scaled_empty_image():
+    """#187: LTX 2 の文章から動画: 空の画像(EmptyImage)を ImageScaleBy で半分にして潜在の大きさにし、
+    後で 2 倍に上げる。大きさは空の画像の幅・高さ(出力の大きさ)。"""
+    wf = {
+        "1": {
+            "class_type": "EmptyLTXVLatentVideo",
+            "inputs": {"width": ["4", 0], "height": ["4", 1], "length": 97},
+        },
+        "4": {"class_type": "GetImageSize", "inputs": {"image": ["3", 0]}},
+        "3": {"class_type": "ImageScaleBy", "inputs": {"image": ["2", 0], "scale_by": 0.5}},
+        "2": {"class_type": "EmptyImage", "inputs": {"width": 1280, "height": 720, "batch_size": 1}},
+    }
+    assert (effective_settings(wf).width, effective_settings(wf).height) == (1280, 720)
+    new, notes, got = _set_and_read(wf, 768, 512)
+    assert notes == [] and got == (768, 512) and new["3"] == wf["3"]
+
+
+def test_only_known_expression_shapes_pass_the_size():
+    """式は、利用者の数をそのまま・倍数に丸める・半分にする形だけを大きさとして通す。2 倍にするなど、
+    出力の大きさが数と違う形は読まない(違う大きさを記録しないため)。ImageScaleBy も 0.5・1 だけ。"""
+    from genmodelfit.workflow import _size_expr
+
+    for e in ("a/2", "a & -8", "floor(a/32)*32", "(a // 32) * 32", "max(16, floor(a / 16) * 16)"):
+        assert _size_expr(e, "a"), e
+    assert _size_expr("max(((w + 15) // 16) * 16, 256)", "w")
+    for e in ("a*2", "floor(a/32)*16", "a+1", "a/3", "b/2"):
+        assert not _size_expr(e, "a"), e
+    wf = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["5", 1], "height": ["6", 1]}},
+        "5": {"class_type": "ComfyMathExpression", "inputs": {"expression": "a*2", "values.a": ["7", 0]}},
+        "6": {"class_type": "ComfyMathExpression", "inputs": {"expression": "a", "values.a": ["8", 0]}},
+        "7": {"class_type": "PrimitiveInt", "inputs": {"value": 512}},
+        "8": {"class_type": "PrimitiveInt", "inputs": {"value": 512}},
+    }
+    assert not size_input(wf)
+    scaled = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["4", 0], "height": ["4", 1]}},
+        "4": {"class_type": "GetImageSize", "inputs": {"image": ["3", 0]}},
+        "3": {"class_type": "ImageScaleBy", "inputs": {"image": ["2", 0], "scale_by": 2.0}},
+        "2": {"class_type": "EmptyImage", "inputs": {"width": 640, "height": 640}},
+    }
+    from genmodelfit.workflow import _size_value
+
+    assert _size_value(scaled, "1", "width") is None  # 空の画像そのものは大きさのノードとして別に数える
+
+
+def test_size_number_used_for_something_else_is_not_written():
+    """大きさのもとの PrimitiveInt がコマ数などにも使われていれば、書くとほかの設定まで変わるので書かない。"""
+    wf = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["7", 0], "height": ["8", 0]}},
+        "7": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+        "8": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+        "9": {"class_type": "SomeVideoNode", "inputs": {"length": ["7", 0]}},
+    }
+    new, notes, got = _set_and_read(wf, 768, 512)
+    assert notes and "9" in notes[0] and new["7"]["inputs"]["value"] == 1024
+    assert got == (1024, 512)  # 高さだけは書ける(bench は頼んだ設定と違うので生成の前に止まる)
+    # 0(ImageScale の「縦横比から自動」)は大きさにしない
+    zero = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["4", 0], "height": ["4", 1]}},
+        "4": {"class_type": "GetImageSize", "inputs": {"image": ["3", 0]}},
+        "3": {"class_type": "ImageScale", "inputs": {"image": ["2", 0], "width": 0, "height": 512}},
+        "2": {"class_type": "LoadImage", "inputs": {"image": "in.png"}},
+    }
+    assert effective_settings(zero).width is None
+
+
+def test_width_and_height_from_one_number_cannot_differ():
+    wf = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["7", 0], "height": ["7", 0]}},
+        "7": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+    }
+    new, notes, got = _set_and_read(wf, 768, 512)
+    assert notes and new["7"]["inputs"]["value"] == 1024
+    new, notes, got = _set_and_read(wf, 768, 768)
+    assert notes == [] and got == (768, 768)
 
 
 def test_size_from_resolution_selector_follows_comfyui():
