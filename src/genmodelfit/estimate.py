@@ -1878,7 +1878,8 @@ def gpu_precision(entry: ModelEntry, system: SystemInfo, s: Settings) -> GpuPrec
     # 基準の 0.5 倍を戻してファイルの大きさにする(安全側。_loads_fp32_as_half)
     main = (
         2.0
-        if (gpu_fp32 or family_fp32) and _loads_fp32_as_half(entry, norm_precision(s.precision), prec)
+        if (gpu_fp32 or family_fp32)
+        and _loads_fp32_as_half(entry, norm_precision(s.precision), source_precision(entry))
         else 1.0
     )
     vae_fp32 = (gpu_fp32 or (no_bf16 and vae_kind is not None and not vae_kind.fp16)) and (

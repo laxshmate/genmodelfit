@@ -200,7 +200,7 @@ ComfyUI(コミット 426f5ee、v0.43.0。2026-10-27 に読み直した)の `comf
 | fp8 の計算を持たない | Ada より前 | — | fp8 の重み | 変えない。「余裕があれば fp16 に広げる・無ければ遅い」と書く |
 | 上のどれでもない | Ampere・Ada・Hopper・Blackwell | `fp16` | どれでも | 変えない |
 
-**fp32 で保存された本体は 2 バイトで数える**(0.15.1)。`unet_dtype` は、系統が fp16 を持ち `should_use_fp16` なら fp16、持たなくても `should_use_bf16` なら bf16 を返す(model_management.py:1170-1176@6e8488e)。`should_use_fp16` は NVIDIA の compute capability 8 以上・ROCm・MPS で VRAM の量によらず真(:1963-2000@6e8488e)なので、基準(半精度の NVIDIA の GPU)では本体の重みを 0.5 倍にする。半精度を使わない GPU と、bf16 を持たない GPU で fp16 を持たない系統を動かすときは、ファイルの大きさのまま(安全側。`GpuPrecision.main_factor`)。CPU は fp32 で持つので、メインメモリはファイルの大きさ。ComfyUI の系統が分からないモデルは換算しない。文章の読み取りの部品も ComfyUI は fp16 で載せる(`text_encoder_dtype`)が、ファイルの精度が名前で分からないことが多いので換算していない。
+**fp32 で保存された本体は 2 バイトで数える**(0.15.1)。`unet_dtype` は、系統が fp16 を持ち `should_use_fp16` なら fp16、持たなくても `should_use_bf16` なら bf16 を返す(model_management.py:1170-1176@6e8488e)。`should_use_fp16` は NVIDIA の compute capability 8 以上・ROCm・MPS で VRAM の量によらず真(:1963-2000@6e8488e)なので、基準(半精度の NVIDIA の GPU)では本体の重みを 0.5 倍にする。半精度を使わない GPU と、bf16 を持たない GPU で fp16 を持たない系統を動かすときは、ファイルの大きさのまま(安全側。`GpuPrecision.main_factor`)。CPU は fp32 で持つので、メインメモリはファイルの大きさ。ComfyUI の系統が分からないモデルは換算しない。世代が分からない GPU は基準のまま 2 バイトで数える(世代が分からないときは断らない方針に合わせた。#101)。保存と同じ fp32 を指定したとき(bench が記録するのはファイルの精度)も 2 バイトで数える(ComfyUI に fp32 を強いるのは `--fp32-unet` で、見積もりは扱わない)。文章の読み取りの部品も ComfyUI は fp16 で載せる(`text_encoder_dtype`)が、ファイルの精度が名前で分からないことが多いので換算していない。
 
 **それ以外で本体の重みは変えない**(fp32 に広げる側)。理由:
 

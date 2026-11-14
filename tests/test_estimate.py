@@ -833,3 +833,14 @@ def test_check_only_measurements_are_not_used_for_estimates(db):
     m.check_only = True
     assert cross_check_only(m)
     assert estimate(e, pc(16), None, [m]) == estimate(e, pc(16), None, [])
+
+
+def test_fp16_stored_model_asked_in_fp32_is_doubled_once(db):
+    """fp16 で保存された本体を fp32 と指定したら 2 倍(換算)で、半精度を使わない GPU でも重ねて 2 倍にしない
+    (main_factor は fp32 で保存された本体だけ。レビューの指摘)。"""
+    from genmodelfit.estimate import gpu_precision, source_precision
+
+    e = db.get("image_sdxl_simple")
+    assert source_precision(e) == "fp16"
+    s = Settings(width=1024, height=1024, precision="fp32")
+    assert gpu_precision(e, _gpu_pc("fp32", False), s).main_factor == 1.0
