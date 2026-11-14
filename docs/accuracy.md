@@ -707,8 +707,8 @@ How to read it:
   2. Measure per-stage peaks with bench (split at stage boundaries), so that working-memory-only measurements ("How measurements are used" 7 above) can be used.
      On 2026-11-13, 11 RTX 5080 rows were added to the cross-check, and for YuE2 the VAE node was swapped for its tiled version
      to show that the peak is the VAE stage ("Cross-check" below). 0.15.1 added to bench's `--json` the peaks split into before,
-     during and after the sampler (`stages`; checked on 3 SDXL runs on 2026-11-14, "Cross-check" below). Left: measure models whose
-     peak is the sampling stage (Wan and others), put it in the contrib submission, keep per-stage rows in the cross-check
+     during and after the sampler (`stages`; checked on 3 SDXL runs and 2 Wan 2.1 1.3B runs on 2026-11-14, "Cross-check" below).
+     Left: put it in the contrib submission, keep per-stage rows in the cross-check, measure on other GPUs
   3. Reduce the models without a per-stage formula (68) (Flux3 Klein, Stable Audio 3, Ming Image, MiniMax Music 3, 5 SD models found by fingerprint and 3 SeedVR2 templates were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
@@ -1023,7 +1023,22 @@ Peaks split at the stage boundaries (2026-11-14, bench's `stages`; docs/schema.m
   - This confirms, with the stages split, the ratio read from the whole-run peaks above (0.52–0.59).
 - The sampling stage is 1.7–2.4× formula S and 0.85–1.21× 2·S. With plenty free, ComfyUI runs the conditional and unconditional passes together (samplers.py:282). SDXL peaks at the VAE stage, so the judgement does not change.
 - Before sampling (text encoding) is 0.12–0.41 GB; the formula's T is 0.
-- Models whose peak is the sampling stage, such as Wan 2.1, were not measured (on 2026-11-14 there was not enough free disk).
+
+A model whose usage peaks at the sampling stage (Wan 2.1 1.3B, 832×480, 30 steps), same day and conditions. For lack of free disk,
+only the text encoder was swapped from fp8 to the fp16 one already on the PC (`umt5_xxl_fp16`, `--set clip_name=…`; it affects only
+the stage before sampling):
+
+| Frames | Before sampling | Sampling | Formula S | ÷ S | ÷ 2·S | After sampling | Formula V (untiled) | After ÷ V |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 33 | 0.59 | 1.72 | 0.76 | 2.26 | 1.13 | 4.56 | 5.21 | 0.88 |
+| 81 | 0.56 | 3.88 | 1.77 | 2.19 | 1.10 | 4.62 | 5.21 | 0.89 |
+
+- The sampling stage is 1.10–1.13 × 2·S. With plenty free, the conditional and unconditional passes run together (samplers.py:282), so
+  as with SDXL the usage is close to 2·S. The formula's usage (`vram_gb`) is the 1× S needed to run, so on GPUs with plenty free the
+  actual usage is higher by this gap (the same direction as the untiled VAE; not changed: the usage formula is the amount needed to
+  run). Whether all-on-GPU can be chosen uses 2·S from 0.15.1.
+- After sampling (VAE) is 0.88–0.89 × V, matching the 0.76–0.90 × read from whole-run peaks (above).
+- The sampling stage's minimum is 0.84–0.85 × its peak: the reservation changes little between steps.
 
 ### RTX 3070 sweep (2026-10-27, **not used as evidence**)
 
