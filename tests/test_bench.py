@@ -1748,3 +1748,65 @@ def test_peak_read_several_times_stays_standard(monkeypatch):
     m = res.measurement
     assert m.peak_vram_gb == pytest.approx(7.0) and m.standard is True
     assert "一瞬" not in m.note and res.nonstandard == []
+
+
+def test_size_through_a_switch_follows_its_default_branch():
+    """#187: 切り替え(ComfySwitchNode)は既定の値で選ばれる側だけをたどる。Mage Flow は既定(true)で入力の画像の
+    大きさ(大きさの入力が無い)、切り替えると手の大きさ(PrimitiveInt)。"""
+
+    def wf(on: bool) -> dict:
+        return {
+            "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["5", 0], "height": ["6", 0]}},
+            "5": {
+                "class_type": "ComfySwitchNode",
+                "inputs": {"switch": ["9", 0], "on_true": ["4", 0], "on_false": ["7", 0]},
+            },
+            "6": {
+                "class_type": "ComfySwitchNode",
+                "inputs": {"switch": ["9", 0], "on_true": ["4", 1], "on_false": ["8", 0]},
+            },
+            "4": {"class_type": "GetImageSize", "inputs": {"image": ["2", 0]}},
+            "2": {"class_type": "LoadImage", "inputs": {"image": "in.png"}},
+            "7": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+            "8": {"class_type": "PrimitiveInt", "inputs": {"value": 768}},
+            "9": {"class_type": "PrimitiveBoolean", "inputs": {"value": on}},
+        }
+
+    assert not size_input(wf(True))
+    hand = wf(False)
+    assert (effective_settings(hand).width, effective_settings(hand).height) == (1024, 768)
+    new, notes, got = _set_and_read(hand, 640, 512)
+    assert notes == [] and got == (640, 512) and new["7"]["inputs"]["value"] == 640
+    # 切り替えの値が分からなければ読まない
+    unknown = wf(False)
+    unknown["9"] = {"class_type": "SomeNode", "inputs": {}}
+    assert not size_input(unknown)
+
+
+def test_switch_value_from_another_switch_or_to_a_non_size_input():
+    """切り替えの値が別の切り替えから来るなど分からなければ読まない。大きさの数が切り替えを通ってコマ数にも
+    行くなら、書くとコマ数まで変わるので書かない(レビューの指摘)。"""
+    from genmodelfit.workflow import _non_size_users, _size_value
+
+    wf = {
+        "1": {"class_type": "EmptyLatentImage", "inputs": {"width": ["5", 0], "height": ["8", 0]}},
+        "5": {
+            "class_type": "ComfySwitchNode",
+            "inputs": {"switch": ["6", 0], "on_true": ["7", 0], "on_false": ["7", 0]},
+        },
+        "6": {
+            "class_type": "ComfySwitchNode",
+            "inputs": {"switch": True, "on_true": ["9", 0], "on_false": ["9", 0]},
+        },
+        "9": {"class_type": "PrimitiveBoolean", "inputs": {"value": True}},
+        "7": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+        "8": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}},
+    }
+    assert _size_value(wf, "1", "width") is None  # 切り替えの値が切り替えから来る
+    wf["5"]["inputs"]["switch"] = True
+    assert _size_value(wf, "1", "width") == 1024
+    assert _non_size_users(wf, "7") == []
+    wf["2"] = {"class_type": "SomeVideoNode", "inputs": {"length": ["5", 0]}}  # 切り替えの先がコマ数にも
+    assert _non_size_users(wf, "7") == ["2"]
+    new, notes, _ = _set_and_read(wf, 768, 512)
+    assert notes and new["7"]["inputs"]["value"] == 1024

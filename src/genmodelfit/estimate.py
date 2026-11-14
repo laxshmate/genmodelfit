@@ -1453,10 +1453,10 @@ _POSITIVE = ("width", "height", "frames", "seconds", "steps")
 # 値は根拠の 1 行
 # _TEMPLATE_NODES は、2026-11-13 に取った公式テンプレートを ComfyUI 0.45.2 の object_info で API の形に直し、
 # 出力からたどって確かめた項目の根拠の頭。幅×高さに縮めるノード(ResizeImageMaskNode の scale dimensions)・
-# 利用者の数(PrimitiveInt など。総画素数・長辺・倍率でも、つながった数なら)から大きさを作るもの・
-# 切り替えで手の大きさにできるもの(Mage Flow)は、大きさの入力があるので入れない
-# (式・縮めるノードは #187 で bench が読む)。総画素数・長辺・倍率がノードの直接の値のもの
-# (1 MP・長辺 2048・×4 など)は入れる
+# 利用者の数(PrimitiveInt など)から幅・高さを作るものは、大きさの入力があるので入れない
+# (式・縮めるノードは #187 で bench が読む)。総画素数・長辺・倍率だけを決める数(縦横比は入力の画像)は、
+# ノードの直接の値でもつながった数でも幅・高さの入力ではないので入れる(1 MP・長辺 2048・×4、SDPose の
+# 複数人の長辺など。#187 で、つながった数を外す線引きをやめた)。切り替えは既定の枝で見る(Mage Flow)
 _TEMPLATE_NODES = "テンプレートのノード(2026-11-14 に出力からたどった)。幅・高さの入力が無く、"
 
 NO_SIZE_INPUT: dict[str, str] = {
@@ -1543,6 +1543,16 @@ NO_SIZE_INPUT: dict[str, str] = {
     + "大きさは LoadVideo の動画のまま決まる",
     "utility_image_segment_sam3": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
     "utility_moge3_geometry_estimation": _TEMPLATE_NODES + "大きさは LoadImage の画像のまま決まる",
+    "utility_sdpose_multi_person": _TEMPLATE_NODES
+    + "大きさは LoadImage の画像から ResizeImageMaskNode(長辺だけを PrimitiveInt で決める)で決まる",
+    "utility_sdpose_multi_person_video": _TEMPLATE_NODES
+    + "大きさは LoadVideo の動画から ResizeImageMaskNode(長辺だけを PrimitiveInt で決める)で決まる",
+    "image_mage_flow_edit_int8": _TEMPLATE_NODES
+    + "既定の切り替え(PrimitiveBoolean true)では大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で"
+    "決まる(切り替えると PrimitiveInt の幅・高さ)",
+    "image_mage_flow_edit_turbo_int8": _TEMPLATE_NODES
+    + "既定の切り替え(PrimitiveBoolean true)では大きさは LoadImage の画像から ImageScaleToTotalPixels(1 MP)で"
+    "決まる(切り替えると PrimitiveInt の幅・高さ)",
     "utility_sdpose_ood_image_to_pose": _TEMPLATE_NODES
     + "大きさは LoadImage の画像から ResizeImageMaskNode(scale longer dimension 1024)で決まる",
     "utility_sdpose_ood_video_to_pose_map": _TEMPLATE_NODES

@@ -145,6 +145,12 @@ All notable changes to this project are documented here. The format is based on
   cannot be changed: 16 → 8. The expressions are not evaluated (ComfyUI computes them); only the shapes found in
   official templates pass (as is, rounded to a multiple, halved), `ImageScaleBy` only at 0.5 or 1, and a source number
   also used by a non-size input is not written.
+- **bench follows a switch (`ComfySwitchNode`) by its default branch, and 4 more templates join the hand table of
+  templates without a size input** (56 → 60; #187). Mage Flow edit (2) takes the input image's size on its default
+  branch (switching to a hand-set size is off); SDPose multi-person (2) sets only the longer side with a
+  `PrimitiveInt`, the aspect ratio being the input image's. The rule now leaves out only numbers that set a width or
+  height; a total pixel count, a longer side or a multiple is not a size input whether it is set on the node or
+  linked. No VRAM, level or basis changes.
 - **`measure`'s time guide for the template's own settings no longer mixes in runs made with changed settings**
   (`settings_override`). Their times were taken at a ratio of 1, so a 1536 px or 17-frame run counted as if it were
   the template's.

@@ -269,7 +269,7 @@ The four checks:
 
 **In one sentence**: a model whose size comes from the input image is judged without a size.
 
-- Added in #90 (`estimate.NO_SIZE_INPUT`, a table the maintainer checked). The judging settings have no size, so measurements that bench writes without a size (BiRefNet, MoGe) match and are used. 0.15.1 added 54 templates checked by their nodes: image editing, depth estimation, segmentation, upscaling and the like ([accuracy.md](accuracy.md) "How measurements are used").
+- Added in #90 (`estimate.NO_SIZE_INPUT`, a table the maintainer checked). The judging settings have no size, so measurements that bench writes without a size (BiRefNet, MoGe) match and are used. 0.15.1 added 58 templates checked by their nodes (60 in the table with the 2 from #90): image editing, depth estimation, segmentation, upscaling and the like ([accuracy.md](accuracy.md) "How measurements are used").
 - Test: `tests/test_scoring.py::test_g_measurements_without_size_are_used`.
 
 ## Score
