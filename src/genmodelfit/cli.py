@@ -5643,7 +5643,7 @@ def cmd_contrib_validate(args: argparse.Namespace) -> int:
 
 def format_report(rep: dict[str, Any]) -> list[str]:
     """精度の点検の表(Markdown。毎週の自動 PR にそのまま貼れる形)。"""
-    from .calibrate import check_table
+    from .calibrate import check_table, stage_table
     from .contrib import CHECK_RAM_GB, md_cell
 
     thr = rep["threshold_pct"]
@@ -5725,6 +5725,9 @@ def format_report(rep: dict[str, Any]) -> list[str]:
         )
     if rep.get("check"):
         lines += ["", *check_table(rep["check"])]
+        staged = stage_table(rep["check"])  # 段ごとの山のある行があるときだけ(#199)
+        if staged:
+            lines += ["", *staged]
     return lines
 
 

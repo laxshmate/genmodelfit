@@ -1626,6 +1626,8 @@ def test_cli_bench_json_has_timing(capsys):
         "sampling",
         "after_sampling",
     }
+    # 実測(保存するキャッシュの measurements)にも同じ値が入る(#199)
+    assert json.loads(out)["measurement"]["stages"] == st
 
 
 # --- 一瞬の山(#131) --------------------------------------------------------------------------------

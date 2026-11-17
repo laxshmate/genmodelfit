@@ -1,6 +1,6 @@
 {
  "source": "calibration.json",
- "date": "2026-11-14",
+ "date": "2026-11-17",
  "method": "全部載せの VRAM = overhead + 重み + 作業用メモリ。作業用メモリは段ごとに当てられるモデルは ComfyUI の見込み max(S, V_eff, T)(係数なし)、ほかは種類ごとの式。合わせるのは act_3d_gb だけで、固定分と画像・動画・音声の係数は 0.10 の値に固定(frozen)。相対誤差の 2 乗和(張り付いた実測は片側) + 事前値への罰(重み 0.0001)を、範囲付きの座標降下で最小化。精度は leave-one-out",
  "n": 9,
  "n_censored": 3,
@@ -273,7 +273,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 0.24,
-   "error_pct": -80.8
+   "error_pct": -80.8,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "3d_moge_perspective_to_mesh",
@@ -290,7 +292,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 0.78,
-   "error_pct": 8.9
+   "error_pct": 8.9,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "audio_stable_audio_example",
@@ -309,7 +313,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 3.91,
-   "error_pct": 1.8
+   "error_pct": 1.8,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "audio_stable_audio_example",
@@ -328,7 +334,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 2.46,
-   "error_pct": -3.7
+   "error_pct": -3.7,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "audio_yue2_text2music",
@@ -347,7 +355,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 1.37,
-   "error_pct": -68.1
+   "error_pct": -68.1,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "image_sdxl_simple",
@@ -367,7 +377,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 1.06,
-   "error_pct": -58.0
+   "error_pct": -58.0,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "image_sdxl_simple",
@@ -387,7 +399,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 1.06,
-   "error_pct": -80.7
+   "error_pct": -80.7,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "image_z_image_turbo_int8",
@@ -407,7 +421,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 1.06,
-   "error_pct": -52.7
+   "error_pct": -52.7,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "image_z_image_turbo_int8",
@@ -427,7 +443,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 2.02,
-   "error_pct": -59.2
+   "error_pct": -59.2,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "text_to_video_wan",
@@ -448,7 +466,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 0.76,
-   "error_pct": -82.8
+   "error_pct": -82.8,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "text_to_video_wan",
@@ -469,7 +489,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 0.42,
-   "error_pct": -89.3
+   "error_pct": -89.3,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "text_to_video_wan",
@@ -490,7 +512,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 1.1,
-   "error_pct": -76.6
+   "error_pct": -76.6,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "utility_seedvr2_3b_int8_upscale_image",
@@ -510,7 +534,9 @@
    "censored": false,
    "quantity": "work",
    "predicted_gb": 2.83,
-   "error_pct": 45.7
+   "error_pct": 45.7,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "image_sdxl_simple",
@@ -530,7 +556,9 @@
    "censored": false,
    "quantity": "full",
    "predicted_gb": 9.0,
-   "error_pct": -2.4
+   "error_pct": -2.4,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "image_z_image_turbo_int8",
@@ -550,7 +578,9 @@
    "censored": false,
    "quantity": "full",
    "predicted_gb": 13.87,
-   "error_pct": 18.0
+   "error_pct": 18.0,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "text_to_video_wan",
@@ -571,7 +601,9 @@
    "censored": false,
    "quantity": "full",
    "predicted_gb": 11.38,
-   "error_pct": -2.6
+   "error_pct": -2.6,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "audio_ace_step_1_5_checkpoint",
@@ -590,7 +622,9 @@
    "censored": false,
    "quantity": "full",
    "predicted_gb": 22.26,
-   "error_pct": 61.2
+   "error_pct": 61.2,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "audio_stable_audio_example",
@@ -609,7 +643,9 @@
    "censored": false,
    "quantity": "full",
    "predicted_gb": 9.04,
-   "error_pct": 49.1
+   "error_pct": 49.1,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "image_anima_base_v1",
@@ -628,7 +664,9 @@
    "censored": false,
    "quantity": "full",
    "predicted_gb": 7.02,
-   "error_pct": 5.4
+   "error_pct": 5.4,
+   "n_sources": null,
+   "consistent": null
   },
   {
    "model_id": "utility_moge3_geometry_estimation",
@@ -645,7 +683,240 @@
    "censored": false,
    "quantity": "full",
    "predicted_gb": 4.04,
-   "error_pct": -16.0
+   "error_pct": -16.0,
+   "n_sources": null,
+   "consistent": null
+  },
+  {
+   "model_id": "3d_hunyuan3d-v2.1",
+   "modality": "3d",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "steps": 30,
+    "precision": "fp16"
+   },
+   "measured_gb": 1.59,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 0.78,
+   "error_pct": -50.7,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "3d_hunyuan3d_image_to_model",
+   "modality": "3d",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "steps": 20,
+    "precision": "fp16"
+   },
+   "measured_gb": 0.5,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 0.78,
+   "error_pct": 56.8,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "audio_ace_step_1_5_checkpoint",
+   "modality": "music",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "seconds": 120.0,
+    "steps": 8,
+    "precision": "bf16"
+   },
+   "measured_gb": 9.5,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 11.44,
+   "error_pct": 20.5,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "image_sdxl_simple",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 3070",
+   "gpu_vram_gb": 8.0,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 25,
+    "precision": "fp16"
+   },
+   "measured_gb": 2.28,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.06,
+   "error_pct": -53.4,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "image_sdxl_simple",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 3070",
+   "gpu_vram_gb": 8.0,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 1536,
+    "height": 1536,
+    "steps": 25,
+    "precision": "fp16"
+   },
+   "measured_gb": 4.97,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.06,
+   "error_pct": -78.6,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "image_sdxl_simple",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 3070",
+   "gpu_vram_gb": 8.0,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 768,
+    "height": 768,
+    "steps": 25,
+    "precision": "fp16"
+   },
+   "measured_gb": 1.34,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.06,
+   "error_pct": -20.6,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "image_sdxl_simple",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 25,
+    "precision": "fp16"
+   },
+   "measured_gb": 2.34,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.06,
+   "error_pct": -54.6,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "image_sdxl_simple",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 768,
+    "height": 768,
+    "steps": 25,
+    "precision": "fp16"
+   },
+   "measured_gb": 1.59,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.06,
+   "error_pct": -33.1,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "image_z_image_turbo_int8",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 8,
+    "precision": "int8"
+   },
+   "measured_gb": 0.75,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 1.06,
+   "error_pct": 41.8,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "utility_depth_anything3_image_depth_estimation",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "precision": "fp32"
+   },
+   "measured_gb": 0.5,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 0.24,
+   "error_pct": -52.1,
+   "n_sources": 1,
+   "consistent": false
+  },
+  {
+   "model_id": "utility_moge_depth_estimation",
+   "modality": "image",
+   "gpu_name": "NVIDIA GeForce RTX 5080",
+   "gpu_vram_gb": 15.92,
+   "origin": "community",
+   "n_submissions": 1,
+   "vram_metric": "torch_reserved",
+   "settings": {
+    "precision": "fp16"
+   },
+   "measured_gb": 0.75,
+   "censored": false,
+   "quantity": "work",
+   "predicted_gb": 0.24,
+   "error_pct": -68.1,
+   "n_sources": 1,
+   "consistent": false
   }
  ]
 }

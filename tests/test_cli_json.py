@@ -302,6 +302,7 @@ MEASUREMENT = {
     "source_ids",  # #95: 出どころの ID(count_sources が和集合で数える)
     "n_error",
     "runs_evidence",
+    "stages",  # #199(段ごとの山。bench の実測・提出・まとめの行)
 }
 MEASUREMENT_SETTINGS = {"width", "height", "frames", "seconds", "steps", "precision", "batch"}
 

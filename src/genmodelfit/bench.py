@@ -1307,7 +1307,7 @@ class BenchResult:
             | ({"failed": self.failed} if self.failed else {})
             # 時間の内訳(#132。contrib の measurement.timing と同じ項目。取れなければ null)
             | {"timing": self.timing}
-            # 段ごとの山(#100 の宿題 2。docs/schema.md「bench」。提出の記録にはまだ入れない)
+            # 段ごとの山(#100 の宿題 2。docs/schema.md「bench」。measurement.stages と同じ値)
             | {"stages": self.stages}
         )
 
@@ -1929,6 +1929,14 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
     if opts.note:
         note_parts.append(opts.note)
 
+    # 段ごとの山(#100 の宿題 2)。BenchResult と実測(保存するキャッシュの measurements)の両方に入れる(#199)
+    stages = stage_peaks(
+        list(zip(mon.torch_times, mon.torch_values, strict=False)),
+        entry or {},
+        log_new,
+        local=local,
+        steps=sampler_steps(wf),
+    )
     m = Measurement(
         model_id=opts.model_id,
         gpu_name=name,
@@ -1950,6 +1958,7 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
         gpu_pci_id=pci_id,
         files_fp=opts.files_fp,
         settings_override=True if opts.settings_override else None,
+        stages=stages,
     )
     return BenchResult(
         measurement=m,
@@ -1968,13 +1977,7 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
         ),
         error_kind=_history_error_kind(entry, wf) if entry else None,
         brief_peak=brief is not None,
-        stages=stage_peaks(
-            list(zip(mon.torch_times, mon.torch_values, strict=False)),
-            entry or {},
-            log_new,
-            local=local,
-            steps=sampler_steps(wf),
-        ),
+        stages=stages,
     )
 
 

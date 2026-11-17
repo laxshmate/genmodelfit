@@ -839,7 +839,13 @@ def test_calibrate_uses_bundled_measurements_only(tmp_path, monkeypatch, capsys)
     committed = json.loads(bundled_text("calibration.json"))
     again = cal.calibrate(date=committed["date"])
     assert again["check"] == committed["check"] and again["coefficients"] == committed["coefficients"]
-    assert all(x["model_id"] != "utility_moge_depth_estimation" for x in again["check"])
+    # キャッシュの RTX 3070 の行は入らない(同梱のほかの利用者の RTX 5080 の行は、出どころ 1 つから
+    # 照合に出る。#199)
+    assert not [
+        x
+        for x in again["check"]
+        if x["model_id"] == "utility_moge_depth_estimation" and x["origin"] != "community"
+    ]
     assert cal.main(["--dry-run", "--date", committed["date"]]) == 0
     assert "1 件は使わない" in capsys.readouterr().out
 
