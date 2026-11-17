@@ -380,6 +380,10 @@ class Measurement:
     # まとめの行では段ごとに peak_gb・min_gb の中央値と、段のあった出どころの数(sources)。
     # 照合(calibrate)と確かめた範囲の表(coverage)だけに使い、見積もり・段階には使わない。None は記録が無い
     stages: dict[str, Any] | None = None
+    # GPU 全体の使用量(#200。bench の device の形: tool(system_stats / nvidia-smi)と before_gb・peak_gb・
+    # after_gb。GiB)。bench の実測・提出(contrib)から来る。まとめの行では出どころごとの中央値 → 出どころの
+    # 間の中央値と delta_gb・sources。照合(calibrate)だけに使い、見積もり・段階には使わない。None は記録が無い
+    device: dict[str, Any] | None = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Measurement:

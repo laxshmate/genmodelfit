@@ -30,6 +30,7 @@ from . import i18n
 from .db import Database, load_measurements
 from .db import load as load_db
 from .estimate import (
+    CENSOR_RATIO,
     FITTED,
     Coefficients,
     activation_features,
@@ -87,6 +88,8 @@ class Row:
     # 段ごとの作業用メモリの式(working.StageMem。NVIDIA の半精度)。段ごとの照合(#199)に使う。
     # 当てられなければ None
     stage_mem: StageMem | None = None
+    # 式の固定分(係数の overhead_gb。全部載せの予測に入っている値)。GPU 全体の使用量の照合(#200)に使う
+    overhead_gb: float = 0.0
 
     def predict(self, theta: dict[str, float]) -> float:
         return self.const_gb + sum(theta[k] * v for k, v in self.features.items())
@@ -140,7 +143,18 @@ def _rows(db: Database, c: Coefficients | None, *, same_metric: bool) -> list[Ro
             work = sum(getattr(c, k) * v for k, v in act.items() if k not in FIT)
             const = c.overhead_gb + weights + work
         rows.append(
-            Row(m, weights, feats, is_censored(m), e.modality, const, work, n.stages is not None, n.stages)
+            Row(
+                m,
+                weights,
+                feats,
+                is_censored(m),
+                e.modality,
+                const,
+                work,
+                n.stages is not None,
+                n.stages,
+                c.overhead_gb,
+            )
         )
     return rows
 
@@ -190,6 +204,60 @@ def stage_check(stages: dict | None, st: StageMem | None) -> list[dict] | None:
     return out
 
 
+def device_check(r: Row, theta: dict[str, float]) -> dict | None:
+    """GPU 全体の使用量(contrib.device_of: Measurement.device か、bench の note から読んだ値。#200)と
+    式の全部載せを並べる。照合に出すだけで、係数の合わせ・値のずらし・段階には使わない。
+
+    - delta_gb: device の delta_gb(まとめの行は提出ごとの増分の中央値、note から読んだ行は note の増分)、
+      無ければ peak_gb - before_gb
+    - whole_gb: delta_gb + 式の固定分(Row.overhead_gb)。開始前の値に入っている固定分(CUDA の文脈など)は
+      増分に入らないので、式の全部載せと同じ固定分を足して比べる
+    - formula_gb: その実測の設定・GPU での式の全部載せ(照合の全部載せの行の推定と同じ。Row.predict)
+    - clean: 開始前(降ろした後)の torch の確保量 before_torch_gb が分かり contrib.DEVICE_CLEAN_TORCH_GB 以下
+      (開始前に確保していた分は使い回されて増分が小さく出るので、それを超える行は比べない)
+    - pinned: estimate.is_censored(実測が張り付いた)か、device の peak_gb か whole_gb が GPU の総量 ×
+      estimate.CENSOR_RATIO 以上(VRAM に入りきっていない)
+    - error_pct: (formula − whole) / whole × 100(1 桁)。clean で pinned でないときだけ(whole が 0 以下も None)
+    - from_note: note から読んだ値か(まとめの行は note から読んだ提出が 1 つでもあるか)
+    device が無い・読めなければ None。"""
+    from .contrib import DEVICE_CLEAN_TORCH_GB, device_of
+
+    d = device_of(r.m)
+    if not isinstance(d, dict):
+        return None
+
+    def num(x: object) -> bool:
+        return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+    before, peak, delta = d.get("before_gb"), d.get("peak_gb"), d.get("delta_gb")
+    if not num(delta):
+        if not (num(before) and num(peak)):
+            return None
+        delta = peak - before
+    whole = delta + r.overhead_gb
+    formula = r.predict(theta)
+    vram = r.m.gpu_vram_gb or 0
+    torch = d.get("before_torch_gb")
+    clean = bool(num(torch) and torch <= DEVICE_CLEAN_TORCH_GB)
+    pinned = bool(
+        is_censored(r.m)
+        or (vram > 0 and num(peak) and peak >= CENSOR_RATIO * vram)
+        or (vram > 0 and whole >= CENSOR_RATIO * vram)
+    )
+    ok = clean and not pinned and whole > 0
+    return {
+        "tool": d.get("tool"),
+        "delta_gb": round(delta, 2),
+        "whole_gb": round(whole, 2),
+        "formula_gb": round(formula, 2),
+        "error_pct": round((formula - whole) / whole * 100, 1) if ok else None,
+        "pinned": pinned,
+        "clean": clean,
+        **({} if num(torch) else {"baseline": "unknown"}),  # 開始前の torch の量が分からない(clean でない)
+        "from_note": bool(d.get("from_note")),
+    }
+
+
 def check(rows: list[Row], theta: dict[str, float]) -> list[dict]:
     out = []
     for r in rows:
@@ -217,6 +285,8 @@ def check(rows: list[Row], theta: dict[str, float]) -> list[dict]:
                 "consistent": getattr(r.m, "consistent", None),
                 # 段ごとの山があるときだけ(#199。stage_check)
                 **({"stages": sc} if (sc := stage_check(getattr(r.m, "stages", None), r.stage_mem)) else {}),
+                # GPU 全体の使用量があるときだけ(#200。device_check)
+                **({"device": dc} if (dc := device_check(r, theta)) else {}),
             }
         )
     return out
@@ -437,6 +507,9 @@ def markdown_table(result: dict) -> str:
         staged = stage_table(result["check"])
         if staged:
             lines += ["", *staged]
+        whole = device_table(result["check"])  # GPU 全体の使用量のある行があるときだけ(#200)
+        if whole:
+            lines += ["", *whole]
     return "\n".join(lines)
 
 
@@ -548,6 +621,52 @@ def stage_table(rows: list[dict]) -> list[str]:
     return lines
 
 
+def device_table(rows: list[dict]) -> list[str]:
+    """GPU 全体の使用量の照合の表(#200。照合の行のうち device のあるものだけ)。device のある行が無ければ
+    空(表を出さない)。張り付いた行は誤差の代わりに「張り付き」、開始前に torch が確保していた行
+    (clean でない)は「開始前に読み込み済み」。読んだ道具の欄の「(note)」は bench の note から読んだ値。
+    提出から来る文字は md_cell で無害にする。"""
+    from .contrib import md_cell
+
+    have = [x for x in rows if x.get("device")]
+    if not have:
+        return []
+    lines = [
+        tr(
+            "GPU 全体の使用量の照合(増分 + 式の固定分を、式の全部載せと比べる。"
+            "照合だけで、判定には使わない):",
+            "Cross-check of the whole-GPU usage (the increase plus the formula's fixed part, against the"
+            " formula's all-on-GPU amount; a cross-check only, not used for the verdict):",
+        ),
+        "",
+        tr(
+            "| モデル | GPU | 出どころ | 設定 | 読んだ道具 | 増分 GiB | 増分 + 固定分 GiB | 式 GiB | 誤差 |",
+            "| Model | GPU | Source | Settings | Tool | Increase GiB | Increase + fixed GiB | Formula GiB"
+            " | Error |",
+        ),
+        "|---|---|---|---|---|---:|---:|---:|---:|",
+    ]
+    for x in have:
+        d = x["device"]
+        if d["pinned"]:
+            err = tr("張り付き", "pinned")
+        elif d.get("baseline") == "unknown":
+            err = tr("開始前の量が不明", "baseline unknown")
+        elif not d.get("clean"):
+            err = tr("開始前に読み込み済み", "preloaded")
+        elif d["error_pct"] is None:
+            err = "-"
+        else:
+            err = f"{round(d['error_pct']):+d}%"  # -0.2 を「-0%」と書かない
+        tool = md_cell(str(d["tool"])) + (" (note)" if d.get("from_note") else "")
+        lines.append(
+            f"| {md_cell(x['model_id'])} | {md_cell(x['gpu_name'])} | {_who(x)} |"
+            f" {_settings_text(x['settings'])} | {tool} |"
+            f" {d['delta_gb']:.2f} | {d['whole_gb']:.2f} | {d['formula_gb']:.2f} | {err} |"
+        )
+    return lines
+
+
 def default_output() -> Path:
     return Path(__file__).parent / "data" / "calibration.json"
 
@@ -598,6 +717,8 @@ __all__ = [
     "calibrate",
     "check",
     "check_table",
+    "device_check",
+    "device_table",
     "fit",
     "leave_one_out",
     "main",

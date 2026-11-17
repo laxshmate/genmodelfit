@@ -351,6 +351,10 @@ class Suggestion:
     settings: Settings | None = None  # 設定を変えた測定(#116)。None はテンプレートのまま
     # この PC で測ったが、そのときと今で ComfyUI の版が違うので測り直すもの(#147): (測ったときの版, 今の版)
     remeasure: tuple[str, str] | None = None
+    # 選ばれた時点で、実測も先に勧めたものも無かった式の鍵の数(#200。coverage.formula_keys。0〜2)
+    new_formulas: int = 0
+    # そのモデルの式の鍵(#200。並べるときだけ使う)
+    formulas: tuple[str, ...] = field(default=(), repr=False, compare=False)
 
     @property
     def args(self) -> list[str]:
@@ -373,6 +377,7 @@ class Suggestion:
             "settings": settings_dict(self.settings),
             "args": self.args,
             "remeasure": {"from": self.remeasure[0], "to": self.remeasure[1]} if self.remeasure else None,
+            "new_formulas": self.new_formulas,
         }
 
 
@@ -390,6 +395,30 @@ def _order(s: Suggestion) -> tuple:
         s.settings is not None,
         s.args,
     )
+
+
+def _pick_order(cands: list[Suggestion], measured: set[str], staged: set[str]) -> list[Suggestion]:
+    """勧める順に 1 つずつ選ぶ(#200)。残りのうち (測り直しか, 入っていないか, −実測も先に勧めたものも無い
+    式の鍵の数, −段ごとの山のある実測も先に勧めたものも無い式の鍵の数, 時間, …(_order の残り)) が最小のものを
+    選び、その式の鍵を「もう勧めた」に入れる。同じ式のモデルを続けて勧めない。どの式にも実測があれば _order と
+    同じ並び。new_formulas に選ばれた時点の数を入れる。"""
+    left = list(cands)
+    done: set[str] = set()
+    out: list[Suggestion] = []
+
+    def key(s: Suggestion) -> tuple:
+        o = _order(s)
+        new = sum(1 for k in s.formulas if k not in measured and k not in done)
+        new_staged = sum(1 for k in s.formulas if k not in staged and k not in done)
+        return (o[0], o[1], -new, -new_staged, *o[2:])
+
+    while left:
+        best = min(left, key=key)
+        left.remove(best)
+        best.new_formulas = sum(1 for k in best.formulas if k not in measured and k not in done)
+        done.update(best.formulas)
+        out.append(best)
+    return out
 
 
 def suggestions(
@@ -417,7 +446,10 @@ def suggestions(
     版を入れ、まだ測っていないものの後に並べる)。
     時間の目安が MAX_SUGGEST_SECONDS を超えるものは出さない。動画の設定を変えた測定で、時間の目安が
     種類ごとのおおよその値のときは TYPICAL_VIDEO_FRAMES_MAX コマまで。
-    並びは入っているもの → 時間 → 落とす量。GPU が無ければ空。"""
+    並びは入っているもの → 実測の無い式(#200。coverage.formula_keys。同梱の実測と extra のどちらにも使える
+    実測の無い式の鍵の多いもの。1 つ勧めるとその式は勧めた扱いにし、同じ式を続けて勧めない。_pick_order)→
+    時間 → 落とす量。GPU が無ければ空。"""
+    from .coverage import formula_keys, measured_keys
     from .downloader import directory_refs
     from .estimate import estimate, load_coefficients
     from .recommend import evaluate, variant_key
@@ -435,6 +467,9 @@ def suggestions(
     # まとめは時間の目安・見積もりには使うが、提案からは外さない
     # 一瞬の山で標準にならなかった回(#131)も「試した」として数える(同じものを何度も提案しない)
     here = measured_by_this_pc(list(db.measurements)) + list(extra) + brief_peak_tried()
+    # 実測のある式の鍵(#200。同梱の実測 + この PC の実測)。勧める順だけに使う
+    measured, staged = measured_keys(db.models, ms)
+    keys_of: dict[str, tuple[str, ...]] = {}
     per_key: dict[tuple, list[Suggestion]] = {}
     for f in evaluate(db, system, content=content, policy=policy, coefficients=c):
         m, e = f.model, f.estimate
@@ -463,6 +498,8 @@ def suggestions(
                     if old is not None:
                         rows.append((v, ve.fit, old))
         inst = installed_state(m, roots, refs) if rows else None
+        if rows and m.id not in keys_of:
+            keys_of[m.id] = formula_keys(m)
         for settings, level, old in rows:
             secs, basis = time_hint(m, ms, settings)
             if secs > MAX_SUGGEST_SECONDS:
@@ -488,11 +525,12 @@ def suggestions(
                 fit=f,
                 settings=settings,
                 remeasure=(old, str(comfyui_version_text(comfyui_version))) if old is not None else None,
+                formulas=keys_of[m.id],
             )
             key = (s.group_key, tuple(s.args))
             per_key.setdefault(key, []).append(s)
-    picked = sorted(
-        (
+    picked = _pick_order(
+        [
             min(
                 group,
                 key=lambda s: (
@@ -503,8 +541,9 @@ def suggestions(
                 ),
             )
             for group in per_key.values()
-        ),
-        key=_order,
+        ],
+        measured,
+        staged,
     )
     out: list[Suggestion] = []
     count: dict[str, int] = {}

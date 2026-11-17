@@ -836,7 +836,7 @@ genmodelfit measure [-h] [--lang {en,ja}] [--json] [--db PATH] [--no-cache] [--u
 ```
 
 - Measure a model on ComfyUI (started if needed) and save the result on this PC (nothing is sent).
-- Without MODEL it lists models worth measuring: the ones that fit this PC's GPU (good or better on the GPU) and are not yet measured on this PC at the template's settings (other people's measurements of the same GPU do not remove a model: two agreeing sources let measurements set the level), with a known license, those already installed first, then the shorter time, then the smaller download; choose one by number (q quits).
+- Without MODEL it lists models worth measuring: the ones that fit this PC's GPU (good or better on the GPU) and are not yet measured on this PC at the template's settings (other people's measurements of the same GPU do not remove a model: two agreeing sources let measurements set the level), with a known license, those already installed first, then those whose formula (the kind of the predictive formula's stages) has no measurement yet (models with the same formula are not listed back to back; 0.15.1, #200), then the shorter time, then the smaller download; choose one by number (q quits).
 - Models that need nodes the running ComfyUI lacks are left out.
 - Once a model has that measurement, the list offers runs at other settings that help check the estimate's formula (#116): image resolution 512/768/1024/1536 px (text to image), video frames 17/33/49/81 at the template's size (text or image to video), music and sound length 10/30/60/120 s (text to audio); each only when it fits the GPU at that setting (good or better) and this PC has not measured it at that setting, at most 2 per model.
 - Runs over about 300 s are not listed.

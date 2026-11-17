@@ -204,8 +204,11 @@ def test_suggestions_rules(db):
         assert key not in keys  # 同じモデル・同じ設定は 1 件
         keys.add(key)
         assert x.installed.state == "unknown" and x.seconds % 10 == 0
-    order = [(x.seconds, x.installed.missing_bytes) for x in sugg]
-    assert order == sorted(order)
+    # 並び(#200): 実測の無い式の多いものから選ぶので、選ばれた時点の数(new_formulas)は増えない。
+    # 同じ数の中の時間の順は、段ごとの山の無い式の数(2 つ目の鍵)が先に効くので、ここでは決めない
+    # (どの式にも実測があるときに時間 → 落とす量の順になることは tests/test_issue_200.py が確かめる)
+    news = [x.new_formulas for x in sugg]
+    assert news == sorted(news, reverse=True) and all(0 <= n <= 2 for n in news)
     assert measure.suggestions(db, no_gpu()) == []
 
 
@@ -288,6 +291,7 @@ def test_measure_suggestions_json(capsys, this_pc):
     assert d["comfyui"] == {"url": None, "found_by": None}  # 探すのを止めてある(conftest)
     s = d["suggestions"][0]
     assert set(s) >= {"model_id", "installed", "download_bytes", "seconds", "seconds_basis", "fit_level"}
+    assert isinstance(s["new_formulas"], int)  # 実測の無い式の鍵の数(#200)
 
 
 def test_measure_choice_q_does_nothing(capsys, monkeypatch, this_pc):
@@ -1077,8 +1081,9 @@ def test_suggestions_mix_variants_and_cap_per_model():
         all_of = [x for x in every if x.group_key == key and x.settings is not None]
         kept = [x for x in var if x.group_key == key]
         assert [x.args for x in kept] == [x.args for x in all_of[: len(kept)]]
-    # 並びは入っているもの → 時間 → 落とす量(テンプレートのままと設定を変えたものを混ぜて)
-    order = [(x.installed.state != "yes", x.seconds, x.installed.missing_bytes) for x in sugg]
+    # 並びは入っているもの → 実測の無い式(#200。選ばれた時点の数 new_formulas は増えない)→ 時間 → 落とす量
+    # (テンプレートのままと設定を変えたものを混ぜて。時間の順は tests/test_issue_200.py が確かめる)
+    order = [(x.installed.state != "yes", -x.new_formulas) for x in sugg]
     assert order == sorted(order)
     # どの行も、その設定(動画はテンプレートの大きさ)で GPU に載る
     from genmodelfit.estimate import estimate

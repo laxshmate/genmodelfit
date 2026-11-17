@@ -303,6 +303,7 @@ MEASUREMENT = {
     "n_error",
     "runs_evidence",
     "stages",  # #199(段ごとの山。bench の実測・提出・まとめの行)
+    "device",  # #200(GPU 全体の使用量。bench の実測・提出・まとめの行)
 }
 MEASUREMENT_SETTINGS = {"width", "height", "frames", "seconds", "steps", "precision", "batch"}
 

@@ -421,12 +421,17 @@ class Monitor:
         self.torch_times: list[float] = []
         self._next_ram = 0.0
         self.last_used_mib: float | None = None  # nvidia-smi が読んだ最後の GPU 全体の使用量(MiB)
+        # 監視を止めた後に /system_stats で 1 回読んだ GPU 全体の使用量(bytes。vram_total - vram_free。#200)。
+        # 読めなければ None
+        self.end_device_used: int | None = None
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
         self._smi: subprocess.Popen[str] | None = None
         self._lock = threading.Lock()
 
-    def sample_once(self, *, ram: bool = True) -> None:
+    def sample_once(self, *, ram: bool = True) -> int | None:
+        """1 回読む。/system_stats に vram_total と vram_free があれば、GPU 全体の使用量(bytes)を返す。"""
+        device_now: int | None = None
         with contextlib.suppress(BenchError, ValueError, KeyError, TypeError):
             asked = time.time()
             dev = (self.client.system_stats().get("devices") or [{}])[0]
@@ -441,6 +446,8 @@ class Monitor:
                 used = int(dev.get("vram_total") or 0) - int(dev.get("vram_free") or 0)
                 p.device_used = max(p.device_used, used)
                 p.samples += 1
+            if "vram_total" in dev and "vram_free" in dev:
+                device_now = used
         if ram and self.proc is not None:
             with contextlib.suppress(psutil.Error):
                 rss = self.proc.memory_info().rss
@@ -449,6 +456,7 @@ class Monitor:
                         rss += c.memory_info().rss
                 with self._lock:
                     self.peaks.ram = max(self.peaks.ram, rss)
+        return device_now
 
     def _poll(self) -> None:
         while not self._stop.is_set():
@@ -519,8 +527,52 @@ class Monitor:
                 proc.terminate()
         for th in self._threads:
             th.join(timeout=10)
-        self.sample_once()
+        # 仕事が終わって監視を止めた後の値(#200。device_usage の after_gb)
+        self.end_device_used = self.sample_once()
         return self.peaks
+
+
+def device_usage(
+    base_stats: dict[str, Any],
+    base_dev: int,
+    peaks: Peaks,
+    end_used: int | None,
+    base_smi: tuple[float, float] | None,
+    probe: Any,
+    last_used_mib: float | None,
+) -> dict[str, Any] | None:
+    """GPU 全体の使用量(#200。BenchResult.device・Measurement.device・提出の measurement.device。GiB、2 桁)。
+
+    - /system_stats に vram_total と vram_free があるとき: tool system_stats。before_gb は開始前(降ろした後)に
+      読んだ値(base_dev)、peak_gb は測っている間の最大と終わりの値(end_used)の大きい方、after_gb は終わりの値
+    - 無くて、NVIDIA で nvidia-smi の開始前の値(base_smi)と読み取りがあるとき: tool nvidia-smi
+      (MiB を 1024 で割る。after_gb は最後に読んだ値)。NVIDIA 以外の読み取り役(probe)のときは作らない
+    - どちらも無い・最大が開始前より小さい(ほかのプログラムが VRAM を手放したなど)ときは None
+    before_torch_gb は開始前(降ろした後)に読んだ torch の確保量(torch_vram_total。読めなければ None)。開始前に
+    torch が確保していた分は測っている間に使い回されるので、増分がその分だけ小さく出る。使う側が見分けるため。
+    数と道具の名前だけを入れる(プロセスの名前・PID・GPU の UUID は入れない)。"""
+    if "vram_total" in base_stats and "vram_free" in base_stats:
+        before = base_dev / GIB
+        peak = max(peaks.device_used, end_used if end_used is not None else 0) / GIB
+        after = end_used / GIB if end_used is not None else None
+        tool = "system_stats"
+    elif probe is None and base_smi and peaks.smi_samples:
+        before = base_smi[0] / 1024
+        peak = peaks.gpu_used_mib / 1024
+        after = last_used_mib / 1024 if last_used_mib is not None else None
+        tool = "nvidia-smi"
+    else:
+        return None
+    if peak < before:
+        return None
+    torch = base_stats.get("torch_vram_total")
+    return {
+        "tool": tool,
+        "before_gb": round(before, 2),
+        "peak_gb": round(peak, 2),
+        "after_gb": round(after, 2) if after is not None else None,
+        "before_torch_gb": round(int(torch) / GIB, 2) if isinstance(torch, (int, float)) else None,
+    }
 
 
 def steady_peak(values: list[int], count: int = BRIEF_PEAK_COUNT) -> int:
@@ -1299,6 +1351,8 @@ class BenchResult:
     brief_peak: bool = False
     # torch の確保量をサンプラの前・最中・後に分けたもの(#100 の宿題 2。stage_peaks)。分けられなければ None
     stages: dict[str, Any] | None = None
+    # GPU 全体の使用量(#200。device_usage)。読めなければ None
+    device: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         m = asdict(self.measurement)
@@ -1309,6 +1363,8 @@ class BenchResult:
             | {"timing": self.timing}
             # 段ごとの山(#100 の宿題 2。docs/schema.md「bench」。measurement.stages と同じ値)
             | {"stages": self.stages}
+            # GPU 全体の使用量(#200。docs/schema.md「bench」。measurement.device と同じ値)
+            | {"device": self.device}
         )
 
 
@@ -1645,6 +1701,18 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
     if opts.free_before:
         client.free()
         time.sleep(2.0)
+        # 開始前の GPU 全体の使用量は、降ろした後に読み直す(#200。使用率の平均と忙しさの判定は
+        # 前の読み取りのまま)。読めなければ前の値のまま
+        if base_smi is not None:
+            again: float | None = None
+            with contextlib.suppress(Exception):  # 道具の失敗で測るのを止めない
+                if probe is not None:
+                    again = probe.used_mib() if probe.tool is not None else None
+                elif gpu_id is not None:
+                    now_smi = gpu_used_now(gpu_id)
+                    again = now_smi[0] if now_smi else None
+            if again is not None:
+                base_smi = (again, base_smi[1])
     elif preloaded:
         warnings.append(
             tr(
@@ -1937,6 +2005,10 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
         local=local,
         steps=sampler_steps(wf),
     )
+    # GPU 全体の使用量(#200)。照合だけに使う(見積もり・段階には使わない)
+    device = device_usage(
+        base_stats, base_dev, peaks, mon.end_device_used, base_smi, probe, mon.last_used_mib
+    )
     m = Measurement(
         model_id=opts.model_id,
         gpu_name=name,
@@ -1959,6 +2031,7 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
         files_fp=opts.files_fp,
         settings_override=True if opts.settings_override else None,
         stages=stages,
+        device=device,
     )
     return BenchResult(
         measurement=m,
@@ -1978,6 +2051,7 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
         error_kind=_history_error_kind(entry, wf) if entry else None,
         brief_peak=brief is not None,
         stages=stages,
+        device=device,
     )
 
 

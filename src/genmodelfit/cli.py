@@ -5643,7 +5643,7 @@ def cmd_contrib_validate(args: argparse.Namespace) -> int:
 
 def format_report(rep: dict[str, Any]) -> list[str]:
     """精度の点検の表(Markdown。毎週の自動 PR にそのまま貼れる形)。"""
-    from .calibrate import check_table, stage_table
+    from .calibrate import check_table, device_table, stage_table
     from .contrib import CHECK_RAM_GB, md_cell
 
     thr = rep["threshold_pct"]
@@ -5728,6 +5728,9 @@ def format_report(rep: dict[str, Any]) -> list[str]:
         staged = stage_table(rep["check"])  # 段ごとの山のある行があるときだけ(#199)
         if staged:
             lines += ["", *staged]
+        whole = device_table(rep["check"])  # GPU 全体の使用量のある行があるときだけ(#200)
+        if whole:
+            lines += ["", *whole]
     return lines
 
 
@@ -7845,19 +7848,20 @@ def _measure_run(
                 estimate=_measure_estimate(entry, system, m),
                 timing=getattr(result, "timing", None),
                 stages=getattr(result, "stages", None),
+                device=getattr(result, "device", None),  # GPU 全体の使用量(#200)
                 db_info=db_info(_measure_db(args)),
             )
             # 送れない(検査・個人の情報の点検に通らない)なら送る用の提出を作らない(#124)。手元の実測は残す
             why = _submission_refusal(sub, args)
-            if why and ({"timing", "estimate", "stages"} & set(sub["measurement"])):
-                # 見積もり・時間の内訳・段ごとの山のおかしな値で実測を送れなくしない(#132):
+            if why and ({"timing", "estimate", "stages", "device"} & set(sub["measurement"])):
+                # 見積もり・時間の内訳・段ごとの山・GPU 全体の使用量のおかしな値で実測を送れなくしない(#132):
                 # 外してもう一度確かめる
                 bare = {
                     **sub,
                     "measurement": {
                         k: v
                         for k, v in sub["measurement"].items()
-                        if k not in ("timing", "estimate", "stages")
+                        if k not in ("timing", "estimate", "stages", "device")
                     },
                 }
                 if not _submission_refusal(bare, args):
