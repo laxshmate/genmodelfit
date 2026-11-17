@@ -177,6 +177,21 @@ def test_rederive_restores_a_broken_derived_value(tool, copy_):
     assert tool.main(["--check", "--frozen", str(copy_)]) == 0
 
 
+def test_rederive_does_not_accept_a_hand_edit(tool, copy_):
+    """--rederive は記録を作り直すので、手で直した項目(記録と合わない)があれば書かずに失敗する。
+    計算で決まらない値(content・license)の直しが、当て直しを通って認められない。"""
+    raw = _raw(copy_)
+    m = next(m for m in raw["models"] if m["content"] == "uncensored")
+    m["content"], m["license"] = "sfw", "mit"
+    _write_in_form(tool, copy_, raw)
+    before = copy_.read_bytes()
+    assert tool.main(["--rederive", "--frozen", str(copy_)]) == 1
+    assert copy_.read_bytes() == before
+    out = copy_.with_name("laundered.json")
+    assert tool.main(["--rederive", "--frozen", str(copy_), "--out", str(out)]) == 1
+    assert not out.exists()
+
+
 REDERIVE = "tools/freeze_test_list.py --rederive で当て直す"
 
 

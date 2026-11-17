@@ -14,8 +14,9 @@
 手入れの手順(いつ足すか・一覧の形を変えたとき・同梱の一覧から消えた項目)は tests/frozenlist.py の
 先頭にある。項目は同梱の一覧の JSON をそのまま写し、引数なしでは今の凍らせた項目を動かさない(同梱の一覧の
 中身で置き換えない)。並びは ID の順、sources の counts と review は写した項目で数え直す。
-項目ごとの sha256 を sources._frozen_sha256 に残し、手で直した項目は --check と引数なしの書き直しで見つける
-(認めるなら --rehash)。ネットワークには触らない。tests/test_frozenlist.py がこの道具を確かめる。
+項目ごとの sha256 を sources._frozen_sha256 に残し、手で直した項目は --check で見つけ、書き直し
+(引数なし・--add・--refresh・--rederive)は書かずに失敗する(認めるなら --rehash)。ネットワークには触らない。
+tests/test_frozenlist.py がこの道具を確かめる。
 """
 
 from __future__ import annotations
@@ -176,7 +177,8 @@ def update(
 
 def rederive(frozen: dict[str, Any]) -> dict[str, Any]:
     """計算で決まる値(系統・VAE・一式がそろったか・アプリ向けの値)を、同梱の一覧の作り直しと同じ関数で
-    当て直したもの(規則はここに写さない。update.refresh_heads と同じ順)。記録も作り直す。"""
+    当て直したもの(規則はここに写さない)。記録も作り直す。手のモデル(source: manual)の項目は
+    manual.json から作り直さない(変えたら --refresh で写し直す)。"""
     from genmodelfit import appinfo
     from genmodelfit.families import assign
     from genmodelfit.update import set_completeness
@@ -220,15 +222,15 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if a.rehash:
             frozen = _with_hashes(frozen)
-        elif a.rederive:
-            frozen = rederive(frozen)
         else:
             bad = hash_problems(frozen)
-            if bad:  # 手の直しを黙って認めない
+            if bad:  # 手の直しを黙って認めない(--rederive も記録を作り直すので、先に確かめる)
                 raise FreezeError(
                     f"記録(sha256)と合わない項目: {', '.join(bad)}(認めるなら --rehash。書いていません)"
                 )
-            if a.add or a.refresh:
+            if a.rederive:
+                frozen = rederive(frozen)
+            elif a.add or a.refresh:
                 frozen = update(frozen, _read(a.db), add=a.add, refresh=a.refresh, commit=_commit(a.db))
         out = render(frozen)
     except FreezeError as e:
