@@ -215,6 +215,7 @@ def device_check(r: Row, theta: dict[str, float]) -> dict | None:
     - formula_gb: その実測の設定・GPU での式の全部載せ(照合の全部載せの行の推定と同じ。Row.predict)
     - clean: 開始前(降ろした後)の torch の確保量 before_torch_gb が分かり contrib.DEVICE_CLEAN_TORCH_GB 以下
       (開始前に確保していた分は使い回されて増分が小さく出るので、それを超える行は比べない)
+    - baseline: before_torch_gb が分からない行だけ "unknown"(clean でない理由を「読み込み済み」と分ける)
     - pinned: estimate.is_censored(実測が張り付いた)か、device の peak_gb か whole_gb が GPU の総量 ×
       estimate.CENSOR_RATIO 以上(VRAM に入りきっていない)
     - error_pct: (formula − whole) / whole × 100(1 桁)。clean で pinned でないときだけ(whole が 0 以下も None)
