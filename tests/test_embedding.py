@@ -7,6 +7,7 @@ import sys
 import textwrap
 
 import pytest
+from frozenlist import frozen_db
 
 import genmodelfit as gmf
 from genmodelfit.models import FIT_LEVELS, Gpu, SystemInfo
@@ -120,7 +121,8 @@ def test_library_functions_write_nothing(tmp_path, capfd, monkeypatch, release_s
 def test_info_is_exact_id_only(db):
     assert gmf.info("image_sdxl_simple", db=db).id == "image_sdxl_simple"
     assert gmf.info("sdxl", db=db) is None  # 一部の一致では探さない
-    assert gmf.info("hf:Heartsync/NSFW-Uncensored", db=db).content == "uncensored"
+    # 無検閲の項目は凍らせた一覧から読む(毎週の更新で同梱の一覧から消えても同じ入力で確かめる。#197)
+    assert gmf.info("hf:Heartsync/NSFW-Uncensored", db=frozen_db()).content == "uncensored"
 
 
 def test_no_network(tmp_path):

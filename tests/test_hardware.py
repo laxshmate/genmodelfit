@@ -880,18 +880,25 @@ def test_family_of_names(name, family, vae):
 
 
 def test_bundled_catalog_has_families():
+    """同梱の一覧の全部の項目が今の系統の表で作り直してある。系統の分からない画像・動画が決まった例外だけ
+    なのは、手で確かめ済みの項目に課す(毎週の更新で入る新しい公式テンプレートは、系統の表に行を足すのが
+    人の確かめと同じ時になる。#197)。"""
+    from frozenlist import hand_checked
+
     from genmodelfit.db import load
     from genmodelfit.families import FAMILIES, VAES, family_of, vae_of
 
     db = load(use_cache=False)
-    known = [m for m in db.models if m.comfy_family]
-    assert len(known) >= 270
     for m in db.models:  # 同梱の一覧は今の表で作り直してある(update と同じ結果)
         assert m.comfy_family == family_of(m), m.id
         assert m.comfy_vae == vae_of(m, m.comfy_family), m.id
         assert m.comfy_family is None or m.comfy_family in FAMILIES
         assert m.comfy_vae is None or m.comfy_vae in VAES
-    unknown_media = [m.id for m in db.models if not m.comfy_family and m.modality in ("image", "video")]
+    checked = [m for m in db.models if hand_checked(m)]
+    assert checked
+    known = [m for m in checked if m.comfy_family]
+    assert len(known) >= 0.8 * len(checked)  # 2026-10-21 の一覧で 283 / 330(86%)
+    unknown_media = [m.id for m in checked if not m.comfy_family and m.modality in ("image", "video")]
     assert all(
         "capybara" in i or "utility" in i or "moge" in i or i.startswith(("hf:", "templates"))
         for i in unknown_media

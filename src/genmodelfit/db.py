@@ -46,12 +46,13 @@ def bundled_text(name: str) -> str:
 
 def parse_generated_at(value: Any) -> datetime | None:
     """一覧の generated_at → UTC の aware な datetime(配布の取り込みと同じ読み方: remote.parse_time)。
-    読めなければ None。"""
+    読めなければ None。UTC にすると年が 1〜9999 の外に出る日時(0001-01-01T00:00:00+01:00 など)も
+    読めないものとする(#197。OverflowError)。"""
     from .remote import parse_time
 
     try:
         return parse_time(value)
-    except ValueError:
+    except (ValueError, OverflowError):
         return None
 
 
