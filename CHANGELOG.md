@@ -106,6 +106,15 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **The weekly list update can pass again after failing** (#197). The limit on entries newly marked uncensored is
+  now 5 per week since the list compared against was rebuilt (`generated_at`, which a HEAD-only refresh keeps), up
+  to 8 weeks (40); a normal week (7 days and a few hours) stays 5. The weeks are rounded to the nearest whole
+  number, not up, so the few hours the weekly start drifts do not add a week. Before, the weeks that failed added
+  up against a fixed 5 (8 → 14 → 15 → 16), so the update could never pass again. The message shows the breakdown
+  (`weekly.uncensored_limit`). The frozen copy is rebuilt with `tools/freeze_test_list.py`.
+  Tests no longer name entries of the bundled list that a weekly update may remove: they read them from a frozen
+  copy (`tests/fixtures/frozen/db.json`), the hand-table checks apply only to hand-checked entries, and the review
+  tests start from a copy with every entry approved, so the bundled list may keep entries waiting for review.
 - **A setting that does not apply to the model no longer stops a measurement from matching** (`--frames` on an
   image model, `--seconds` on a video model): only the type's settings are compared (image: width and height; video:
   also frames; audio: seconds). With a measurement at the default settings, an irrelevant flag changed the estimate.

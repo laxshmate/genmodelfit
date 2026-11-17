@@ -18,6 +18,7 @@ from genmodelfit.downloader import ModelNotFound
 
 # アプリが genmodelfit の見積もりを使うモデル
 # (AI生成キットの profiles の gmf_id のうち gmf_fit を切っていないもの)
+# 凍らせた一覧に移さない: 同梱の一覧から消えた週は、アプリの要件が崩れるので試験を落として人が見る(#197)
 APP_MODELS = [
     "image_z_image_turbo_int8",
     "image_z_image_turbo",
