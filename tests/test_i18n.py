@@ -521,15 +521,15 @@ def test_ja_has_no_english_only_sentences(capsys, monkeypatch, tmp_path, args):
 
 @pytest.mark.parametrize("lang", ["en", "ja"])
 def test_download_plan_keeps_file_names_whole(capsys, monkeypatch, tmp_path, lang):
-    """長いファイル名を「…safetensor」と「s」に分けない(LazyMix の計画。#76)。"""
-    from genmodelfit.db import load
+    """長いファイル名を「…safetensor」と「s」に分けない(LazyMix の計画。#76)。
+    LazyMix は凍らせた一覧から読む(毎週の更新で同梱の一覧から消えても飛ばさない。#197)。"""
+    from frozenlist import FROZEN_DB
 
     model = "hf:TheImposterImposters/LazyMix-v4.0-inpainting"
-    if load(use_cache=False).get(model) is None:  # 毎週の更新で消えたら合成の試験(下)に任せる
-        pytest.skip("同梱の一覧に LazyMix が無い")
     monkeypatch.setenv("GENMODELFIT_CACHE_DIR", str(tmp_path))
     monkeypatch.setenv("COLUMNS", "100")
-    assert cli.main(["download", model, "--list", *HW, "--lang", lang]) == 0
+    args = ["download", model, "--list", *HW, "--db", str(FROZEN_DB), "--lang", lang]
+    assert cli.main(args) == 0
     lines = capsys.readouterr().out.splitlines()
     name = "lazymixRealAmateur_v40Inpainting.safetensors"
     text = "\n".join(lines)

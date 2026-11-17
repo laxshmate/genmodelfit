@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import pytest
+from frozenlist import frozen_db
 
 from genmodelfit.db import load
 from genmodelfit.gate import evaluate_offline
@@ -119,9 +120,15 @@ CASES = [
 
 @pytest.mark.parametrize("model_id,auto,first,failing", CASES, ids=[c[0] for c in CASES])
 def test_real_model_gate(db, model_id, auto, first, failing):
+    now = None
+    if model_id.startswith("hf:"):
+        # HF の項目は凍らせた一覧から読む(毎週の更新で同梱の一覧から消えても同じ入力で確かめる。#197)。
+        # HEAD の確認の古さは凍らせた日で見る(日が経っても HEAD の期限で結果が変わらない)
+        db = frozen_db()
+        now = db.generated_time
     m = db.get(model_id)
     assert m is not None, f"一覧に無い: {model_id}"
-    r = evaluate_offline(m, sources=db.sources)
+    r = evaluate_offline(m, sources=db.sources, now=now)
     assert r.auto is auto, r.to_dict()
     assert (r.held_by[0] if r.held_by else None) == first, r.held_by
     # ライセンスの判定がカードと合っていることは必ず確かめる。それ以外の条件は、上に書いたものだけが落ちる

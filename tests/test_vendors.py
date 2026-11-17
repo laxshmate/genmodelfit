@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 import pytest
+from frozenlist import frozen_db
 
 import genmodelfit as gmf
 from genmodelfit import hardware, i18n
@@ -376,7 +377,16 @@ def no_gpu(ram: float) -> SystemInfo:
 )
 @pytest.mark.parametrize("ram", [16, 32])
 def test_sd_and_stable_audio_run_on_cpu(db, model_id, ram):
-    e = judge(db.get(model_id), no_gpu(ram), db).estimate
+    m = db.get(model_id)
+    if model_id.startswith("hf:"):
+        # HF の項目は凍らせた一覧から読み(毎週の更新で消えても同じ入力で。#197)、系統は今の表で当て直す
+        from genmodelfit.families import family_of, vae_of
+
+        db = frozen_db()
+        m = db.get(model_id)
+        m.comfy_family = family_of(m)
+        m.comfy_vae = vae_of(m, m.comfy_family)
+    e = judge(m, no_gpu(ram), db).estimate
     assert (e.fit, e.run_mode) == ("marginal", "cpu"), (model_id, ram, e.reasons[:2])
     assert any("CPU で動く系統" in r for r in e.reasons) and any("CPU で動く根拠" in r for r in e.reasons)
 

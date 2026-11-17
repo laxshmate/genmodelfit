@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from frozenlist import HUMAN_APPROVERS, all_ok
 
 import genmodelfit as gmf
 from genmodelfit import cli, review, weekly
@@ -21,7 +22,7 @@ from genmodelfit.db import Database, DatabaseError, load, parse_db
 from genmodelfit.diff import diff_db
 from genmodelfit.gate import CHECK_IDS, GatePolicy, evaluate_offline
 from genmodelfit.hf import TIER_PERMISSIVE, license_tier
-from genmodelfit.models import ModelEntry, Review
+from genmodelfit.models import REVIEW_REASONS, ModelEntry, Review
 
 NOW = datetime(2026, 10, 21, tzinfo=timezone.utc)
 URL = "https://huggingface.co/org/model/blob/main/LICENSE"
@@ -35,8 +36,16 @@ def _isolated(tmp_path, monkeypatch):
 
 
 @pytest.fixture(scope="module")
-def bundled() -> Database:
+def bundled_as_is() -> Database:
+    """同梱の一覧そのまま(確認待ちが残っていてよい。docs/release.md「毎週のスキル」)。"""
     return load(use_cache=False)
+
+
+@pytest.fixture(scope="module")
+def bundled(bundled_as_is) -> Database:
+    """同梱の一覧の写しで、確認待ちを全部確認済みにそろえたもの。「同梱の一覧 + 1 件の確認待ち」の形の試験の
+    出発点(毎週の更新で残った確認待ちに左右されない。#197)。確認待ちの無い一覧なら中身は同梱の一覧と同じ。"""
+    return all_ok(bundled_as_is)
 
 
 def _auto(db: Database) -> ModelEntry:
@@ -81,12 +90,23 @@ def _loosen(m: ModelEntry) -> ModelEntry:
 
 
 # 同梱の一覧の承認に使ってよい名前(review approve --by)。claude-maker-<番号> は別に正規表現で見る
-APPROVERS = {review.DECIDED_BY_WEEKLY, "KoyoYeager"}
+APPROVERS = {review.DECIDED_BY_WEEKLY, *HUMAN_APPROVERS}
 
 
-def test_bundled_list_starts_all_ok(bundled):
+def test_bundled_list_pending_have_reasons_and_ok_are_checked(bundled_as_is):
+    """同梱の一覧には、毎週の確かめで保留にした確認待ちが残ってよい(docs/release.md「毎週のスキル」)。
+    確認待ちには理由があり、sources の数が実際の件数と同じ。確認済みは、誰が・いつ・何を根拠にしたか
+    を見る。"""
+    bundled = bundled_as_is
     assert bundled.models
+    pending = [m for m in bundled.models if m.review is not None and m.review.status == "pending"]
+    for m in pending:
+        assert m.review.reasons and set(m.review.reasons) <= set(REVIEW_REASONS), m.id
+    assert bundled.sources["review"]["pending"] == len(pending)
+    waiting = {m.id for m in pending}
     for m in bundled.models:
+        if m.id in waiting:
+            continue
         assert m.review is not None and m.review.status == "ok", m.id
         if m.review.decided_by == review.BASELINE:
             assert m.review.decided_at == "2026-10-21"
@@ -97,7 +117,6 @@ def test_bundled_list_starts_all_ok(bundled):
         assert who in APPROVERS or re.fullmatch(r"claude-maker-\d+", who), (m.id, who)
         assert review.check_evidence(m.review.evidence), m.id  # https でホストのある URL(1 つ以上)
         assert "2026-10-21" <= (m.review.decided_at or "") <= date.today().isoformat(), m.id
-    assert bundled.sources["review"]["pending"] == 0
 
 
 def test_old_list_without_review_reads_as_ok(bundled):
