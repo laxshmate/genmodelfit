@@ -43,7 +43,8 @@
 - REST の serve は(未定)(作るならポートは ~/.claude/PORTS.md で選んで登録する)
 - 実装は Claude、レビューはユーザ。Issue ごとに 1 本の PR。依存する PR は前の PR のブランチから作り、PR の説明に書く
 - **全試験は手元で通してから push する**(2026-10-22 オーナー決定、2026-10-28 に回数を見直し)。
-  - push の前に毎回: `tools/ci_local.py --quick`(Windows の Python 3.10 と 3.13・ruff・配布物。約 15 分)
+  - push の前に毎回: `tools/ci_local.py --quick`(Windows の Python 3.10 と 3.13・ruff・配布物。約 15 分)。
+    途中で止まったら `--quick --resume` で続きから流せる(同じ中身のときだけ。1 ファイルでも変えたら最初から)
   - マージの前に 1 回(積んだ PR の最後のブランチで): `tools/ci_local.py --linux`(ci.yml と同じ検査を Windows と WSL で
     順に流す。約 1 時間。メモリを食わないよう 1 つずつ)GitHub の ci.yml は確認用で、このリポジトリの
   ブランチの PR では動かない(main へのマージ後・手動・フォークからの PR だけ)。PR の説明に手元の結果を書く。

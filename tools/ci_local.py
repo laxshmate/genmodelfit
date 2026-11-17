@@ -9,6 +9,15 @@
     python tools/ci_local.py --linux         # 続けて WSL の中でも同じものを流す(Windows から)
     python tools/ci_local.py --linux-only    # WSL の中だけ
     python tools/ci_local.py --python 3.12 --no-wheel   # 絞って流す
+    python tools/ci_local.py --quick --resume   # 途中で止まったら、同じ中身のまま続きから(下の「再開」)
+
+再開(--resume): 検査が通るたびに、git の管理するファイル全部の中身から作った鍵と一緒に記録する
+(--env-dir の中の resume-*.json と resume-*-py<版>.txt)。--resume を付けると、鍵が同じ
+(ファイルを 1 つも変えていない)ときだけ、前に通った ruff・pytest(試験 1 件ずつ)・CLI の検査と、
+全部通った配布物の検査を飛ばす。飛ばしたものはまとめに skip と出る。鍵が違う・記録が無い・読めないときは
+記録を全部消して最初から流す。--resume を付けなければいつも最初から流す(記録は新しく始める)。
+venv と install は毎回流す。落ちた検査は記録しない。迷ったら流し直す。再開して通った結果は「どの試験も、
+同じ中身で 1 回は通った」の意味(1 回の通しで全部通ったのとは違う。PR の説明には再開したことも書く)。
 
 ci.yml との対応:
 - test: 版ごとに venv(.ci/<OS>-py<版>。2 回目からは作り直さない)に `.[dev]` を入れ、3.12 だけ ruff、
@@ -26,7 +35,10 @@ WSL へは git の管理するファイル(まだコミットしていない変�
 from __future__ import annotations
 
 import argparse
+import contextlib
+import hashlib
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -34,9 +46,11 @@ import sys
 import tarfile
 import tempfile
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+PLUGIN_DIR = Path(__file__).resolve().parent / "ci_plugins"  # pytest のプラグインだけを置く
 VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 LINT_VERSION = "3.12"  # ci.yml と同じ。ruff はこの版だけ
 # --quick: いちばん古い版と新しい版だけ(新しい版だけで落ちる不具合を毎回見つける。全部はマージの前に 1 回)
@@ -61,9 +75,103 @@ IS_WIN = os.name == "nt"
 OS_TAG = "windows" if IS_WIN else "linux"
 
 
+class Resume:
+    """続きから流すための記録(--env-dir の中。中身が同じかどうかは tree_key の鍵で決める)。
+
+    resume-<OS>.json = {"key": 鍵, "passed": [通った検査の名前]}、
+    resume-<OS>-py<版>.txt = 通った試験の nodeid。
+    start で、--resume が無い・鍵が違う・読めないなら記録を全部消す。key が None なら記録も飛ばしもしない。
+    recheck があれば、記録する前に鍵を作り直して確かめる(流している間にファイルを変えたら、記録を捨てる)。"""
+
+    def __init__(
+        self, env_root: Path, key: str | None, *, recheck: Callable[[], str | None] | None = None
+    ) -> None:
+        self.env_root = env_root
+        self.key = key
+        self.recheck = recheck
+        self.passed: list[str] = []
+        self.active = False  # 前の記録を使っている(飛ばしてよい)
+        self.enabled = key is not None
+        self.why = ""
+
+    @property
+    def json_path(self) -> Path:
+        return self.env_root / f"resume-{OS_TAG}.json"
+
+    def pytest_file(self, ver: str) -> Path:
+        return (self.env_root / f"resume-{OS_TAG}-py{ver}.txt").resolve()
+
+    def clear(self) -> None:
+        for p in self.env_root.glob(f"resume-{OS_TAG}*"):
+            with contextlib.suppress(OSError):
+                p.unlink()
+
+    def _write(self) -> None:
+        tmp = self.json_path.with_name(self.json_path.name + ".tmp")
+        tmp.write_text(json.dumps({"key": self.key, "passed": self.passed}, ensure_ascii=False), "utf-8")
+        os.replace(tmp, self.json_path)
+
+    def _load(self) -> list[str] | None:
+        """記録の通った検査の名前。鍵が違う・形が違う・読めないときは None(理由は self.why)。"""
+        try:
+            doc = json.loads(self.json_path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            self.why = "記録が無いので最初から流します"
+            return None
+        except (OSError, ValueError):
+            self.why = "記録を読めないので最初から流します"
+            return None
+        names = doc.get("passed") if isinstance(doc, dict) else None
+        if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
+            self.why = "記録を読めないので最初から流します"
+            return None
+        if doc.get("key") != self.key:
+            self.why = "中身が変わったので最初から流します"
+            return None
+        return names
+
+    def start(self, use: bool) -> None:
+        self.env_root.mkdir(parents=True, exist_ok=True)
+        if not self.enabled:
+            self.clear()
+            print("再開: 中身の鍵を作れないので、記録も飛ばしもしません(全部流します)", flush=True)
+            return
+        names = self._load() if use else None
+        if names is None:
+            self.clear()
+            self.passed = []
+            self._write()
+            print(
+                f"再開: {self.why}" if use else "再開: 記録を新しく始めます(最初から全部流します)", flush=True
+            )
+            return
+        self.passed = names
+        self.active = True
+        print(f"再開: 同じ中身で前に通った検査 {len(names)} 個を飛ばします", flush=True)
+
+    def is_passed(self, name: str) -> bool:
+        return self.enabled and self.active and name in self.passed
+
+    def mark(self, name: str) -> None:
+        if not self.enabled:
+            return
+        if self.recheck is not None and self.recheck() != self.key:
+            print(
+                "*** 流している間にファイルが変わったので、記録を捨てます(続きからは流せません)", flush=True
+            )
+            self.enabled = False
+            self.active = False
+            self.clear()
+            return
+        if name not in self.passed:
+            self.passed.append(name)
+        self._write()
+
+
 class Runner:
-    def __init__(self) -> None:
-        self.results: list[tuple[str, bool, float]] = []
+    def __init__(self, resume: Resume | None = None) -> None:
+        self.results: list[tuple[str, str, float]] = []  # (名前, ok / FAIL / skip, 秒)
+        self.resume = resume
 
     def step(
         self,
@@ -73,31 +181,45 @@ class Runner:
         cwd: Path = ROOT,
         env: dict[str, str] | None = None,
         quiet: bool = False,
+        resume_key: str | None = None,
     ) -> bool:
+        """resume_key があれば、同じ中身で前に通っているとき流さず skip にする。通ったら記録する。"""
+        if resume_key and self.resume is not None and self.resume.is_passed(resume_key):
+            self.skip(name)
+            return True
         print(f"\n=== [{OS_TAG}] {name}", flush=True)
         t0 = time.monotonic()
         kw: dict = {"cwd": cwd, "env": env or child_env()}
         if quiet:
             kw.update(stdout=subprocess.DEVNULL)
         ok = subprocess.run(cmd, check=False, **kw).returncode == 0
-        self.results.append((name, ok, time.monotonic() - t0))
+        self.results.append((name, "ok" if ok else "FAIL", time.monotonic() - t0))
         if not ok:
             print(f"*** 失敗: {name}", flush=True)
+        elif resume_key and self.resume is not None:
+            self.resume.mark(resume_key)
         return ok
 
+    def skip(self, name: str) -> None:
+        print(f"\n=== [{OS_TAG}] {name}(skip: 同じ中身で前に通った)", flush=True)
+        self.results.append((name, "skip", 0.0))
+
     def record(self, name: str, ok: bool) -> None:
-        self.results.append((name, ok, 0.0))
+        self.results.append((name, "ok" if ok else "FAIL", 0.0))
         if not ok:
             print(f"*** 失敗: {name}", flush=True)
 
     @property
     def ok(self) -> bool:
-        return all(ok for _, ok, _ in self.results)
+        return all(status != "FAIL" for _, status, _ in self.results)
 
     def summary(self) -> None:
         print(f"\n===== まとめ({OS_TAG})")
-        for name, ok, sec in self.results:
-            print(f"  {'ok  ' if ok else 'FAIL'}  {sec:7.1f}s  {name}")
+        for name, status, sec in self.results:
+            print(f"  {status.ljust(4)}  {sec:7.1f}s  {name}")
+        skipped = sum(1 for _, status, _ in self.results if status == "skip")
+        if skipped:
+            print(f"(再開: {skipped} 個は同じ中身で前に通ったので飛ばしました)")
         print("すべて通りました" if self.ok else "落ちたものがあります", flush=True)
 
 
@@ -125,13 +247,29 @@ def run_tests(r: Runner, ver: str, env_root: Path, cache: Path, *, lint: bool | 
         return
     lint = ver == LINT_VERSION if lint is None else lint
     if lint:
-        r.step("ruff check", [str(py), "-m", "ruff", "check", "."])
-        r.step("ruff format --check", [str(py), "-m", "ruff", "format", "--check", "."])
-    r.step(f"py{ver} pytest", [str(py), "-m", "pytest", "-q", "-p", "no:cacheprovider"])
+        # ruff は版ごとの venv で流すので、記録の名前に版を入れる(--quick の 3.10 の結果を 3.12 の分にしない)
+        r.step("ruff check", [str(py), "-m", "ruff", "check", "."], resume_key=f"py{ver} ruff check")
+        r.step(
+            "ruff format --check",
+            [str(py), "-m", "ruff", "format", "--check", "."],
+            resume_key=f"py{ver} ruff format --check",
+        )
+    pytest_cmd = [str(py), "-m", "pytest", "-q", "-p", "no:cacheprovider"]
+    pytest_env = None
+    res = r.resume
+    if res is not None and res.enabled:
+        # 試験 1 件ずつの記録・再開(ci_plugins/ci_resume.py)。記録しない回(鍵が None)は付けない
+        pytest_cmd += ["-p", "ci_resume"]
+        extra = {"PYTHONPATH": str(PLUGIN_DIR), "GMF_CI_RESUME_FILE": str(res.pytest_file(ver))}
+        if res.active:
+            extra["GMF_CI_RESUME_SKIP"] = "1"
+        pytest_env = child_env(**extra)
+    r.step(f"py{ver} pytest", pytest_cmd, env=pytest_env, resume_key=f"py{ver} pytest")
     exe = venv_bin(env_dir, "genmodelfit")
     smoke_env = child_env(GENMODELFIT_CACHE_DIR=str(cache))
     for args in SMOKE:
-        r.step(f"py{ver} CLI {args[0]}", [exe, *args], env=smoke_env, quiet=True)
+        name = f"py{ver} CLI {args[0]}"
+        r.step(name, [exe, *args], env=smoke_env, quiet=True, resume_key=name)
     if lint:
         # 知らせるだけ(失敗にしない。ci.yml には無い): 同梱のまとめにまだ入っていない data/contrib の提出。
         # 入れるのは版を出すとき(docs/release.md「版を出す手順」。#90)
@@ -181,15 +319,36 @@ def tracked_files() -> list[str]:
     return [f for f in out.split("\0") if f and (ROOT / f).is_file()]
 
 
+def tree_key() -> str | None:
+    """作業ツリーの中身の鍵: tracked_files を並べ替え、相対パスと中身の sha256 を順に足した sha256。
+    git が無い・ファイルを読めないなどのときは None(その回は記録も飛ばしもしない)。"""
+    try:
+        h = hashlib.sha256()
+        for f in sorted(tracked_files()):
+            h.update(f.replace("\\", "/").encode("utf-8"))
+            h.update(b"\0")
+            h.update(hashlib.sha256((ROOT / f).read_bytes()).hexdigest().encode("ascii"))
+            h.update(b"\n")
+    except (OSError, ValueError, subprocess.SubprocessError) as e:
+        print(f"再開: 中身の鍵を作れませんでした({type(e).__name__})", flush=True)
+        return None
+    return h.hexdigest()
+
+
 def run_in_wsl(args: argparse.Namespace) -> bool:
     if not IS_WIN:
         print("--linux は Windows から使います(Linux ではそのまま流してください)", file=sys.stderr)
         return False
+    # WSL の中には git が無いので、鍵は Windows 側で作って渡す。写している間にファイルが変わったら鍵は渡さない
+    key_before = tree_key()
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w") as tar:
         for f in tracked_files():
             tar.add(ROOT / f, arcname=f)
-    inner = ["--env-dir", f"{WSL_HOME_DIR}/envs", "--python", *args.python]
+    key = key_before if key_before is not None and tree_key() == key_before else None
+    inner = ["--env-dir", f"{WSL_HOME_DIR}/envs", "--tree-key", key or "none", "--python", *args.python]
+    if args.resume:
+        inner.append("--resume")
     if args.no_wheel:
         inner.append("--no-wheel")
     if args.no_tests:
@@ -248,6 +407,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="push の前の毎回の分: 3.10 と 3.13 だけ(ruff は 3.10 で)と配布物。全部はマージの前に 1 回",
     )
+    ap.add_argument(
+        "--resume",
+        action="store_true",
+        help="途中で止まったとき、同じ中身(ファイルを変えていない)なら前に通った検査・試験を飛ばして続ける",
+    )
+    ap.add_argument("--tree-key", default=None, help=argparse.SUPPRESS)  # WSL の中で使う(git が無い)
     ap.add_argument("--env-dir", default=str(ROOT / ".ci"), help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
     if args.quick:
@@ -262,14 +427,29 @@ def main(argv: list[str] | None = None) -> int:
     if not args.linux_only:
         env_root = Path(os.path.expandvars(os.path.expanduser(args.env_dir)))
         env_root.mkdir(parents=True, exist_ok=True)
-        r = Runner()
+        if args.tree_key is not None:
+            resume = Resume(env_root, None if args.tree_key == "none" else args.tree_key)
+        else:
+            resume = Resume(env_root, tree_key(), recheck=tree_key)
+        resume.start(args.resume)
+        r = Runner(resume)
         with tempfile.TemporaryDirectory(prefix="gmf-ci-") as t:
             tmp = Path(t)
             for i, ver in enumerate([] if args.no_tests else args.python):
                 # --quick では 3.12 を流さないので、ruff は最初の版で流す
                 run_tests(r, ver, env_root, tmp / "smoke-cache", lint=(i == 0) if args.quick else None)
             if not args.no_wheel:
-                run_wheel(r, [v for v in args.python if v in WHEEL_VERSIONS], tmp)
+                wheel_versions = [v for v in args.python if v in WHEEL_VERSIONS]
+                # 中の検査は一時フォルダに頼るので、まとめて 1 つ。流す版の組が同じときだけ飛ばす
+                wkey = "wheel " + ",".join(wheel_versions)
+                if resume.is_passed(wkey):
+                    r.skip("配布物")
+                else:
+                    n0 = len(r.results)
+                    run_wheel(r, wheel_versions, tmp)
+                    new = r.results[n0:]
+                    if new and all(status == "ok" for _, status, _ in new):
+                        resume.mark(wkey)
         r.summary()
         ok = r.ok
     if args.linux or args.linux_only:
