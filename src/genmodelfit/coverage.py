@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from .db import Database
+from .db import Database, load_measurements
 from .estimate import is_censored, no_size_input, settings_for, stages_for, usable, working_only
 from .i18n import tr
 from .models import Measurement, ModelEntry
@@ -145,6 +145,59 @@ def coverage(db: Database) -> dict[str, Any]:
     }
 
 
+def unmeasured_new(
+    db: Database,
+    added_ids: Iterable[str],
+    measurements: Iterable[Measurement] | None = None,
+) -> dict[str, Any]:
+    """毎週の更新で増えた項目のうち、実測の無い式を持つものを数える(#205。知らせるだけ)。
+
+    added_ids のうち db にある項目それぞれに formula_keys を当て、measured_keys(今の「実測がある」の条件)で
+    実測の有無を分ける。measurements を渡さないときは同梱の実測(作者の + ほかの利用者のまとめ)だけを読み、
+    この PC のキャッシュの実測は読まない(メンテナの PC の実測で毎週の PR の本文が変わらないように。
+    db.measurements は読み込みの既定でキャッシュの実測を含むので使わない)。
+
+    返す値(JSON に書ける。同じ入力なら同じ出力):
+    - added: db にある増えた項目の数(db に無い id は数えない)
+    - counts: both(生成の段も VAE も実測あり)・vae_only・work_only・none(段ごとの式は当てられるが
+      どちらも実測なし)・not_staged(段ごとの式を当てられず、model:<id> にも実測なし)・
+      not_staged_measured(同じく当てられないが model:<id> に実測あり)。和は added
+    - formulas: 実測の無い work: / vae: の鍵ごとに {key, kind, models}。項目の多い鍵が先、同数なら鍵の順
+    - not_staged: 実測の無い当てられない項目を種類(modality)ごとに {modality, models}(種類の順)"""
+    if measurements is None:
+        measurements = load_measurements(include_cache=False)
+    have_keys, _ = measured_keys(db.models, measurements)
+    by_id = {e.id: e for e in db.models}
+    entries = [by_id[i] for i in sorted(set(added_ids)) if i in by_id]
+    counts = dict.fromkeys(("both", "vae_only", "work_only", "none", "not_staged", "not_staged_measured"), 0)
+    formulas: dict[str, list[str]] = {}
+    other: dict[str, list[str]] = {}
+    for e in entries:
+        keys = formula_keys(e)
+        if keys[0].startswith("model:"):
+            if keys[0] in have_keys:
+                counts["not_staged_measured"] += 1
+            else:
+                counts["not_staged"] += 1
+                other.setdefault(e.modality, []).append(e.id)
+            continue
+        work_ok, vae_ok = keys[0] in have_keys, keys[1] in have_keys
+        counts[
+            "both" if work_ok and vae_ok else "vae_only" if vae_ok else "work_only" if work_ok else "none"
+        ] += 1
+        for k in keys:
+            if k not in have_keys:
+                formulas.setdefault(k, []).append(e.id)
+    rows = [{"key": k, "kind": k.partition(":")[0], "models": sorted(v)} for k, v in formulas.items()]
+    rows.sort(key=lambda r: (-len(r["models"]), r["key"]))
+    return {
+        "added": len(entries),
+        "counts": counts,
+        "formulas": rows,
+        "not_staged": [{"modality": m, "models": sorted(v)} for m, v in sorted(other.items())],
+    }
+
+
 def coverage_table(cov: dict[str, Any]) -> list[str]:
     """確かめた範囲の表(Markdown。tr() で日英)。モデル ID は一覧から来るので md_cell を通す。"""
     from .contrib import md_cell
@@ -212,4 +265,4 @@ def coverage_table(cov: dict[str, Any]) -> list[str]:
     return lines
 
 
-__all__ = ["coverage", "coverage_table", "formula_keys", "measured_keys"]
+__all__ = ["coverage", "coverage_table", "formula_keys", "measured_keys", "unmeasured_new"]

@@ -759,7 +759,7 @@ Check: `id`(安定した、機械が読む名前)、`passed`(bool)、`detail`(�
 - `DIR/diff.json`(上の dict)
 - `DIR/pr_body.md`
 - `DIR/review_queue.json`(0.6.0: `{genmodelfit, generated_at, pending: [review list items], classification}`)
-- `DIR/result.json`: `genmodelfit`、`ok`、`problems`(str[]。失敗の理由)、`base`、`offline`、`run_url`、`partial`、`status`(新しい一覧の DataStatus)、`status_old`(基準の一覧の)、`warnings`(str[])、`summary`(上と同じ)、`classification`(`{safe, judgement_needed: 件数}`)、`review_pending`(review list の項目)、`files`(`db`、`diff`、`pr_body`、`review_queue`)。`--apply` のときは `applied_to` も。
+- `DIR/result.json`: `genmodelfit`、`ok`、`problems`(str[]。失敗の理由)、`base`、`offline`、`run_url`、`partial`、`status`(新しい一覧の DataStatus)、`status_old`(基準の一覧の)、`warnings`(str[])、`summary`(上と同じ)、`classification`(`{safe, judgement_needed: 件数}`)、`review_pending`(review list の項目)、`unmeasured_formulas`(#205。増えた項目のうち実測の無い式を持つもの。`coverage.unmeasured_new` の結果: `added`(一覧にあった増えた項目の数)・`counts`・`formulas`・`not_staged`。知らせるだけ。`counts` の 6 つのキーの和は `added`: `both`(生成の段も VAE も実測あり)・`vae_only`・`work_only`・`none`(段ごとの式はあるがどちらも実測なし)・`not_staged`(段ごとの式を当てられず、モデル自身の実測も無い)・`not_staged_measured`(段ごとの式を当てられないが、モデル自身の実測あり)。作れなかったときは `{"error": <例外の型の名前>}`)、`files`(`db`、`diff`、`pr_body`、`review_queue`)。`--apply` のときは `applied_to` も。
 
 Pull Request の本文には「分類」の節と「確認待ち」の表がある(名前は、上流のすべての文と同じくエスケープする)。
 終了コードは変わらない: 判断が要る週も `ok`(終了コード 0)。

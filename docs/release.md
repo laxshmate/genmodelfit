@@ -335,6 +335,7 @@ Read the "Notes" and the tables in the body (same content as `genmodelfit diff`)
 - **Entries awaiting review (review)** and the URLs of the `evidence` attached by `review approve` (#42; see [Weekly skill](#weekly-skill-genmodelfit-weekly-42) below).
 - The full differences are in `diff.json` of the artifact (its shape is in [schema.md, "diff"](schema.md#diff)).
 - The candidates of the "GPU table watch" (below). It does not stop the merge, so candidates become separate issues.
+- The "実測の無い式(増えた項目)" (formulas without a measurement, among the added entries) section (#205). Among the entries added this week, it lists by formula key those whose per-stage formula (sampling stage, VAE) has no bundled measurement: the ones `genmodelfit share` suggests first (#200). It sits after the GPU table watch (it is cut first when the body is long), shows at most 15 rows (all in `unmeasured_formulas` of `result.json`), and also counts entries without a per-stage formula. It only informs: it affects neither `ok`, the classification nor the merge decision, and if building it fails the update goes on with `{"error": <exception type>}`.
 
 ### GPU table watch (#103)
 
