@@ -18,7 +18,8 @@
    `update --inspect-only` と同じ読み直し(401 だったリポジトリの確かめ直し・テンプレートのサンプラーの組)。
    同梱の一覧もこの 2 段で作るので、毎週の差分に段の違いが出ない
 3. 確かめる: 形(db.load で読み直す)、自動のおすすめが 0 件でない、区分ごとに元の半分未満に減っていない、
-   新しく無検閲になった項目が MAX_NEW_UNCENSORED 件まで、
+   新しく無検閲になった項目が MAX_NEW_UNCENSORED 件 × 週の数まで(週の数は、元の一覧を作り直した日
+   (generated_at)からの週を四捨五入したもの。通らなかった週の分がたまっても、次の週に通れるように。#197)、
    **HEAD の期限(30 日)が 7 日より先**(作り直した直後なのに近ければ、HEAD の取り直しが効いていない)
 4. 一部を取得できなかったとき(sources.partial): 既定は失敗(PR を作らない)。--allow-partial のときだけ、
    中身が筋の通るとき(下の partial_problems が空)に限って「一部欠け」の警告を付けて通す
@@ -46,6 +47,7 @@ import argparse
 import contextlib
 import html
 import json
+import math
 import os
 import re
 import shutil
@@ -75,8 +77,12 @@ MIN_KEEP_RATIO = 0.5
 # PR の本文の 1 つの表に載せる行の上限(残りは diff.json)。本文は GitHub の上限(65536 文字)より短くする
 MAX_ROWS = 40
 MAX_BODY_CHARS = 60_000
-# 1 回の更新で新しく無検閲の印が付いてよい数。超えたら定期の実行は失敗(手動の実行は先頭に警告。#19)
+# 1 週あたりに新しく無検閲の印が付いてよい数。元の一覧を作り直してからの週の数を掛けたものを超えたら、
+# 定期の実行は失敗(手動の実行は先頭に警告。#19)。週の数を掛けるのは、通らなかった週の分がたまって、
+# 次の週からも通らなくなるのを防ぐため(#197)
 MAX_NEW_UNCENSORED = 5
+# 週の数の上限(8 週 = 40 件)。上限はこれより増えない。超えたら今までどおり失敗して人が見る
+MAX_UNCENSORED_WEEKS = 8
 # 減り方を見る区分の、元の件数の下限(少ない区分は 1 件の増減で半分を切るので見ない)
 SHRINK_MIN_BASE = 4
 HEADS_FILE = "heads.json"
@@ -404,6 +410,7 @@ def pr_body(d: dict[str, Any], result: dict[str, Any]) -> str:
             lines.append("")
     if d["newly_uncensored"]:
         lines += ["### 新しく無検閲の印が付いた項目", ""]
+        lines += uncensored_lines(result.get("uncensored"))
         lines += _table(
             ["id", "種類", "新規", "根拠"],
             [
@@ -504,6 +511,41 @@ def limit_body(body: str) -> str:
     return cut + tail
 
 
+def uncensored_lines(u: dict[str, Any] | None) -> list[str]:
+    """新しく無検閲の印の数と上限の内訳の行(PR の本文の無検閲の節の頭)。上限は日数で増えるので、止まった後の
+    週は、たまった分か規則が緩んだ分かを人が項目で確かめるように書く(#197)。古い result(uncensored が
+    無い)なら何も出さない。"""
+    if not isinstance(u, dict) or not all(isinstance(u.get(k), int) for k in ("new", "limit", "weeks")):
+        return []
+    line = (
+        f"新しく無検閲の印: {u['new']} 件(上限 {u['limit']} 件 = {MAX_NEW_UNCENSORED} 件 × {u['weeks']} 週)"
+    )
+    if u["weeks"] >= 2:
+        line += (
+            f"。元の一覧を作り直してから {u['weeks']} 週ぶんです。1 週で増えたのか、たまった分かを項目で"
+            "確かめてください"
+        )
+    return [line, ""]
+
+
+def uncensored_limit(old: Database, now: datetime) -> tuple[int, int]:
+    """新しく無検閲の印が付いてよい数と、その週の数: (MAX_NEW_UNCENSORED × 週の数, 週の数)。
+
+    週の数は、元の一覧(old)を作り直した日(generated_at)から now までの日数 ÷ 7 の四捨五入(1 から
+    MAX_UNCENSORED_WEEKS まで)。切り上げにしないのは、毎週の起動の時刻が数時間ずれ、ふだんの週の経過が
+    「7 日 + 数時間」になるため(ずれで 1 週ぶん増えないように)。round() は偶数への丸めなので使わない。
+    generated_at は一覧を上流から作り直したときだけ変わり、HEAD だけ・項目だけのやり直し
+    (update --heads-only など)では変わらない(週の数が戻って、たまった分がまた通らなくなることが無い)。
+    日が読めない・now より先のときは 1 週(今までと同じ数)。"""
+    made = old.generated_time
+    if made is None or made > now:
+        weeks = 1
+    else:
+        days = (now - made).total_seconds() / 86400
+        weeks = min(MAX_UNCENSORED_WEEKS, max(1, math.floor(days / 7 + 0.5)))
+    return MAX_NEW_UNCENSORED * weeks, weeks
+
+
 @_japanese()
 def run(
     out_dir: str | Path,
@@ -560,10 +602,11 @@ def run(
     problems += shrink_problems(old, new, d)
     warnings: list[str] = []
     many = d["summary"]["newly_uncensored"]
-    if many > MAX_NEW_UNCENSORED:
+    limit, weeks = uncensored_limit(old, when)
+    if many > limit:
         msg = (
-            f"新しく無検閲の印が付いた項目が {many} 件あります({MAX_NEW_UNCENSORED} 件まで)。"
-            "選び方の規則が緩んでいないか確かめてください"
+            f"新しく無検閲の印が付いた項目が {many} 件あります(上限 {limit} 件 = "
+            f"{MAX_NEW_UNCENSORED} 件 × {weeks} 週)。選び方の規則が緩んでいないか確かめてください"
         )
         (warnings if allow_many_uncensored else problems).append(msg)
     pending = review_list(new)
@@ -574,6 +617,7 @@ def run(
     result.update(
         popularity_bias=bias,
         review_pending=pending,
+        uncensored={"new": many, "limit": limit, "weeks": weeks},  # 超えない週も数を見えるように(#197)
         classification={
             "safe": d["classification"]["safe"],
             "judgement_needed": len(d["classification"]["judgement_needed"]),
@@ -787,7 +831,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--allow-many-uncensored",
         action="store_true",
-        help=f"新しく無検閲の項目が {MAX_NEW_UNCENSORED} 件を超えても失敗にせず、先頭に警告(手動の実行)",
+        help=(
+            f"新しく無検閲の項目が上限({MAX_NEW_UNCENSORED} 件 × 元の一覧を作り直してからの週の数)を"
+            "超えても失敗にせず、先頭に警告(手動の実行)"
+        ),
     )
     p.add_argument(
         "--rate-limit-budget", type=float, metavar="SEC", help="429 で待つ時間の合計の上限(既定 900)"

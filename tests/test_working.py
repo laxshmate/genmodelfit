@@ -12,6 +12,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from frozenlist import frozen_db
 
 from genmodelfit import families, i18n
 from genmodelfit.db import load
@@ -482,7 +483,8 @@ def test_size_bins(db):
     )
     assert _st(db, "audio_stable_audio_3_medium_base").vae == "sa3_large"
     assert _st(db, "manual:stable-audio-3-small-music").vae == "sa3_small"
-    assert _st(db, "hf:stabilityai/stable-audio-3-small-sfx").vae == "sa3_small"
+    # HF の項目は凍らせた一覧から読む(毎週の更新で同梱の一覧から消えても同じ入力で確かめる。#197)
+    assert _st(frozen_db(), "hf:stabilityai/stable-audio-3-small-sfx").vae == "sa3_small"
 
 
 def _flux3_params(hidden: int, depth: int = 5, single: int = 28, flow_map: bool = False) -> int:
@@ -879,11 +881,17 @@ SD_BY_PRINT = {
 }
 
 
+@pytest.fixture(scope="module")
+def frozen():
+    """名指しの項目を読む凍らせた一覧(毎週の更新で同梱の一覧から消えても同じ入力で確かめる。#197)。"""
+    return frozen_db()
+
+
 @pytest.mark.parametrize("mid", sorted(SD_BY_PRINT))
-def test_sd_found_by_header_params(db, mid):
-    m = db.get(mid)
+def test_sd_found_by_header_params(frozen, mid):
+    m = frozen.get(mid)
     assert families.family_of(m) == "sd" == m.comfy_family
-    assert _st(db, mid).work == SD_BY_PRINT[mid]
+    assert _st(frozen, mid).work == SD_BY_PRINT[mid]
 
 
 def test_sd_prints_are_the_official_counts():

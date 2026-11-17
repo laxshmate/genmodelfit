@@ -8,6 +8,7 @@ from collections import defaultdict
 
 import pytest
 from clihelp import run_cli
+from frozenlist import frozen_db
 
 from genmodelfit import cli, load_db
 from genmodelfit.groups import (
@@ -29,6 +30,13 @@ from genmodelfit.update import template_tasks
 @pytest.fixture(scope="module")
 def db():
     return load_db(use_cache=False)
+
+
+@pytest.fixture(scope="module")
+def frozen():
+    """名指しの項目を読む凍らせた一覧(毎週の更新で同梱の一覧から消えても同じ入力で確かめる。#197)。
+    名前の決まりの試験のために、名指しの項目と同じまとまりの仲間も写してある。"""
+    return frozen_db()
 
 
 def pc(vram: float, ram: float = 32) -> SystemInfo:
@@ -111,13 +119,13 @@ DIFFERENT = [  # 大きさ・版・種類が違う
 
 
 @pytest.mark.parametrize(("a", "b"), SAME)
-def test_same_model(db, a, b):
-    assert _key(db, a) == _key(db, b)
+def test_same_model(frozen, a, b):
+    assert _key(frozen, a) == _key(frozen, b)
 
 
 @pytest.mark.parametrize(("a", "b"), DIFFERENT)
-def test_different_model(db, a, b):
-    assert _key(db, a) != _key(db, b)
+def test_different_model(frozen, a, b):
+    assert _key(frozen, a) != _key(frozen, b)
 
 
 def test_text_encoder_is_never_the_key(db):
@@ -300,10 +308,12 @@ def test_bundled_precision_matches_update_rule(db):
     assert precision_rank("w4a8") == precision_rank("gguf-q4_k_m") > precision_rank("int8")
 
 
-def test_same_sha256_is_the_same_model(db):
+def test_same_sha256_is_the_same_model(db, frozen):
+    # HF の項目との組は凍らせた一覧で見る(毎週の更新で同梱の一覧から消えても同じ入力で確かめる。#197)
+    fk = build_index(frozen.models).key_of
+    assert fk["hf:stabilityai/stable-audio-open-1.0"] == fk["audio_stable_audio_example"]  # 同じファイル
     idx = build_index(db.models)
     k = idx.key_of
-    assert k["hf:stabilityai/stable-audio-open-1.0"] == k["audio_stable_audio_example"]  # 同じファイル
     assert (
         k["audio_ace_step_1_5_split"]
         == k["audio_ace_step_1_5_split_4b"]
@@ -538,10 +548,21 @@ def test_file_less_templates_join_or_say_files_unknown(db):
     assert not [n for n in names if re.search(r"utility[_-]|templates?[_-]|\[[a-z0-9_.-]+\]$", n)]
 
 
-def test_name_rules_and_overrides(db):
+def test_name_rules_and_overrides(db, frozen):
+    """名前の決まりは凍らせた一覧で見る(毎週の更新で新しい仲間が入ると名前が変わるため。#197)。
+    名前が重ならないことは、同梱の一覧でも見る。"""
     from genmodelfit.groups import NAME_OVERRIDES
 
-    idx = build_index(db.models)
+    full = build_index(db.models)
+    assert len({n.lower() for n in full.name_of.values()}) == len(full.name_of)
+    # 同梱の一覧に在る上書きの表の ID は、同梱の一覧でも上書きの名前で出る(在る ID だけ。全部の ID への
+    # 検査は下の凍らせた一覧で行う)
+    full_by_id = {mid: full.name_of[k] for mid, k in full.key_of.items()}
+    present = [mid for mid in NAME_OVERRIDES if mid in full_by_id]
+    assert present
+    for mid in present:
+        assert full_by_id[mid] == NAME_OVERRIDES[mid], mid
+    idx = build_index(frozen.models)
     by_id = {mid: idx.name_of[k] for mid, k in idx.key_of.items()}
     assert (
         by_id["3d_moge_perspective_to_mesh"] == "MoGe 2 (3D)"

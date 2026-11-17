@@ -11,7 +11,16 @@ import pytest
 from genmodelfit import cli, load_db
 from genmodelfit.fetch import FetchError
 from genmodelfit.groups import model_precision_source, precision_label
-from genmodelfit.models import RUN_UNKNOWN, Estimate, Gpu, ModelEntry, ModelFile, SystemInfo, Template
+from genmodelfit.models import (
+    MODALITIES,
+    RUN_UNKNOWN,
+    Estimate,
+    Gpu,
+    ModelEntry,
+    ModelFile,
+    SystemInfo,
+    Template,
+)
 from genmodelfit.recommend import mode_label
 from genmodelfit.repo_precision import (
     RepoPrecisionCache,
@@ -20,6 +29,7 @@ from genmodelfit.repo_precision import (
     inspect_repos,
     recheck_unauthorized,
 )
+from genmodelfit.table import COLUMN_WIDTH, distinct_names
 from genmodelfit.update import set_precision, set_workflow_precision, unauthorized_repos
 from genmodelfit.workflow import loader_precision
 
@@ -81,9 +91,27 @@ def test_fit_table_uses_question_mark_for_unknown_precision(capsys):
     out = capsys.readouterr().out
     assert code == 0
     assert "? = 分からない(精度・ライセンス・大きさ。判定していない)、- = 当てはまらない" in out
-    ids = {m.id for m in unknown}
-    rows = [line for line in out.splitlines() if any(i[:18] in line for i in ids)]
-    assert rows and all(" ? " in r for r in rows)  # Prec が ?(前は -)
+    # 行は Model の列の文字で、あいまいさ無く探す(ID の先頭だけで探すと、頭の同じ別の項目の行に当たる。#197)。
+    # --all は既定(sfw)の全部、--all-workflows はワークフローごとに 1 行。表の名前は表と同じ省略で作る
+    lines = out.splitlines()
+    k = next(i for i, ln in enumerate(lines) if ln.startswith("Type ") and " Model " in ln and " Prec " in ln)
+    header = lines[k]
+    rows = []
+    for ln in lines[k + 1 :]:  # 表の行は種類(Type)で始まる。その後ろは凡例
+        if ln.split(" ", 1)[0] not in MODALITIES:
+            break
+        rows.append(ln)
+    shown = [m.id for m in db.models if m.content == "sfw"]
+    assert len(rows) == len(shown)
+    x, y, prec = header.index(" Model ") + 1, header.index(" Use ") + 1, header.index(" Prec ") + 1
+    cells = distinct_names(shown, y - x - 1)
+    by_cell: dict[str, list[str]] = {}
+    for r in rows:
+        by_cell.setdefault(r[x:y].strip(), []).append(r)
+    assert set(by_cell) == set(cells.values())  # 表の名前は 1 行に 1 つ(重ならない)
+    for m in unknown:
+        (row,) = by_cell[cells[m.id]]
+        assert row[prec : prec + COLUMN_WIDTH["Prec"]].strip() == "?", row  # Prec が ?(前は -)
     assert all(len(line) <= 100 for line in out.splitlines())
 
 

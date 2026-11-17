@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from clihelp import run_cli
+from frozenlist import frozen_db
 
 import genmodelfit as gmf
 from genmodelfit import cli, load_db
@@ -325,12 +326,16 @@ def test_unknown_size_listed_last_in_fit_and_hidden_in_recommend(db, monkeypatch
         "hf:Jmica/Drama-3-GGUF",
     ],
 )
-def test_tts_gguf_entries_are_judged(db, mid):
+def test_tts_gguf_entries_are_judged(mid):
     """読み上げの GGUF は llama.cpp 系の一式で、テキストエンコーダ・VAE を持たない。本体の GGUF だけでも
-    大きさが分かるので判定する(0.1.0 は「一式が欠けている」として判定できず Too tight と出ていた)。"""
+    大きさが分かるので判定する(0.1.0 は「一式が欠けている」として判定できず Too tight と出ていた)。
+    項目は凍らせた一覧から読み、一式がそろったかは今の規則(set_completeness)で決め直す(#197)。"""
+    from genmodelfit.update import set_completeness
+
+    db = frozen_db()
     m = db.get(mid)
-    if m is None:
-        pytest.skip("同梱の一覧に無い")
+    m.files_complete = None
+    set_completeness(m)
     assert m.files_complete is True
     e = estimate(m, pc(24), measurements=db.measurements)
     assert not e.unknown_size and e.fit != FIT_UNKNOWN

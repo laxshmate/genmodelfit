@@ -10,6 +10,7 @@ import re
 from dataclasses import fields
 
 import pytest
+from frozenlist import frozen_db, hand_checked
 
 from genmodelfit import appinfo, cli
 from genmodelfit import db as dbmod
@@ -20,6 +21,7 @@ from genmodelfit.models import ModelEntry, ModelFile
 
 NEW_KEYS = {"languages", "runtime", "description", "card_languages"}
 # アプリがカタログの代わりにこの一覧を使う 12 件(AI生成キットの catalog.json の gmf_id。手のモデルは manual:…)
+# 凍らせた一覧に移さない: 同梱の一覧から消えた週は、アプリの要件が崩れるので試験を落として人が見る(#197)
 APP_12 = [
     "image_z_image_turbo_int8",
     "image_z_image_turbo",
@@ -497,9 +499,16 @@ def test_ja_comes_only_from_cards_or_the_hand_table(bundled):
                 assert set(langs) <= set(card), m.id
 
 
-def test_languages_that_were_over_attributed_are_fixed(bundled):
-    """検証で見つかった付けすぎ(カードが en / en,zh なのに ja)と、確証の無い ja(Kandinsky5・Anima)。"""
-    by = {m.id: m for m in bundled.models}
+def test_languages_that_were_over_attributed_are_fixed():
+    """検証で見つかった付けすぎ(カードが en / en,zh なのに ja)と、確証の無い ja(Kandinsky5・Anima)。
+    名指しの項目は凍らせた一覧から読み、保存した値を消して今の規則(カードの言語・部品の表・手の表)で
+    当て直してから見る(毎週の更新で項目が一覧から消えても、規則を壊せば落ちる。#197)。"""
+    models = frozen_db().models
+    for m in models:
+        if m.source != "manual":  # 手のモデルの項目は manual.json に書いてある
+            m.languages, m.runtime, m.description = {}, None, {}
+    appinfo.apply_app_fields(models)
+    by = {m.id: m for m in models}
     assert by["audio_stable_audio_3_medium"].languages["prompt"] == ["en"]
     assert "ja" not in by["video_hunyuan_video_1.5_720p_t2v"].languages["prompt"]
     for mid in ("video_kandinsky5_t2v", "image_kandinsky5_t2i", "image_anima_base_v1", "image_z_image"):
@@ -911,10 +920,11 @@ def test_verify_keeps_a_license_name_that_refines_the_card():
 
 def test_every_hf_speech_model_has_a_runtime_from_the_hand_table():
     """HF の読み上げは規則で動かし方を決めず、手の表に書く(カードの使い方で確かめたもの)。同梱の一覧の
-    どれにも値があり、手の表の行には根拠(_note)がある。"""
+    手で確かめ済みの項目のどれにも値があり、手の表の行には根拠(_note)がある。毎週の更新で入った新しい項目
+    (確認待ち・毎週の自動の承認)は db.json だけが変わるので手の表に行が無く、人が確かめるときに足す(#197)。"""
     table = appinfo.overrides()
     db = load(None, use_cache=False)
-    speech = [m for m in db.models if m.source == "huggingface" and m.modality == "tts"]
+    speech = [m for m in db.models if m.source == "huggingface" and m.modality == "tts" and hand_checked(m)]
     assert speech
     for m in speech:
         assert m.runtime and m.runtime == table[m.id]["runtime"], m.id
@@ -948,10 +958,16 @@ def test_every_hf_speech_model_has_a_runtime_from_the_hand_table():
 )
 def test_speech_models_carry_the_parts_their_code_loads(mid, names, lic):
     """公式のコードが読む部品(音声トークナイザ・コーデックなど)を files に足し、ライセンスは部品の
-    出どころの表、見積もりにも数える(#142)。"""
+    出どころの表、見積もりにも数える(#142)。項目は凍らせた一覧から読み、足した部品を外してから今の規則
+    (manual.json の components・部品の出どころの表)で足し直して見る(#197)。"""
     from genmodelfit.estimate import select_files
+    from genmodelfit.license_sources import COMPONENT_EVIDENCE
 
-    m = load(None, use_cache=False).get(mid)
+    m = frozen_db().get(mid)
+    mark = f"{COMPONENT_EVIDENCE}:"
+    m.files = [f for f in m.files if not any(x.startswith(mark) for x in f.license_evidence)]
+    assert not names & {f.name for f in m.files}  # 外した(足し直さなければ無い)
+    assert appinfo.add_components([m]) == [mid]
     got = {f.name: f for f in m.files}
     assert names <= set(got)
     for n in names:
@@ -977,8 +993,17 @@ def test_auk_gguf_takes_the_non_commercial_qwen_license():
     """AuK の GGUF は audio.cpp で Qwen2.5-Omni-3B(Qwen RESEARCH LICENSE、非商用)が要る。置き場所の
     カードの mit を一式のライセンスにしない(#143)。"""
     from genmodelfit.hf import TIER_PERMISSIVE
+    from genmodelfit.license_sources import COMPONENT_EVIDENCE
 
-    m = load(None, use_cache=False).get("hf:audio-cpp/AuK-Base-and-Flash-GGUF")
+    # 項目は凍らせた一覧から読み、足した部品と一式のライセンスを消してから、今の規則(manual.json の
+    # components・部品の出どころの表・一式のライセンスの決め方)で決め直して見る(#197)
+    mid = "hf:audio-cpp/AuK-Base-and-Flash-GGUF"
+    m = frozen_db().get(mid)
+    mark = f"{COMPONENT_EVIDENCE}:"
+    m.files = [f for f in m.files if not any(x.startswith(mark) for x in f.license_evidence)]
+    assert "qwen2.5-omni-3b-q8_0.gguf" not in {f.name for f in m.files}
+    m.license = m.license_name = m.license_url = None
+    assert appinfo.add_components([m]) == [mid]
     qwen = next(f for f in m.files if f.name == "qwen2.5-omni-3b-q8_0.gguf")
     assert (qwen.license, qwen.license_name) == ("other", "qwen-research")
     assert qwen.license_from == "Qwen/Qwen2.5-Omni-3B"
