@@ -286,6 +286,29 @@ def test_key_none_records_nothing_and_no_plugin(run, ci, monkeypatch, capsys) ->
     assert "GMF_CI_RESUME_FILE" not in env
 
 
+def test_outer_resume_env_does_not_leak(run, ci, monkeypatch, tmp_path) -> None:
+    """外の環境にある再開の指定(この道具を pytest の中から流したとき)を、子プロセスに渡さない。"""
+    monkeypatch.setenv("GMF_CI_RESUME_FILE", str(tmp_path / "outer.txt"))
+    monkeypatch.setenv("GMF_CI_RESUME_SKIP", "1")
+    assert run(*TESTS_ONLY) == 0  # --resume 無し
+    for c, kw in run.fake.calls:
+        env = kw.get("env") or {}
+        assert "GMF_CI_RESUME_SKIP" not in env, c
+        if is_pytest(c):
+            assert Path(env["GMF_CI_RESUME_FILE"]) == (run.envs / f"resume-{ci.OS_TAG}-py3.12.txt").resolve()
+        else:
+            assert "GMF_CI_RESUME_FILE" not in env, c
+    assert not (tmp_path / "outer.txt").exists()
+
+
+def test_step_runs_in_root_of_the_moment(run, ci, monkeypatch, tmp_path) -> None:
+    """作業フォルダは流すときの ROOT(関数を定義したときの値で固定しない)。"""
+    monkeypatch.setattr(ci, "ROOT", tmp_path)
+    monkeypatch.setattr(ci, "tree_key", lambda: "k")
+    assert run(*TESTS_ONLY) == 0
+    assert all(kw.get("cwd") == tmp_path for c, kw in run.fake.calls if is_pytest(c) or is_ruff_check(c))
+
+
 def test_pytest_command_and_env(run, ci) -> None:
     assert run(*TESTS_ONLY) == 0
     call = next((c, kw) for c, kw in run.fake.calls if is_pytest(c))

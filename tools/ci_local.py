@@ -178,7 +178,7 @@ class Runner:
         name: str,
         cmd: list[str],
         *,
-        cwd: Path = ROOT,
+        cwd: Path | None = None,
         env: dict[str, str] | None = None,
         quiet: bool = False,
         resume_key: str | None = None,
@@ -189,7 +189,7 @@ class Runner:
             return True
         print(f"\n=== [{OS_TAG}] {name}", flush=True)
         t0 = time.monotonic()
-        kw: dict = {"cwd": cwd, "env": env or child_env()}
+        kw: dict = {"cwd": cwd or ROOT, "env": env or child_env()}
         if quiet:
             kw.update(stdout=subprocess.DEVNULL)
         ok = subprocess.run(cmd, check=False, **kw).returncode == 0
@@ -224,7 +224,9 @@ class Runner:
 
 
 def child_env(**extra: str) -> dict[str, str]:
-    env = {k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME")}
+    # GMF_CI_*: 外から来た再開の指定(この道具を pytest の中から流したときなど)を子に渡さない
+    drop = ("VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME")
+    env = {k: v for k, v in os.environ.items() if k not in drop and not k.startswith("GMF_CI_")}
     env["PYTHONUTF8"] = "1"
     env.update(extra)
     return env
