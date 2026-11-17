@@ -9,7 +9,8 @@ name: Weekly data
 #   状態の ruff と pytest を通してから PR を作る(PR の本文にもそう書く)
 # - 一部が欠けた(sources.partial)ときは失敗にして PR を作らない。手動実行で allow_partial を選んだときだけ、
 #   筋が通る欠け方(weekly.partial_problems)なら「一部欠け」の警告を付けて PR にする
-# - 新しく無検閲の印が付いた項目が 5 件を超えたら失敗(手動実行で allow_many_uncensored を選べば先頭に警告)
+# - 新しく無検閲の印が付いた項目が 5 件 × 週の数(元の一覧を作り直してからの週を四捨五入。8 週 = 40 件まで)を
+#   超えたら失敗(手動実行で allow_many_uncensored を選べば先頭に警告。weekly.uncensored_limit)
 # - PR の本文の上流の文字(名前・ID・ライセンス・URL など)は weekly.md() で HTML と Markdown を効かなくしてある
 # - HEAD の期限(30 日)は作り直しで延びる。作り直した直後に期限が 7 日以内なら失敗にする(取り直しが効いていない)
 # 手順と PR で確かめることは docs/release.md「毎週の一覧の更新」。手元では `python -m genmodelfit.weekly --dry-run`。
@@ -24,7 +25,7 @@ on:
         type: boolean
         default: false
       allow_many_uncensored:
-        description: "新しく無検閲の項目が 5 件を超えても失敗にせず、本文の先頭に警告を書く"
+        description: "新しく無検閲の項目が上限(5 件 × 週の数)を超えても失敗にせず、本文の先頭に警告を書く"
         type: boolean
         default: false
 

@@ -73,7 +73,7 @@ uv venv --python 3.12; uv pip install -e ".[dev]"
 毎週の一覧の更新は、オーナーの PC の起動スクリプト(タスク スケジューラ `genmodelfit-weekly`、月曜 9:00 JST。
 docs/release.md「毎週のスキル」)が作り直し・試験・PR を行う。安全な週(変わったファイルが db.json だけ・merge-check が safe・status の変化なし・手元の
 ruff と pytest が通った)だけ自動でマージし、ほかはオーナーが見る。weekly-data.yml は手動の予備。配るのはマージした
-main の db.json だけ(data.yml)。試験は同梱の一覧の件数・日付を決め打ちしない(毎週変わる。一覧から数える)。
+main の db.json だけ(data.yml)。試験は同梱の一覧の件数・日付・モデル ID を決め打ちしない(毎週変わる。一覧から数える)。名指しする項目は凍らせた一覧(tests/fixtures/frozen/db.json、`tests/frozenlist.py`)から読む。
 
 ネットワークに触るテストは `GENMODELFIT_NETWORK_TESTS=1` のときだけ動く(既定では飛ばす)。
 ライブラリの関数は stdout / stderr に何も書かない(組み込み側の出力に混ざるため)。表示は cli.py に寄せ、

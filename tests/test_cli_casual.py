@@ -8,6 +8,7 @@ import sys
 
 import pytest
 from clihelp import bundled_uncensored, child_env, console_script, overlong_lines, run_cli
+from frozenlist import FROZEN_DB
 
 from genmodelfit import __version__, cli
 
@@ -129,7 +130,8 @@ TABLE_COMMANDS = [
     ["gate", "--no-cache", "--only-held"],
     ["system", "--vram", "8", "--ram", "32"],
     ["info", "image_sdxl_simple", *HW],
-    ["info", "hf:Heartsync/NSFW-Uncensored", *HW],  # 理由の文が長い
+    # 理由の文が長い。項目は凍らせた一覧から読む(毎週の更新で同梱の一覧から消えても同じ入力で。#197)
+    ["info", "hf:Heartsync/NSFW-Uncensored", *HW, "--db", str(FROZEN_DB)],
     ["info", "templates_purz_animatediff_simple_weighted_ipadapters_looping_animation", *HW],  # 一番長い ID
     ["info", "template_rob_split_stack_qwen_multi_wan22", *HW],  # ファイルが一番多い(11)
     ["download", "Z-Image-Turbo", "--list", *HW],
@@ -239,22 +241,24 @@ def test_search(cache):
 
 
 def test_info_partial_match(cache):
+    """語の一部で探す。一覧は凍らせた一覧(合う項目が毎週の更新で変わらないように。#197)。"""
+    hw = [*HW, "--db", str(FROZEN_DB)]
     # ID がそのまま合えば、無検閲でも出す
-    r = run_cli(["info", "hf:Heartsync/NSFW-Uncensored", *HW], cache)
+    r = run_cli(["info", "hf:Heartsync/NSFW-Uncensored", *hw], cache)
     assert r.returncode == 0 and "内容: uncensored" in r.stdout.decode("utf-8")
     # 一部の一致が 1 件だけなら、それを出す
-    r = run_cli(["info", "sdxlturbo", *HW], cache)
+    r = run_cli(["info", "sdxlturbo", *hw], cache)
     assert r.returncode == 0 and "[sdxlturbo_example]" in r.stdout.decode("utf-8")
     # 2 件以上は先頭を黙って選ばない。候補は stderr、終了コードは 1。既定(sfw)では無検閲を候補に出さない
-    r = run_cli(["info", "sdxl", *HW], cache)
+    r = run_cli(["info", "sdxl", *hw], cache)
     err = r.stderr.decode("utf-8")
     assert r.returncode == 1 and r.stdout == b""
     assert "ID で指定してください" in err and "image_sdxl_simple" in err
     assert "lustify" not in err.lower() and "nova-furry" not in err
-    r = run_cli(["info", "sdxl", *HW, "--content", "all"], cache)
+    r = run_cli(["info", "sdxl", *hw, "--content", "all"], cache)
     assert r.returncode == 1 and "lustify" in r.stderr.decode("utf-8").lower()
     # 無検閲にしか合わないときは、--uncensored を案内する
-    r = run_cli(["info", "Qwen-Image-2.1", *HW], cache)
+    r = run_cli(["info", "Qwen-Image-2.1", *hw], cache)
     err = r.stderr.decode("utf-8")
     assert r.returncode == 1 and r.stdout == b"" and "--uncensored" in err
 
