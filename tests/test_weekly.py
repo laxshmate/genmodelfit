@@ -345,8 +345,13 @@ def test_many_new_uncensored(tmp_path, monkeypatch, bundled):
         return new
 
     _fake_update(monkeypatch, make)
+    # 前の一覧はふだんの週(7 日 + 数時間前)に作り直したものにする: 上限は 1 週 = 5 件(#197)。
+    # 同梱の一覧の日付のままだと、NOW との前後で道が変わる
+    old = copy.deepcopy(bundled)
+    old.generated_at = (NOW - timedelta(days=7, hours=3)).isoformat().replace("+00:00", "Z")
+    assert weekly.uncensored_limit(old, NOW) == (weekly.MAX_NEW_UNCENSORED, 1)
     base = tmp_path / "base.json"
-    bundled.save(base)
+    old.save(base)
     r = weekly.run(tmp_path / "a", base=base, fetch=object(), now=NOW)
     assert r["ok"] is False and any("無検閲" in p for p in r["problems"])
     r = weekly.run(tmp_path / "b", base=base, fetch=object(), now=NOW, allow_many_uncensored=True)

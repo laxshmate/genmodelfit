@@ -20,6 +20,7 @@ from urllib.parse import unquote
 import pytest
 import requests
 from clihelp import overlong_lines
+from frozenlist import frozen_db
 
 import genmodelfit as gmf
 from genmodelfit import cli, downloader, i18n
@@ -1135,10 +1136,9 @@ def test_space_in_path_downloads(server, comfy):
 
 
 def test_bundled_url_with_space_is_not_refused_as_host():
-    db = gmf.load_db(use_cache=False)
+    # 項目は凍らせた一覧から読む(毎週の更新で同梱の一覧から消えても飛ばさない。#197)
+    db = frozen_db()
     m = db.get("hf:Meina/MeinaHentai")
-    if m is None:
-        pytest.skip("同梱の一覧にない")
     f = next(x for x in m.files if " " in (x.url or ""))
     assert downloader.HOST_POLICY.allowed(f.url, start=True)
     p = gmf.plan_download(m.id, db=db, system_info=pc(), output_dir="unused-dir", content="all")

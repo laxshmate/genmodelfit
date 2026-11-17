@@ -10,6 +10,7 @@ import importlib
 from collections import Counter
 
 import pytest
+from frozenlist import frozen_db
 
 from genmodelfit import i18n
 from genmodelfit.db import load
@@ -31,6 +32,12 @@ def _isolated_cache(tmp_path, monkeypatch):
 @pytest.fixture(scope="module")
 def db():
     return load(use_cache=False)
+
+
+@pytest.fixture
+def frozen():
+    """名指しの項目を読む凍らせた一覧(毎週の更新で同梱の一覧から消えても同じ入力で確かめる。#197)。"""
+    return frozen_db()
 
 
 def _sys(g: Gpu | None, ram: float = 32.0) -> SystemInfo:
@@ -152,8 +159,9 @@ def test_non_nvidia_offload_mentions_dynamic_vram(db):
     assert n.run_mode == "offload" and not any("Dynamic VRAM" in r for r in n.reasons)
 
 
-def test_no_limits_without_a_gpu(db):
+def test_no_limits_without_a_gpu(frozen):
     """限界は逃がさずに GPU で good になる設定なので、GPU の無い PC では出さない(#108)。"""
+    db = frozen
     m = db.get("hf:hexgrad/Kokoro-82M")
     assert E.estimate(m, _sys(None, 64.0), None, db.measurements, with_limits=True).limits is None
 
@@ -206,7 +214,8 @@ def test_limits_count_only_rows_that_run_on_the_gpu(db):
         ("audio_stable_audio_example", "marginal"),  # 効果音の生成(拡散)
     ],
 )
-def test_cpu_only_caps(db, mid, level):
+def test_cpu_only_caps(frozen, mid, level):
+    db = frozen
     e = E.estimate(db.get(mid), _sys(None, 64.0), None, db.measurements)
     assert (e.fit, e.run_mode) == (level, "cpu")
     assert any(f"段階は {level} まで" in r for r in e.reasons)
@@ -238,7 +247,8 @@ def test_cpu_top_table():
     assert E.cpu_top(model(1.0, "image", ("estimate", "t2i"))) == "marginal"  # 生成を含めば生成
 
 
-def test_cpu_level_uses_the_ram_band(db):
+def test_cpu_level_uses_the_ram_band(frozen):
+    db = frozen
     m = db.get("hf:myshell-ai/MeloTTS-English")
     big = E.estimate(m, _sys(None, 64.0), None, db.measurements)
     assert big.fit == "good"

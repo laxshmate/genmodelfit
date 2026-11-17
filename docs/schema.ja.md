@@ -759,7 +759,7 @@ Check: `id`(安定した、機械が読む名前)、`passed`(bool)、`detail`(�
 - `DIR/diff.json`(上の dict)
 - `DIR/pr_body.md`
 - `DIR/review_queue.json`(0.6.0: `{genmodelfit, generated_at, pending: [review list items], classification}`)
-- `DIR/result.json`: `genmodelfit`、`ok`、`problems`(str[]。失敗の理由)、`base`、`offline`、`run_url`、`partial`、`status`(新しい一覧の DataStatus)、`status_old`(基準の一覧の)、`warnings`(str[])、`summary`(上と同じ)、`classification`(`{safe, judgement_needed: 件数}`)、`review_pending`(review list の項目)、`files`(`db`、`diff`、`pr_body`、`review_queue`)。`--apply` のときは `applied_to` も。
+- `DIR/result.json`: `genmodelfit`、`ok`、`problems`(str[]。失敗の理由)、`base`、`offline`、`run_url`、`partial`、`status`(新しい一覧の DataStatus)、`status_old`(基準の一覧の)、`warnings`(str[])、`summary`(上と同じ)、`classification`(`{safe, judgement_needed: 件数}`)、`review_pending`(review list の項目)、`uncensored`(`{new, limit, weeks}`: 新しく無検閲の印の数・上限・上限の週の数。上限を超えない週も入る。#197。古い result には無い)、`files`(`db`、`diff`、`pr_body`、`review_queue`)。`--apply` のときは `applied_to` も。
 
 Pull Request の本文には「分類」の節と「確認待ち」の表がある(名前は、上流のすべての文と同じくエスケープする)。
 終了コードは変わらない: 判断が要る週も `ok`(終了コード 0)。
