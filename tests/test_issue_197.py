@@ -221,3 +221,64 @@ def test_pending_entries_in_the_base_carry_over(tmp_path, monkeypatch):
     assert sorted(p["id"] for p in held["review_pending"]) == sorted(ids)
     body = (tmp_path / "held" / "pr_body.md").read_text(encoding="utf-8")
     assert "### 確認待ち(review: pending)の項目: 3 件" in body
+
+
+@pytest.mark.parametrize(("ago", "weeks"), [(timedelta(days=7, hours=3), 1), (timedelta(days=27), 4)])
+def test_limit_and_weeks_are_shown_every_week(tmp_path, monkeypatch, ago, weeks):
+    """上限を超えない週も、新しく無検閲の数・上限・週の数を result.json と PR の本文に出す
+    (判定は変えない)。"""
+    r = _run(tmp_path, monkeypatch, _iso(NOW - ago), 3)
+    assert r["ok"] is True, r["problems"]
+    assert r["uncensored"] == {"new": 3, "limit": 5 * weeks, "weeks": weeks}
+    saved = json.loads((tmp_path / "out-3" / "result.json").read_text(encoding="utf-8"))
+    assert saved["uncensored"] == r["uncensored"]
+    body = (tmp_path / "out-3" / "pr_body.md").read_text(encoding="utf-8")
+    assert f"新しく無検閲の印: 3 件(上限 {5 * weeks} 件 = 5 件 × {weeks} 週)" in body
+    assert ("たまった分かを項目で確かめてください" in body) is (weeks >= 2)
+
+
+def test_the_line_does_not_change_the_verdict(tmp_path, monkeypatch):
+    """本文の行の有無で ok・problems・classification・warnings が変わらない。"""
+    made = _iso(NOW - timedelta(days=27))
+    a = _run(tmp_path / "a", monkeypatch, made, 21)
+    monkeypatch.setattr(weekly, "uncensored_lines", lambda u: [])
+    b = _run(tmp_path / "b", monkeypatch, made, 21)
+    for k in ("ok", "problems", "classification", "warnings"):
+        assert a[k] == b[k], k
+    assert "新しく無検閲の印: 21 件" not in (tmp_path / "b" / "out-21" / "pr_body.md").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_old_result_without_the_key_does_not_break_the_body():
+    """古い result(uncensored が無い)・形の違う値でも本文を作れる(行は出さない)。"""
+    from genmodelfit.diff import diff_db
+
+    old = frozen_db()
+    new = copy.deepcopy(old)
+    new.models.append(
+        ModelEntry(id="hf:n/x", name="x", modality="image", source="huggingface", content="uncensored")
+    )
+    d = diff_db(old, new)
+    for result in (
+        {"status": {}},
+        {"status": {}, "uncensored": None},
+        {"status": {}, "uncensored": {"new": 1}},
+    ):
+        body = weekly.pr_body(d, result)
+        assert "### 新しく無検閲の印が付いた項目" in body and "新しく無検閲の印: " not in body
+    assert weekly.uncensored_lines({"new": 0, "limit": 5, "weeks": 1}) == [
+        "新しく無検閲の印: 0 件(上限 5 件 = 5 件 × 1 週)",
+        "",
+    ]
+
+
+@pytest.mark.parametrize("made", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00"])
+def test_dates_out_of_range_are_unreadable(made):
+    """UTC にすると年が 1〜9999 の外に出る日時は読めないもの(None)。上限は 1 週(落ちない)。"""
+    from genmodelfit.db import parse_generated_at
+
+    assert parse_generated_at(made) is None
+    db = _base(made)
+    assert db.generated_time is None
+    assert weekly.uncensored_limit(db, NOW) == (5, 1)

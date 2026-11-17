@@ -410,6 +410,7 @@ def pr_body(d: dict[str, Any], result: dict[str, Any]) -> str:
             lines.append("")
     if d["newly_uncensored"]:
         lines += ["### 新しく無検閲の印が付いた項目", ""]
+        lines += uncensored_lines(result.get("uncensored"))
         lines += _table(
             ["id", "種類", "新規", "根拠"],
             [
@@ -510,6 +511,23 @@ def limit_body(body: str) -> str:
     return cut + tail
 
 
+def uncensored_lines(u: dict[str, Any] | None) -> list[str]:
+    """新しく無検閲の印の数と上限の内訳の行(PR の本文の無検閲の節の頭)。上限は日数で増えるので、止まった後の
+    週は、たまった分か規則が緩んだ分かを人が項目で確かめるように書く(#197)。古い result(uncensored が
+    無い)なら何も出さない。"""
+    if not isinstance(u, dict) or not all(isinstance(u.get(k), int) for k in ("new", "limit", "weeks")):
+        return []
+    line = (
+        f"新しく無検閲の印: {u['new']} 件(上限 {u['limit']} 件 = {MAX_NEW_UNCENSORED} 件 × {u['weeks']} 週)"
+    )
+    if u["weeks"] >= 2:
+        line += (
+            f"。元の一覧を作り直してから {u['weeks']} 週ぶんです。1 週で増えたのか、たまった分かを項目で"
+            "確かめてください"
+        )
+    return [line, ""]
+
+
 def uncensored_limit(old: Database, now: datetime) -> tuple[int, int]:
     """新しく無検閲の印が付いてよい数と、その週の数: (MAX_NEW_UNCENSORED × 週の数, 週の数)。
 
@@ -599,6 +617,7 @@ def run(
     result.update(
         popularity_bias=bias,
         review_pending=pending,
+        uncensored={"new": many, "limit": limit, "weeks": weeks},  # 超えない週も数を見えるように(#197)
         classification={
             "safe": d["classification"]["safe"],
             "judgement_needed": len(d["classification"]["judgement_needed"]),
