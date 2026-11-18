@@ -5643,7 +5643,7 @@ def cmd_contrib_validate(args: argparse.Namespace) -> int:
 
 def format_report(rep: dict[str, Any]) -> list[str]:
     """精度の点検の表(Markdown。毎週の自動 PR にそのまま貼れる形)。"""
-    from .calibrate import check_table, stage_table
+    from .calibrate import check_table, device_table, stage_table
     from .contrib import CHECK_RAM_GB, md_cell
 
     thr = rep["threshold_pct"]
@@ -5728,6 +5728,9 @@ def format_report(rep: dict[str, Any]) -> list[str]:
         staged = stage_table(rep["check"])  # 段ごとの山のある行があるときだけ(#199)
         if staged:
             lines += ["", *staged]
+        whole = device_table(rep["check"])  # GPU 全体の使用量のある行があるときだけ(#200)
+        if whole:
+            lines += ["", *whole]
     return lines
 
 
@@ -7845,19 +7848,20 @@ def _measure_run(
                 estimate=_measure_estimate(entry, system, m),
                 timing=getattr(result, "timing", None),
                 stages=getattr(result, "stages", None),
+                device=getattr(result, "device", None),  # GPU 全体の使用量(#200)
                 db_info=db_info(_measure_db(args)),
             )
             # 送れない(検査・個人の情報の点検に通らない)なら送る用の提出を作らない(#124)。手元の実測は残す
             why = _submission_refusal(sub, args)
-            if why and ({"timing", "estimate", "stages"} & set(sub["measurement"])):
-                # 見積もり・時間の内訳・段ごとの山のおかしな値で実測を送れなくしない(#132):
+            if why and ({"timing", "estimate", "stages", "device"} & set(sub["measurement"])):
+                # 見積もり・時間の内訳・段ごとの山・GPU 全体の使用量のおかしな値で実測を送れなくしない(#132):
                 # 外してもう一度確かめる
                 bare = {
                     **sub,
                     "measurement": {
                         k: v
                         for k, v in sub["measurement"].items()
-                        if k not in ("timing", "estimate", "stages")
+                        if k not in ("timing", "estimate", "stages", "device")
                     },
                 }
                 if not _submission_refusal(bare, args):
@@ -8893,8 +8897,10 @@ AGENT USAGE:
 Without MODEL it lists models worth measuring: the ones that fit this PC's GPU (good or better on
 the GPU) and are not yet measured on this PC at the template's settings (other people's
 measurements of the same GPU do not remove a model: two agreeing sources let measurements set the
-level), with a known license, those already installed first, then the shorter time, then the
-smaller download; choose one by number (q quits). Models that need nodes the running ComfyUI
+level), with a known license, those already installed first, then those whose formula (the kind
+of the predictive formula's stages) has no measurement yet (models with the same formula are not
+listed back to back; 0.15.1, #200), then the shorter time, then the smaller download; choose one
+by number (q quits). Models that need nodes the running ComfyUI
 lacks are left out. Once a model has that measurement, the list offers runs at other settings
 that help check the estimate's formula (#116): image resolution 512/768/1024/1536 px (text to
 image), video frames 17/33/49/81 at the template's size (text or image to video), music and sound
@@ -9434,7 +9440,8 @@ ID が hf: で始まるモデルには ComfyUI のテンプレートが無いの
 MODEL を省くと、測ると役に立つモデルを出す: この PC の GPU に載り(GPU で good 以上)、この PC で
 テンプレートの設定のまま、まだ測っていないもの(同じ GPU のほかの人の実測があっても外さない。2 つの
 出どころの実測がそろうと、段階を実測で決められるため)。ライセンスの分からないものは出さない。
-並びは、もう入っているもの → 時間が短いもの → 落とす量が少ないもの。番号で選ぶ(q でやめる)。
+並びは、もう入っているもの → 式(予測式の段ごとの種類)にまだ実測の無いもの(同じ式のモデルは続けて
+出さない。0.15.1、#200) → 時間が短いもの → 落とす量が少ないもの。番号で選ぶ(q でやめる)。
 起動中の ComfyUI に無いノードが要るものは出さない。その実測があるモデルには、予測式の確かめに
 役立つ「設定を変えた測定」を出す(#116): 画像の解像度 512・768・1024・1536 px(文章から画像)、
 動画のコマ数 17・33・49・81(大きさはテンプレートのまま。文章・画像から動画)、音楽・効果音の長さ

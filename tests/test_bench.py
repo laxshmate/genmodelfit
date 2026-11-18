@@ -655,6 +655,9 @@ class FakeComfy:
         self.device = ("cuda:0 NVIDIA GeForce RTX 3070 : cudaMallocAsync", "cuda")
         self.pytorch_version = "2.9.0+cu128"
         self.other_apps = GIB
+        # True のとき /system_stats に vram_total・vram_free を書かない
+        # (GPU 全体の使用量を nvidia-smi で読む試験。#200)
+        self.no_vram = False
         self.history_calls = 0
         self.submit_time = 0.0
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
@@ -753,6 +756,9 @@ class FakeComfy:
                         "vram_free": 8 * GIB - fake.torch - 100 * 1024**2 - fake.other_apps,
                         "torch_vram_total": fake.torch,
                     }
+                    if fake.no_vram:
+                        dev.pop("vram_total")
+                        dev.pop("vram_free")
                     system = {"comfyui_version": "0.40.0", "pytorch_version": fake.pytorch_version}
                     return self._send(200, {"system": system, "devices": [dev]})
                 if p == "/object_info":

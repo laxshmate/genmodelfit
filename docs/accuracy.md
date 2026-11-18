@@ -594,6 +594,15 @@ The RTX 5080 measurements were taken with ComfyUI's dynamic VRAM, which **uses m
    - Per-stage peaks (`stages`: the peaks before, during and after sampling) go into submissions, aggregate rows and this PC's
      bench measurements, and are used only for the cross-check (the per-stage table) and the coverage table
      (`python -m genmodelfit.calibrate --coverage`). They neither set levels nor shift estimates (#199).
+   - The whole-GPU memory use (`device`: the start, peak and end values read from `/system_stats` or nvidia-smi;
+     0.15.1, #200) also goes into submissions, aggregate rows and this PC's bench measurements, and is used only for
+     the cross-check (a table comparing "increase + the formula's fixed part" with the formula's all-on-GPU amount).
+     For the current submissions and the maintainer's measurements, which have no such field, the `/system_stats`
+     whole-GPU increase that bench wrote in the note is read (`contrib.device_from_note`; only for
+     measurements taken the bench way that ran to the end).
+     It is not used for fitting, shifting or levels: the value also includes what other programs allocate or free,
+     and with dynamic VRAM the whole-GPU increase minus the weights can disagree with the torch peak (the reason has
+     not been checked).
 8. Measured values are taken as GiB (`unit` in `measurements.json`).
    - AI生成キット's records do not state the unit.
    - It is an **assumption** from the fact that ComfyUI and nvidia-smi count in MiB.
@@ -689,8 +698,56 @@ Cross-check (measured differently, so not used for fitting; predicted with the c
 | utility_depth_anything3_image_depth_estimation | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | working memory (measurement without weights) | 0.50 | 0.24 | -52% |
 | utility_moge_depth_estimation | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | working memory (measurement without weights) | 0.75 | 0.24 | -68% |
 
+Cross-check of the whole-GPU usage (the increase plus the formula's fixed part, against the formula's all-on-GPU amount; a cross-check only, not used for the verdict):
+
+| Model | GPU | Source | Settings | Tool | Increase GiB | Increase + fixed GiB | Formula GiB | Error |
+|---|---|---|---|---|---:|---:|---:|---:|
+| utility_birefnet_remove_background | NVIDIA GeForce RTX 3070 | maintainer | - | system_stats (note) | 0.91 | 2.38 | 2.13 | -11% |
+| 3d_moge_perspective_to_mesh | NVIDIA GeForce RTX 3070 | maintainer | - | system_stats (note) | 1.11 | 2.58 | 2.87 | +11% |
+| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | maintainer | 47.6 s | system_stats (note) | 3.40 | 4.87 | 9.04 | +86% |
+| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | maintainer | 30 s | system_stats (note) | 2.79 | 4.26 | 7.59 | +78% |
+| audio_yue2_text2music | NVIDIA GeForce RTX 5080 | maintainer | 97.8 s | system_stats (note) | 4.20 | 5.67 | 6.53 | +15% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | system_stats (note) | 7.36 | 8.83 | 9.00 | +2% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | maintainer | 1536x1536 | system_stats (note) | 9.11 | 10.58 | 9.00 | -15% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | system_stats (note) | 13.50 | 14.97 | 13.87 | pinned |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | maintainer | 1536x1536 | system_stats (note) | 12.93 | 14.40 | 14.82 | pinned |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 33 frames | system_stats (note) | 12.41 | 13.88 | 11.38 | -18% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 17 frames | system_stats (note) | 12.71 | 14.18 | 11.05 | -22% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 49 frames | system_stats (note) | 11.91 | 13.38 | 11.72 | -12% |
+| utility_seedvr2_3b_int8_upscale_image | NVIDIA GeForce RTX 5080 | maintainer | 2880x1612 | system_stats (note) | 4.34 | 5.81 | 7.99 | +37% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | system_stats (note) | 7.10 | 8.57 | 9.00 | +5% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | system_stats (note) | 12.22 | 13.69 | 13.87 | +1% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | maintainer | 832x480, 33 frames | system_stats (note) | 11.41 | 12.88 | 11.38 | -12% |
+| audio_ace_step_1_5_checkpoint | NVIDIA GeForce RTX 5080 | maintainer | 120 s | system_stats (note) | 9.38 | 10.85 | 22.26 | +105% |
+| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | maintainer | 47.6 s | system_stats (note) | 3.48 | 4.95 | 9.04 | +82% |
+| image_anima_base_v1 | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | system_stats (note) | 5.28 | 6.75 | 7.02 | +4% |
+| utility_moge3_geometry_estimation | NVIDIA GeForce RTX 5080 | maintainer | - | system_stats (note) | 3.20 | 4.67 | 4.04 | -14% |
+| 3d_hunyuan3d-v2.1 | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | system_stats (note) | 7.12 | 8.59 | 9.12 | +6% |
+| 3d_hunyuan3d_image_to_model | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | system_stats (note) | 4.90 | 6.37 | 6.85 | +7% |
+| audio_ace_step_1_5_checkpoint | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | 120 s | system_stats (note) | 9.10 | 10.57 | 22.26 | +111% |
+| image_sdxl_simple | NVIDIA GeForce RTX 3070 | other users (1 submission, 1 source) | 1024x1024 | system_stats (note) | 6.53 | 8.00 | 9.00 | pinned |
+| image_sdxl_simple | NVIDIA GeForce RTX 3070 | other users (1 submission, 1 source) | 1536x1536 | system_stats (note) | 6.40 | 7.87 | 9.00 | pinned |
+| image_sdxl_simple | NVIDIA GeForce RTX 3070 | other users (1 submission, 1 source) | 768x768 | system_stats (note) | 6.81 | 8.28 | 9.00 | pinned |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | 1024x1024 | system_stats (note) | 7.74 | 9.21 | 9.00 | -2% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | 768x768 | system_stats (note) | 6.86 | 8.33 | 9.00 | +8% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | 1024x1024 | system_stats (note) | 12.31 | 13.78 | 13.87 | +1% |
+| utility_depth_anything3_image_depth_estimation | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | system_stats (note) | 0.92 | 2.39 | 2.49 | +4% |
+| utility_moge_depth_estimation | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | system_stats (note) | 0.86 | 2.33 | 2.33 | +0% |
+
 How to read it:
 
+- The whole-GPU usage table (#200) checks the whole all-on-GPU amount of the formula (fixed part + weights +
+  working memory) against the whole-GPU increase from `/system_stats` (plus the formula's fixed part). For the
+  current submissions and the maintainer's measurements it is the increase bench wrote in the note ("(note)").
+  The value also includes what other programs allocate or free, so it is not used for the verdict, the coefficients
+  or shifting values. Rows that miss (formula too large / too small) are kept as they are, and nothing is fitted to
+  them. Pinned = the measurement was censored, or increase + fixed part is 90% of the GPU total or more (it did not
+  fit). Rows where torch held more than 0.25 GiB before the start (after unloading) are not compared, since the
+  increase comes out smaller ("preloaded"; no current row). Rows whose start torch amount is not known are not
+  compared either ("baseline unknown"; no current row). Pinned is judged on "increase + fixed part", so a
+  measurement taken while other programs already held much VRAM can be missed (rows read from the note have no
+  start value). With dynamic VRAM, the whole-GPU increase minus the
+  weights can disagree with the torch peak.
 - The 7 "all on GPU" rows (2026-11-14) are whole amounts measured by bench at the template's settings with ComfyUI started with `--disable-dynamic-vram` (the old behaviour; the weights are in the torch reservation too).
   It is not what most users run (dynamic VRAM by default), so all but MoGe 3 are used only for the cross-check (`check_only`; they set no level and shift no estimate).
   - SDXL, Wan 2.1 and Anima match within ±5%.
@@ -757,7 +814,11 @@ How to read it:
      Of these, a whole-amount measurement (one that includes the weights and is not pinned at the GPU's limit) exists for 6
      sampling-stage kinds (38 / 262), 3 VAE kinds (153 / 262) and 3 models without a per-stage formula. The rest are
      working-memory-only measurements or censored ones (a lower bound only).
-     Left: gather measurements with per-stage peaks, measure on other GPUs (other users' submissions will gather them)
+     In 0.15.1 (#200), `measure` and `share` suggest models whose formula has no measurement first (models with the
+     same formula are not suggested back to back; [schema.md](schema.md), "measure"). The whole-GPU memory use
+     (`device`) also goes into submissions and through to the cross-check ("How measurements are used" 7 above).
+     Left: gather measurements with per-stage peaks, measure on other GPUs (other users' submissions will gather them),
+     find out why the whole-GPU increase and the torch peak disagree (#200)
   3. Reduce the models without a per-stage formula (68) (Flux3 Klein, Stable Audio 3, Ming Image, MiniMax Music 3, 5 SD models found by fingerprint and 3 SeedVR2 templates were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses

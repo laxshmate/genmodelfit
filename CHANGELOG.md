@@ -9,6 +9,39 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **`measure` and `share` suggest models whose formula has no measurement first** (#200). Each model's formula keys
+  (`coverage.formula_keys`: the sampling-stage and VAE keys at the default settings, or the model itself without a
+  per-stage formula) are checked against the bundled measurements and this PC's (`coverage.measured_keys`). The rows
+  are picked one by one: after "remeasure" and "installed", the next is the one with the most keys that have neither
+  a measurement nor an earlier suggestion, then the most keys without a measurement with per-stage peaks, then the
+  time and the download as before; models with the same formula are not suggested back to back. The set of
+  suggestions and `share`'s budget are unchanged, only the order. `measure --json` gives each row `new_formulas`
+  (0 to 2).
+- **Whole-GPU memory use in submissions** (`measurement.device`, #200). bench records `device` `{tool, before_gb,
+  peak_gb, after_gb}` (GiB) from `/system_stats` (`vram_total - vram_free`, with the end value read after the job,
+  before anything is unloaded), or from nvidia-smi when `/system_stats` has no such numbers; only numbers and the
+  tool name. It goes into `Measurement.device` (new optional field, `schema_version` stays 1), `bench --json` and
+  contrib_schema 3 submissions (an error in schema 1 / 2 files; checked: known keys, tool, non-negative finite GiB,
+  peak ≥ start, end ≤ peak, at most the GPU total × 1.05). `contrib aggregate` puts the medians per source and then
+  across sources (plus `delta_gb`) in rows that have such submissions (when the tools tie, `system_stats`
+  wins). `bench --share` and `contrib make` now also carry the measurement's `stages` and `device` into the
+  submission (they were dropped on these two paths). The cross-check gives such rows `device` (increase + the formula's
+  fixed part against the formula's all-on-GPU amount; `pinned` when the peak is at 90% of the GPU or more) and a
+  table. It is never used for fitting, shifting estimates or levels.
+- **The whole-GPU increase of existing submissions and maintainer measurements is read from bench's note** (#200).
+  `device` also records `before_torch_gb` (the torch reservation at the start; what torch already held is reused,
+  so the increase comes out smaller), a required key of `measurement.device` (null allowed). `contrib.device_from_note`
+  reads only the fixed lines bench writes (the `/system_stats` whole-GPU increase and the torch amount at the start)
+  and `contrib.device_of` uses it for bench-style (`torch_reserved`, `ok`) measurements without the
+  field; only the aggregate and the cross-check call it (loading the list does not). The note is text a
+  submitter can write, so it is read strictly: ASCII digits only, exactly one increase line, an increase above
+  0 (bench writes 0.00 when it could not read the value) and at most the GPU total × 1.05. The bundled
+  `measurements_community.json` was rebuilt: each of its 11 rows gains `device` (with `before_torch_gb`, `delta_gb`
+  and `from_note`), nothing else changes. `calibration.json` was rebuilt: each of the 31 `check` rows gains `device`
+  with `clean` (start torch at most 0.25 GiB) and `from_note`; `pinned` now also covers censored measurements and
+  increase + fixed part at 90% of the GPU or more, and the error is given only for clean, unpinned rows. The
+  coefficients and the other values are unchanged; the new table is in docs/accuracy.md.
+
 - **Per-stage peaks reach the aggregate and the cross-check** (#199). `Measurement.stages` is a new optional field
   (`schema_version` stays 1): `contrib.to_measurement` keeps `measurement.stages`, and bench also stores it in the
   measurement it saves. `contrib aggregate` puts `stages` in a row from the submissions used for its median that
@@ -128,6 +161,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- **bench `--free`: nvidia-smi's start value is read again after `/free`** (#200). It was read before the models
+  were unloaded, so the whole-GPU increase in `note` could be too small; the busy check and the average usage still
+  use the first readings, and the old value stays when the new reading fails.
 - **The weekly list update can pass again after failing** (#197). The limit on entries newly marked uncensored is
   now 5 per week since the list compared against was rebuilt (`generated_at`, which a HEAD-only refresh keeps), up
   to 8 weeks (40); a normal week (7 days and a few hours) stays 5. The weeks are rounded to the nearest whole

@@ -92,6 +92,7 @@ FAILURES_SUFFIX = "-failures"  # 失敗の記録のファイル名の終わり(<
 VRAM_TOLERANCE_GB = PEAK_VRAM_SLACK_GB  # 最大 VRAM は GPU の総量 × 1.02 + これまで(estimate.peak_vram_cap)
 RAM_TOLERANCE_GB = 1.0  # 最大メモリはメインメモリ × 1.05 + これまで
 MAX_GPU_VRAM_GB = 256.0  # 1 枚の GPU の VRAM の上限(超えたら誤り。0.9.0 で 512 から下げた)
+DEVICE_VRAM_RATIO = 1.05  # GPU 全体の使用量(measurement.device。#200)の上限: GPU の総量のこの倍
 MAX_RAM_GB = 4096.0
 # note の長さの上限(#90 で 2000 から下げた。bench の note は固定の部分が 230 字ほどで、長い失敗の理由などで
 # 超えるときは build_submission が切り詰める)
@@ -160,6 +161,8 @@ MEASUREMENT_KEYS = {
     # 段ごとの山(#100 の宿題 2。bench の BenchResult.stages)。contrib_schema 3 の任意の項目で、
     # 分けられたときだけ書く(settings_override と同じく contrib_schema は上げない)
     "stages",
+    # GPU 全体の使用量(#200。bench の BenchResult.device)。stages と同じく contrib_schema 3 の任意の項目
+    "device",
 }
 _FILES_FP = re.compile(r"[0-9a-f]{64}")
 # 測ったときの見積もり(#132。docs/schema.md「contrib」)
@@ -185,6 +188,20 @@ ESTIMATE_BASES = ("measured", "estimated")
 STAGE_NAMES = ("before_sampling", "sampling", "after_sampling")
 STAGES_KEYS = {"sampler_runs", *STAGE_NAMES}
 STAGE_KEYS = {"peak_gb", "min_gb", "samples"}
+# GPU 全体の使用量(#200)。tool は読んだ道具、値は GiB(開始前・最大・終わり)
+DEVICE_TOOLS = ("system_stats", "nvidia-smi")
+DEVICE_KEYS = {"tool", "before_gb", "peak_gb", "after_gb", "before_torch_gb"}
+DEVICE_ORDER = ("tool", "before_gb", "peak_gb", "after_gb", "before_torch_gb")
+# 照合で増分を比べる、開始前(降ろした後)の torch の確保量の上限(GiB。#200)。開始前に確保していた分は測っている
+# 間に使い回されるので、増分がその分だけ小さく出る。今ある提出はどれも 0.09 以下
+DEVICE_CLEAN_TORCH_GB = 0.25
+# bench が note に書く文(#200。device_from_note)。数は GB(GiB)
+# 数は ASCII の数字だけ・4 桁 + 小数 3 桁まで(bench は小数 2 桁で書く。長い数・全角の数字は読まない)
+_NOTE_NUM = r"([0-9]{1,4}(?:\.[0-9]{1,3})?)"
+_NOTE_DELTA = re.compile(r"/system_stats の GPU 全体の増分 " + _NOTE_NUM + " GB")
+_NOTE_AFTER_FREE = re.compile(r"解放後 " + _NOTE_NUM + " GB")
+_NOTE_NO_FREE = re.compile(r"/free はしていない\(開始前に読み込み済み torch " + _NOTE_NUM + r" GB\)")
+_NOTE_FREED = "開始前に /free でモデルを解放"
 TIMING_KEYS = {
     "queue_s",  # 送ってから実行が始まるまで
     "load_s",  # 実行の始まりからサンプラの始まりまで(モデルの読み込みと文の符号化)
@@ -705,6 +722,7 @@ def _unknown_fields(data: dict[str, Any]) -> list[str]:
             if isinstance(stages, dict):
                 for name in STAGE_NAMES:
                     sub(stages.get(name), STAGE_KEYS, f"measurement.stages.{name}")
+            sub(mm.get("device"), DEVICE_KEYS, "measurement.device")
     items = data.get("failures")
     if failures and isinstance(items, list):
         for i, f in enumerate(items[:MAX_FAILURES]):
@@ -879,15 +897,20 @@ def build_submission(
     timing: dict[str, Any] | None = None,
     db_info: dict[str, Any] | None = None,
     stages: dict[str, Any] | None = None,
+    device: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """bench の実測 1 件 → 提出用の JSON(contrib_schema 3)。
 
     system は測った PC(ComfyUI が同じ PC のときだけ渡す)。OS の種類・メインメモリ・GPU の世代を取る。
     source(自由に書ける文)は入れない。note は個人の情報らしいところを消して入れる。
     estimate(measurement_estimate)・timing(bench の BenchResult.timing)・db_info(db_info)は
-    渡したときだけ入れる(#132)。stages(bench の BenchResult.stages。段ごとの山)も渡したときだけ。
+    渡したときだけ入れる(#132)。stages(bench の BenchResult.stages。段ごとの山)・device(BenchResult.device。
+    GPU 全体の使用量。#200)は、渡さなければ実測(m.stages・m.device)のものを入れる(bench --share・
+    contrib make でも落とさない)。
     最後まで動いた(ok)のにピークの VRAM が GPU の総量を超えたら
     spilled と超えた量を付ける(共有メモリへ逃げた。見積もり・段階には使わない)。"""
+    stages = stages if stages is not None else getattr(m, "stages", None)
+    device = device if device is not None else getattr(m, "device", None)
     note = scrub_text(m.note, extra_secrets)
     if note and len(note) > MAX_NOTE_CHARS:
         note = note[: MAX_NOTE_CHARS - 1] + "…"
@@ -921,6 +944,7 @@ def build_submission(
             **({"timing": {k: timing.get(k) for k in TIMING_ORDER}} if timing else {}),
             **({"spilled": True, "spilled_gb": spill} if spill else {}),
             **({"stages": _clean_stages(stages)} if stages else {}),
+            **({"device": _clean_device(device)} if device else {}),
         },
     }
 
@@ -932,6 +956,70 @@ def _clean_stages(stages: dict[str, Any]) -> dict[str, Any]:
         v = stages.get(name)
         out[name] = {k: v.get(k) for k in ("peak_gb", "min_gb", "samples")} if isinstance(v, dict) else None
     return out
+
+
+def _clean_device(device: dict[str, Any]) -> dict[str, Any]:
+    """GPU 全体の使用量の決まった項目だけ(bench.device_usage の形。#200)。"""
+    return {k: device.get(k) for k in DEVICE_ORDER}
+
+
+def device_from_note(note: Any) -> dict[str, Any] | None:
+    """bench が note に書いた文から GPU 全体の使用量を読む(#200。measurement.device の無い古い提出・
+    作者の実測)。
+
+    - 増分: 「/system_stats の GPU 全体の増分 <数> GB」。無い・2 つ以上ある(bench は 1 つしか書かない)・
+      0 以下(bench は読めなかったとき・最大が開始前より小さいときも 0.00 と書く。device_usage が None を返す
+      場合と同じ扱いにする)なら None
+    - 開始前の torch: 「解放後 <数> GB」、無ければ
+      「/free はしていない(開始前に読み込み済み torch <数> GB)」の数。どちらも無く
+      「開始前に /free でモデルを解放」があれば 0.0(解放する前も確保が無かった)。どれも無ければ None
+    開始前・最大・終わりの値は note に無いので None。読む経路(to_measurement・parse_measurements)では使わない
+    (使うのは device_of を呼ぶまとめと照合だけ)。"""
+    if not isinstance(note, str):
+        return None
+    hits = _NOTE_DELTA.findall(note)
+    if len(hits) != 1:
+        return None
+    delta = float(hits[0])
+    if delta <= 0:
+        return None
+    torch: float | None = None
+    t = _NOTE_AFTER_FREE.search(note) or _NOTE_NO_FREE.search(note)
+    if t is not None:
+        torch = float(t.group(1))
+    elif _NOTE_FREED in note:
+        torch = 0.0
+    return {
+        "tool": "system_stats",
+        "before_gb": None,
+        "peak_gb": None,
+        "after_gb": None,
+        "before_torch_gb": torch,
+        "delta_gb": delta,
+        "from_note": True,
+    }
+
+
+def device_of(m: Any) -> dict[str, Any] | None:
+    """実測の GPU 全体の使用量(#200)。Measurement.device があればそれ。無ければ、bench の測り方
+    (vram_metric が torch_reserved)で最後まで動いた(outcome が ok)実測だけ note から読む
+    (device_from_note)。note は提出する人が書ける文なので、項目の検査(_check_device)と同じ上限を当てる:
+    増分・開始前の torch が GPU の総量 × DEVICE_VRAM_RATIO(総量が分からなければ MAX_GPU_VRAM_GB)を
+    超える note は読まない。"""
+    d = getattr(m, "device", None)
+    if isinstance(d, dict):
+        return d
+    if getattr(m, "vram_metric", None) != "torch_reserved" or (getattr(m, "outcome", None) or "ok") != "ok":
+        return None
+    d = device_from_note(getattr(m, "note", None))
+    if d is None:
+        return None
+    vram = getattr(m, "gpu_vram_gb", None)
+    cap = vram * DEVICE_VRAM_RATIO if _num(vram) and vram > 0 else MAX_GPU_VRAM_GB
+    torch = d["before_torch_gb"]
+    if d["delta_gb"] > cap or (torch is not None and torch > cap):
+        return None
+    return d
 
 
 TIMING_ORDER = (
@@ -1540,6 +1628,8 @@ def to_measurement(data: dict[str, Any]) -> Measurement:
         settings_override=True if mm.get("settings_override") is True else None,
         # 段ごとの山(#199。まとめと照合に使う。見積もり・段階には使わない)
         stages=_clean_stages(mm["stages"]) if isinstance(mm.get("stages"), dict) else None,
+        # GPU 全体の使用量(#200。照合だけに使う。見積もり・段階には使わない)
+        device=_clean_device(mm["device"]) if isinstance(mm.get("device"), dict) else None,
     )
 
 
@@ -1827,7 +1917,7 @@ def validate_submission(
         new3 = [f"$.{k}" for k in ("db",) if k in data]
         new3 += [
             f"$.measurement.{k}"
-            for k in ("estimate", "timing", "spilled", "spilled_gb", "stages")
+            for k in ("estimate", "timing", "spilled", "spilled_gb", "stages", "device")
             if k in mm0
         ]
         if failures:
@@ -2243,6 +2333,67 @@ def _check_stages(r: Report, mm: dict[str, Any]) -> None:
             bad(f"{where}.samples", n, " 1 以上 1000 万以下の整数です", "an integer from 1 to 10,000,000")
 
 
+def _check_device(r: Report, mm: dict[str, Any], vram: Any) -> None:
+    """GPU 全体の使用量(measurement.device。#200)。キーは DEVICE_KEYS の 5 つ全部。tool は DEVICE_TOOLS、
+    before_gb・peak_gb は 0 以上の有限の数、after_gb・before_torch_gb は同じか null
+    (before_torch_gb は、tool が system_stats なら before_gb + 0.01 以下)。peak_gb は before_gb 以上、
+    after_gb は peak_gb 以下(丸めの 0.01 GiB まで)、どれも GPU の総量 × DEVICE_VRAM_RATIO 以下
+    (総量が分からなければ 1 枚の上限 MAX_GPU_VRAM_GB)。"""
+    dev = mm.get("device")
+    if dev is None or not _check_keys(r, dev, DEVICE_KEYS, "$.measurement.device", DEVICE_KEYS):
+        return
+
+    def bad(where: str, v: Any, ja: str, en: str) -> None:
+        r.error("value", tr(f"{where} は{ja}: {v!r}", f"{where} must be {en}: {v!r}"))
+
+    tool = dev.get("tool")
+    if tool not in DEVICE_TOOLS:
+        bad("measurement.device.tool", tool, f" {' / '.join(DEVICE_TOOLS)} です", " / ".join(DEVICE_TOOLS))
+    limit = vram * DEVICE_VRAM_RATIO if _num(vram) and vram > 0 else MAX_GPU_VRAM_GB
+    vals: dict[str, float] = {}
+    for k in ("before_gb", "peak_gb", "after_gb"):
+        v = dev.get(k)
+        if v is None and k == "after_gb":
+            continue
+        where = f"measurement.device.{k}"
+        if not (_num(v) and v >= 0):
+            bad(where, v, " 0 以上の GiB です", "GiB of 0 or more")
+        elif v > limit:
+            bad(
+                where,
+                v,
+                f" GPU の総量の {DEVICE_VRAM_RATIO:g} 倍以下です",
+                f"at most {DEVICE_VRAM_RATIO:g} × the GPU total",
+            )
+        else:
+            vals[k] = float(v)
+    before, peak, after = vals.get("before_gb"), vals.get("peak_gb"), vals.get("after_gb")
+    if before is not None and peak is not None and peak < before - 0.01:
+        bad(
+            "measurement.device.peak_gb",
+            peak,
+            f" before_gb {before} 以上です",
+            f"at least before_gb {before}",
+        )
+    if after is not None and peak is not None and after > peak + 0.01:
+        bad("measurement.device.after_gb", after, f" peak_gb {peak} 以下です", f"at most peak_gb {peak}")
+    # 開始前の torch の確保量(null でよい)。system_stats では GPU 全体の開始前の値に入っている
+    torch = dev.get("before_torch_gb")
+    where = "measurement.device.before_torch_gb"
+    if torch is not None:
+        if not (_num(torch) and torch >= 0):
+            bad(where, torch, " 0 以上の GiB か null です", "GiB of 0 or more, or null")
+        elif torch > limit:
+            bad(
+                where,
+                torch,
+                f" GPU の総量の {DEVICE_VRAM_RATIO:g} 倍以下です",
+                f"at most {DEVICE_VRAM_RATIO:g} × the GPU total",
+            )
+        elif tool == "system_stats" and before is not None and torch > before + 0.01:
+            bad(where, torch, f" before_gb {before} 以下です", f"at most before_gb {before}")
+
+
 def _check_new_fields(r: Report, mm: dict[str, Any], vram: Any, ram: Any) -> None:
     """contrib_schema 3 の実測の項目(#132): 見積もり・時間の内訳・VRAM を超えた印。"""
     est = mm.get("estimate")
@@ -2311,6 +2462,7 @@ def _check_new_fields(r: Report, mm: dict[str, Any], vram: Any, ram: Any) -> Non
                 ),
             )
     _check_stages(r, mm)
+    _check_device(r, mm, vram)
     if "spilled" not in mm and "spilled_gb" not in mm:
         return
     spilled, extra, peak = mm.get("spilled"), mm.get("spilled_gb"), mm.get("peak_vram_gb")
@@ -3536,6 +3688,44 @@ def aggregate_stages(used: list[tuple[str, Measurement]]) -> dict[str, Any] | No
     return out
 
 
+def aggregate_device(used: list[tuple[str, Measurement]]) -> dict[str, Any] | None:
+    """まとめの行の GPU 全体の使用量(#200。aggregate_stages にならう)。used は (出どころ, 実測) の組
+    (中央値に使った提出)。提出ごとに device_of(項目、無ければ bench の note から読んだ値)を使い、tool が
+    最頻値(同じ数なら DEVICE_TOOLS の順で先のもの)と違う提出・増分の分からない提出は入れない。
+    提出ごとの増分(delta_gb があればそれ、無ければ
+    peak_gb - before_gb)と before_gb・peak_gb・after_gb・before_torch_gb を、値のある提出だけで出どころごとの
+    中央値 → 出どころの間の中央値でまとめる(丸めは 2 桁。値のある提出が無ければ null)。sources は使った
+    出どころの数、from_note は note から読んだ提出の数(0 でも書く)。使える提出が無いときは None
+    (行に device を書かない)。"""
+
+    def delta(d: dict[str, Any]) -> float | None:
+        x = d.get("delta_gb")
+        if _num(x):
+            return float(x)
+        if _num(d.get("before_gb")) and _num(d.get("peak_gb")):
+            return float(d["peak_gb"]) - float(d["before_gb"])
+        return None
+
+    have = [(src, d) for src, m in used if (d := device_of(m)) is not None]
+    counts = Counter(d.get("tool") for _, d in have if d.get("tool") in DEVICE_TOOLS)
+    # 同じ数なら DEVICE_TOOLS の順(system_stats が先。開始前の torch の量が分かるのはこちら)
+    tool = max(DEVICE_TOOLS, key=lambda t: (counts[t], -DEVICE_TOOLS.index(t))) if counts else None
+    have = [(src, d) for src, d in have if d.get("tool") == tool and delta(d) is not None]
+    if not have:
+        return None
+    out: dict[str, Any] = {"tool": tool, "sources": len({src for src, _ in have})}
+    for k in ("before_gb", "peak_gb", "after_gb", "before_torch_gb", "delta_gb"):
+        by_src: dict[str, list[float]] = {}
+        for src, d in have:
+            x = delta(d) if k == "delta_gb" else d.get(k)
+            if _num(x):
+                by_src.setdefault(src, []).append(float(x))
+        per = [statistics.median(by_src[s]) for s in sorted(by_src)]
+        out[k] = round(statistics.median(per), 2) if per else None
+    out["from_note"] = sum(1 for _, d in have if d.get("from_note"))
+    return out
+
+
 def aggregate(subs: list[Submission], sources: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """同じモデル・設定・GPU(と測り方・測ったときの一覧のファイル)ごとにまとめる。標準でない提出・
     VRAM を超えた(spilled)提出・失敗の記録は使わない(#132)。標準でないとみなす提出(nonstandard_submissions。
@@ -3625,6 +3815,7 @@ def aggregate(subs: list[Submission], sources: dict[str, str] | None = None) -> 
             settings["precision"] = norm_precision(settings["precision"])
         gpu_name = _mode([m.gpu_name for m in ms])
         stages = aggregate_stages([(src(s), m) for s, m in used])
+        device = aggregate_device([(src(s), m) for s, m in used])
         vendor = next((v for v, b in VENDOR_BACKEND.items() if b == _mode([m.gpu_backend for m in ms])), None)
         out.append(
             {
@@ -3675,6 +3866,8 @@ def aggregate(subs: list[Submission], sources: dict[str, str] | None = None) -> 
                 "peak_vram_max_gb": round(max(uv), 2) if uv else None,
                 # 段ごとの山(#199。aggregate_stages)。stages のある提出が無い行には書かない
                 **({"stages": stages} if stages else {}),
+                # GPU 全体の使用量(#200。aggregate_device)。device のある提出が無い行には書かない
+                **({"device": device} if device else {}),
                 "outlier_submissions": outliers,
                 "submissions": [s.sha256[:8] for s in members],
             }

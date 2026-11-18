@@ -275,7 +275,17 @@
    "predicted_gb": 0.24,
    "error_pct": -80.8,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 0.91,
+    "whole_gb": 2.38,
+    "formula_gb": 2.13,
+    "error_pct": -10.8,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "3d_moge_perspective_to_mesh",
@@ -294,7 +304,17 @@
    "predicted_gb": 0.78,
    "error_pct": 8.9,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 1.11,
+    "whole_gb": 2.58,
+    "formula_gb": 2.87,
+    "error_pct": 11.2,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "audio_stable_audio_example",
@@ -315,7 +335,17 @@
    "predicted_gb": 3.91,
    "error_pct": 1.8,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 3.4,
+    "whole_gb": 4.87,
+    "formula_gb": 9.04,
+    "error_pct": 85.5,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "audio_stable_audio_example",
@@ -336,7 +366,17 @@
    "predicted_gb": 2.46,
    "error_pct": -3.7,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 2.79,
+    "whole_gb": 4.26,
+    "formula_gb": 7.59,
+    "error_pct": 78.1,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "audio_yue2_text2music",
@@ -357,7 +397,17 @@
    "predicted_gb": 1.37,
    "error_pct": -68.1,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 4.2,
+    "whole_gb": 5.67,
+    "formula_gb": 6.53,
+    "error_pct": 15.2,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_sdxl_simple",
@@ -379,7 +429,17 @@
    "predicted_gb": 1.06,
    "error_pct": -58.0,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 7.36,
+    "whole_gb": 8.83,
+    "formula_gb": 9.0,
+    "error_pct": 1.9,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_sdxl_simple",
@@ -401,7 +461,17 @@
    "predicted_gb": 1.06,
    "error_pct": -80.7,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 9.11,
+    "whole_gb": 10.58,
+    "formula_gb": 9.0,
+    "error_pct": -15.0,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_z_image_turbo_int8",
@@ -423,7 +493,17 @@
    "predicted_gb": 1.06,
    "error_pct": -52.7,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 13.5,
+    "whole_gb": 14.97,
+    "formula_gb": 13.87,
+    "error_pct": null,
+    "pinned": true,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_z_image_turbo_int8",
@@ -445,7 +525,17 @@
    "predicted_gb": 2.02,
    "error_pct": -59.2,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 12.93,
+    "whole_gb": 14.4,
+    "formula_gb": 14.82,
+    "error_pct": null,
+    "pinned": true,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "text_to_video_wan",
@@ -468,7 +558,17 @@
    "predicted_gb": 0.76,
    "error_pct": -82.8,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 12.41,
+    "whole_gb": 13.88,
+    "formula_gb": 11.38,
+    "error_pct": -18.0,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "text_to_video_wan",
@@ -491,7 +591,17 @@
    "predicted_gb": 0.42,
    "error_pct": -89.3,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 12.71,
+    "whole_gb": 14.18,
+    "formula_gb": 11.05,
+    "error_pct": -22.1,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "text_to_video_wan",
@@ -514,7 +624,17 @@
    "predicted_gb": 1.1,
    "error_pct": -76.6,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 11.91,
+    "whole_gb": 13.38,
+    "formula_gb": 11.72,
+    "error_pct": -12.4,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "utility_seedvr2_3b_int8_upscale_image",
@@ -536,7 +656,17 @@
    "predicted_gb": 2.83,
    "error_pct": 45.7,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 4.34,
+    "whole_gb": 5.81,
+    "formula_gb": 7.99,
+    "error_pct": 37.4,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_sdxl_simple",
@@ -558,7 +688,17 @@
    "predicted_gb": 9.0,
    "error_pct": -2.4,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 7.1,
+    "whole_gb": 8.57,
+    "formula_gb": 9.0,
+    "error_pct": 5.0,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_z_image_turbo_int8",
@@ -580,7 +720,17 @@
    "predicted_gb": 13.87,
    "error_pct": 18.0,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 12.22,
+    "whole_gb": 13.69,
+    "formula_gb": 13.87,
+    "error_pct": 1.3,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "text_to_video_wan",
@@ -603,7 +753,17 @@
    "predicted_gb": 11.38,
    "error_pct": -2.6,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 11.41,
+    "whole_gb": 12.88,
+    "formula_gb": 11.38,
+    "error_pct": -11.6,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "audio_ace_step_1_5_checkpoint",
@@ -624,7 +784,17 @@
    "predicted_gb": 22.26,
    "error_pct": 61.2,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 9.38,
+    "whole_gb": 10.85,
+    "formula_gb": 22.26,
+    "error_pct": 105.1,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "audio_stable_audio_example",
@@ -645,7 +815,17 @@
    "predicted_gb": 9.04,
    "error_pct": 49.1,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 3.48,
+    "whole_gb": 4.95,
+    "formula_gb": 9.04,
+    "error_pct": 82.5,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_anima_base_v1",
@@ -666,7 +846,17 @@
    "predicted_gb": 7.02,
    "error_pct": 5.4,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 5.28,
+    "whole_gb": 6.75,
+    "formula_gb": 7.02,
+    "error_pct": 3.9,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "utility_moge3_geometry_estimation",
@@ -685,7 +875,17 @@
    "predicted_gb": 4.04,
    "error_pct": -16.0,
    "n_sources": null,
-   "consistent": null
+   "consistent": null,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 3.2,
+    "whole_gb": 4.67,
+    "formula_gb": 4.04,
+    "error_pct": -13.5,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "3d_hunyuan3d-v2.1",
@@ -705,7 +905,17 @@
    "predicted_gb": 0.78,
    "error_pct": -50.7,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 7.12,
+    "whole_gb": 8.59,
+    "formula_gb": 9.12,
+    "error_pct": 6.1,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "3d_hunyuan3d_image_to_model",
@@ -725,7 +935,17 @@
    "predicted_gb": 0.78,
    "error_pct": 56.8,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 4.9,
+    "whole_gb": 6.37,
+    "formula_gb": 6.85,
+    "error_pct": 7.4,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "audio_ace_step_1_5_checkpoint",
@@ -746,7 +966,17 @@
    "predicted_gb": 11.44,
    "error_pct": 20.5,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 9.1,
+    "whole_gb": 10.57,
+    "formula_gb": 22.26,
+    "error_pct": 110.6,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_sdxl_simple",
@@ -768,7 +998,17 @@
    "predicted_gb": 1.06,
    "error_pct": -53.4,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 6.53,
+    "whole_gb": 8.0,
+    "formula_gb": 9.0,
+    "error_pct": null,
+    "pinned": true,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_sdxl_simple",
@@ -790,7 +1030,17 @@
    "predicted_gb": 1.06,
    "error_pct": -78.6,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 6.4,
+    "whole_gb": 7.87,
+    "formula_gb": 9.0,
+    "error_pct": null,
+    "pinned": true,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_sdxl_simple",
@@ -812,7 +1062,17 @@
    "predicted_gb": 1.06,
    "error_pct": -20.6,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 6.81,
+    "whole_gb": 8.28,
+    "formula_gb": 9.0,
+    "error_pct": null,
+    "pinned": true,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_sdxl_simple",
@@ -834,7 +1094,17 @@
    "predicted_gb": 1.06,
    "error_pct": -54.6,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 7.74,
+    "whole_gb": 9.21,
+    "formula_gb": 9.0,
+    "error_pct": -2.3,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_sdxl_simple",
@@ -856,7 +1126,17 @@
    "predicted_gb": 1.06,
    "error_pct": -33.1,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 6.86,
+    "whole_gb": 8.33,
+    "formula_gb": 9.0,
+    "error_pct": 8.0,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "image_z_image_turbo_int8",
@@ -878,7 +1158,17 @@
    "predicted_gb": 1.06,
    "error_pct": 41.8,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 12.31,
+    "whole_gb": 13.78,
+    "formula_gb": 13.87,
+    "error_pct": 0.6,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "utility_depth_anything3_image_depth_estimation",
@@ -897,7 +1187,17 @@
    "predicted_gb": 0.24,
    "error_pct": -52.1,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 0.92,
+    "whole_gb": 2.39,
+    "formula_gb": 2.49,
+    "error_pct": 4.1,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   },
   {
    "model_id": "utility_moge_depth_estimation",
@@ -916,7 +1216,17 @@
    "predicted_gb": 0.24,
    "error_pct": -68.1,
    "n_sources": 1,
-   "consistent": false
+   "consistent": false,
+   "device": {
+    "tool": "system_stats",
+    "delta_gb": 0.86,
+    "whole_gb": 2.33,
+    "formula_gb": 2.33,
+    "error_pct": -0.2,
+    "pinned": false,
+    "clean": true,
+    "from_note": true
+   }
   }
  ]
 }
