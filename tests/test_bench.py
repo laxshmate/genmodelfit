@@ -1184,6 +1184,9 @@ def test_client_does_not_follow_redirects():
 
     class Redirect(BaseHTTPRequestHandler):
         def do_POST(self):
+            # 本文を読んでから返す。読まずに閉じると、Windows では接続がリセットされ、クライアントが 307 を
+            # 読む前に接続の失敗を受け取ることがある(#210)
+            self.rfile.read(int(self.headers.get("Content-Length") or 0))
             self.send_response(307)
             self.send_header("Location", to)
             self.send_header("Content-Length", "0")
