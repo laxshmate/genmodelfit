@@ -741,8 +741,7 @@ carried over unchanged. Everything else is judgement-needed.
 `DIR/review_queue.json` (0.6.0: `{genmodelfit, generated_at, pending: [review list items], classification}`) and
 `DIR/result.json`: `genmodelfit`, `ok`, `problems` (str[], why it failed), `base`, `offline`, `run_url`, `partial`,
 `status` (DataStatus of the new list), `status_old` (of the base list), `warnings` (str[]), `summary` (as above), `classification` (`{safe, judgement_needed: count}`),
-`review_pending` (the review list items), `uncensored` (`{new, limit, weeks}`: entries newly marked
-uncensored, the limit and the weeks in the limit; also in weeks under the limit; #197; absent in older results), `files` (`db`, `diff`, `pr_body`, `review_queue`), and `applied_to` with
+`review_pending` (the review list items), `uncensored` (`{new, limit, weeks}`: entries newly marked uncensored, the limit and the weeks in the limit; also in weeks under the limit; #197; absent in older results), `unmeasured_formulas` (#205: the added entries whose formula has no measurement; the result of `coverage.unmeasured_new` with `added` (added entries found in the list), `counts`, `formulas` and `not_staged`; informational only. `counts` has six keys that add up to `added`: `both` (sampling stage and VAE both measured), `vae_only`, `work_only`, `none` (a per-stage formula, neither measured), `not_staged` (no per-stage formula, no measurement of the model itself), `not_staged_measured` (no per-stage formula, the model itself measured). If building it failed, it is `{"error": <exception type name>}`), `files` (`db`, `diff`, `pr_body`, `review_queue`), and `applied_to` with
 `--apply`. The pull request body has a 「分類」 (classification) section and a 「確認待ち」 (pending review) table (names escaped like every upstream
 text). Exit codes are unchanged: a judgement-needed week is still `ok` (exit 0).
 

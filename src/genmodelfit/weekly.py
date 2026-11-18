@@ -246,17 +246,84 @@ def _cell(v: Any) -> str:
     return md(v)
 
 
-def _table(head: list[str], rows: list[list[Any]], total: int | None = None) -> list[str]:
+def _table(
+    head: list[str],
+    rows: list[list[Any]],
+    total: int | None = None,
+    where: str = "diff.json",
+    limit: int | None = None,
+) -> list[str]:
     out = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
-    out += ["| " + " | ".join(_cell(c) for c in r) + " |" for r in rows[:MAX_ROWS]]
+    cap = MAX_ROWS if limit is None else limit
+    out += ["| " + " | ".join(_cell(c) for c in r) + " |" for r in rows[:cap]]
     n = len(rows) if total is None else total
-    if n > MAX_ROWS:
-        out.append(f"\n…ほか {n - MAX_ROWS} 件(全部は artifact の diff.json)")
+    if n > cap:
+        out.append(f"\n…ほか {n - cap} 件(全部は artifact の {where})")
     return out
 
 
 def _gb(b: int | None) -> str:
     return "—" if not b else f"{b / 2**30:.2f}"
+
+
+MAX_IDS_PER_ROW = 3
+# 「実測の無い式」の節は知らせるだけなので小さく保つ(本文が長いと limit_body は後ろから切る)
+MAX_UNMEASURED_ROWS = 15
+MAX_UNMEASURED_CHARS = 80  # 表の 1 つのセル(鍵・id)に出す文字数
+
+
+def _short(v: Any) -> str:
+    t = str(v)
+    return t if len(t) <= MAX_UNMEASURED_CHARS else t[: MAX_UNMEASURED_CHARS - 1] + "…"
+
+
+def unmeasured_section(u: dict[str, Any] | None) -> list[str]:
+    """「実測の無い式(増えた項目)」の節(#205。知らせるだけ)。u は coverage.unmeasured_new の結果
+    (失敗したときは {"error": 例外の型の名前})。増えた項目が 0 件、または実測の無い式も当てられない項目も
+    無いときは節を出さない。表は MAX_UNMEASURED_ROWS 行まで、セルは MAX_UNMEASURED_CHARS 字まで。"""
+    if not u:
+        return []
+    if u.get("error"):
+        return [
+            "### 実測の無い式(増えた項目)",
+            "",
+            f"一覧を作れませんでした({md(u['error'])})。更新の確かめには関係しません。",
+            "",
+        ]
+    if not u.get("added") or not (u.get("formulas") or u.get("not_staged")):
+        return []
+    c = u["counts"]
+    cannot = c["not_staged"] + c["not_staged_measured"]
+    cannot_text = f"式を当てられない {cannot}" + (
+        f"(うち実測あり {c['not_staged_measured']})" if c["not_staged_measured"] else ""
+    )
+    lines = [
+        "### 実測の無い式(増えた項目)",
+        "",
+        f"増えた {u['added']} 件のうち、両方あり {c['both']}・片方だけ {c['vae_only'] + c['work_only']}・"
+        f"どちらも無し {c['none']}・{cannot_text}。",
+        "",
+    ]
+    if u["formulas"]:
+        rows = []
+        for f in u["formulas"]:
+            ids = f["models"]
+            shown = ", ".join(_short(i) for i in ids[:MAX_IDS_PER_ROW])
+            more = len(ids) - MAX_IDS_PER_ROW
+            tail = f" ほか {more} 件" if more > 0 else ""
+            rows.append([_short(f["key"]), "VAE" if f["kind"] == "vae" else "生成", len(ids), shown + tail])
+        lines += _table(
+            ["式の鍵", "段", "増えた項目の数", "項目"], rows, where="result.json", limit=MAX_UNMEASURED_ROWS
+        )
+        lines.append("")
+    if u["not_staged"]:
+        parts = [f"{_short(x['modality'])} {len(x['models'])} 件" for x in u["not_staged"]]
+        lines += ["式を当てられない項目(実測なし): " + md("、".join(parts)), ""]
+    lines += [
+        "`genmodelfit share` は、まだ実測の無い式のモデルを先に勧めます(#200。既定は sfw のモデル)。",
+        "",
+    ]
+    return lines
 
 
 @_japanese()
@@ -437,6 +504,9 @@ def pr_body(d: dict[str, Any], result: dict[str, Any]) -> str:
         lines += ["", "</details>", ""]
 
     lines += gpu_watch_section(result.get("gpu_watch"))
+    lines += unmeasured_section(
+        result.get("unmeasured_formulas")
+    )  # 知らせるだけ。切られるなら最初に切られる後ろ
     lines += [
         "### マージの前に確かめること",
         "",
@@ -610,8 +680,16 @@ def run(
         )
         (warnings if allow_many_uncensored else problems).append(msg)
     pending = review_list(new)
+    from .coverage import unmeasured_new
     from .popularity import vram_bias
 
+    # 増えた項目のうち実測の無い式を持つもの(#205。知らせるだけ。ok・problems・分類・merge-check には効かない)
+    try:
+        unmeasured = unmeasured_new(new, [m["id"] for m in d["added"]])
+    except Exception as e:  # 知らせるだけの節で更新を止めない(例外の文は手元の場所が混ざりうるので入れない)
+        unmeasured = {"error": type(e).__name__}
+        if progress:
+            progress(f"実測の無い式の一覧を作れませんでした: {type(e).__name__}")
     bias = vram_bias(new)  # 人気のかたより(#95。docs/scoring.md「人気」)
     warnings += [bias_warning(b) for b in bias if b["flagged"]]  # オーナーが見るように(merge-check も止める)
     result.update(
@@ -623,6 +701,7 @@ def run(
             "judgement_needed": len(d["classification"]["judgement_needed"]),
         },
         warnings=warnings,
+        unmeasured_formulas=unmeasured,
         status_old=compute_status(old, GatePolicy(), now=when, source="path").to_dict(),
         problems=problems,
         ok=not problems,

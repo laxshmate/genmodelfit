@@ -9,6 +9,13 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **The weekly PR lists new entries whose formula has no measurement** (#205). Among the entries added in the week, the
+  PR body (section 「実測の無い式(増えた項目)」) and `result.json` (`unmeasured_formulas`) show those whose sampling-stage
+  or VAE formula key has no bundled measurement (`coverage.unmeasured_new`; the maintainer's own cache is not read),
+  by key with the entries (at most 15 rows, after the GPU table watch so it is the first thing cut when the body is
+  long), and count the entries without a per-stage formula too, so it is visible what to measure next (`share` suggests
+  them first, #200). If building it fails, `unmeasured_formulas` is `{"error": <exception type>}` and the update goes on.
+  Informational only: `ok`, the classification and the merge check are unchanged.
 - **`measure` and `share` suggest models whose formula has no measurement first** (#200). Each model's formula keys
   (`coverage.formula_keys`: the sampling-stage and VAE keys at the default settings, or the model itself without a
   per-stage formula) are checked against the bundled measurements and this PC's (`coverage.measured_keys`). The rows
