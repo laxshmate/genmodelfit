@@ -449,7 +449,8 @@ weekly-data.yml(手動の予備。#42 から定期の実行はメンテナの PC
 - ラベル `automated`・`data-update` を作る(ワークフローも作ろうとするが、`pull-requests: write` だけでは作れないことがある):
   `gh label create automated -R laxshmate/genmodelfit`、`gh label create data-update -R laxshmate/genmodelfit`
 - 同じリポジトリの PR では ci.yml のジョブは飛ばされる(#68)。ブランチの保護の必須のチェックに ci.yml を入れない。
-  手元の `tools/ci_local.py` の結果を PR の説明に書く。
+  手元の `tools/ci_local.py` の結果を PR の説明に書く。途中で止まったら `--resume`(例: `--quick --resume`)で、
+  同じ中身で前に通った検査・試験を飛ばして続きから流せる。ファイルを 1 つでも変えたら最初から。
 
 ## 鍵
 
