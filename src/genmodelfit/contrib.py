@@ -1538,6 +1538,8 @@ def to_measurement(data: dict[str, Any]) -> Measurement:
         gpu_pci_id=gpu.get("pci_id"),
         files_fp=mm.get("files_fp"),
         settings_override=True if mm.get("settings_override") is True else None,
+        # 段ごとの山(#199。まとめと照合に使う。見積もり・段階には使わない)
+        stages=_clean_stages(mm["stages"]) if isinstance(mm.get("stages"), dict) else None,
     )
 
 
@@ -3505,6 +3507,35 @@ def nonstandard_submissions() -> dict[str, str]:
     return {str(k): str(v) for k, v in subs.items()} if isinstance(subs, dict) else {}
 
 
+def aggregate_stages(used: list[tuple[str, Measurement]]) -> dict[str, Any] | None:
+    """まとめの行の段ごとの山(#199)。used は (出どころ, 実測) の組(中央値に使った提出)。
+    stages のある提出だけを使い、sampler_runs が最頻値と違う提出は入れない。段ごとに peak_gb・min_gb を
+    出どころごとの中央値 → 出どころの間の中央値でまとめる(丸めは peak_vram_gb と同じ 2 桁)。
+    sources は stages のあった出どころの数。stages のある提出が無い・どの段の山も取れないときは None
+    (行に stages を書かない)。"""
+    have = [(src, m.stages) for src, m in used if isinstance(getattr(m, "stages", None), dict)]
+    runs = _mode([st.get("sampler_runs") for _, st in have])
+    have = [(src, st) for src, st in have if st.get("sampler_runs") == runs]
+    if not have:
+        return None
+    out: dict[str, Any] = {"sampler_runs": runs, "sources": len({src for src, _ in have})}
+    for name in STAGE_NAMES:
+        stage: dict[str, Any] = {}
+        for k in ("peak_gb", "min_gb"):
+            by_src: dict[str, list[float]] = {}
+            for src, st in have:
+                v = st.get(name)
+                x = v.get(k) if isinstance(v, dict) else None
+                if _num(x):
+                    by_src.setdefault(src, []).append(float(x))
+            per = [statistics.median(by_src[s]) for s in sorted(by_src)]
+            stage[k] = round(statistics.median(per), 2) if per else None
+        out[name] = stage if stage["peak_gb"] is not None else None
+    if all(out[name] is None for name in STAGE_NAMES):
+        return None  # どの段の山も取れなかった(行に stages を書かない)
+    return out
+
+
 def aggregate(subs: list[Submission], sources: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """同じモデル・設定・GPU(と測り方・測ったときの一覧のファイル)ごとにまとめる。標準でない提出・
     VRAM を超えた(spilled)提出・失敗の記録は使わない(#132)。標準でないとみなす提出(nonstandard_submissions。
@@ -3593,6 +3624,7 @@ def aggregate(subs: list[Submission], sources: dict[str, str] | None = None) -> 
         if settings.get("precision"):
             settings["precision"] = norm_precision(settings["precision"])
         gpu_name = _mode([m.gpu_name for m in ms])
+        stages = aggregate_stages([(src(s), m) for s, m in used])
         vendor = next((v for v, b in VENDOR_BACKEND.items() if b == _mode([m.gpu_backend for m in ms])), None)
         out.append(
             {
@@ -3641,6 +3673,8 @@ def aggregate(subs: list[Submission], sources: dict[str, str] | None = None) -> 
                 "spread_rel_pct": round(rel * 100, 1),
                 "peak_vram_min_gb": round(min(uv), 2) if uv else None,
                 "peak_vram_max_gb": round(max(uv), 2) if uv else None,
+                # 段ごとの山(#199。aggregate_stages)。stages のある提出が無い行には書かない
+                **({"stages": stages} if stages else {}),
                 "outlier_submissions": outliers,
                 "submissions": [s.sha256[:8] for s in members],
             }
@@ -3767,7 +3801,8 @@ def accuracy_report(db: Database, threshold_pct: float = DEFAULT_THRESHOLD_PCT) 
     """校正(leave-one-out)をやり直し、種類ごとの誤差と閾値の判定を返す。
 
     閾値を超えたかは、(1) 評価できる種類(張り付いていない実測が 2 件以上)の LOO 誤差と、
-    (2) ほかの利用者の実測(係数の合わせに使わない測り方のもの)を全件の係数で当てた誤差、で見る。
+    (2) そろった(consistent)ほかの利用者の実測(係数の合わせに使わない測り方のもの)を全件の係数で当てた誤差、
+    で見る。そろっていない行(出どころ 1 つ。#199)は表に出すが、閾値の判定には入れない。
     作者の照合の行(RTX 3070 の 2 件など)と、作業用メモリだけの実測(#100)は表に出すが、閾値の判定には入れない
     (docs/accuracy.md に既知の外れとして書いた)。"""
     from .calibrate import calibrate
@@ -3815,7 +3850,14 @@ def accuracy_report(db: Database, threshold_pct: float = DEFAULT_THRESHOLD_PCT) 
         # 作業用メモリだけの実測(#100。quantity が work)は照合の表に出すだけで、閾値の判定に入れない
         # (段ごとの山を測れるようになるまで、作業用メモリの見積もりとは粗くしか比べられない)
         work_only = x.get("quantity") == "work"
-        if x.get("origin") == ORIGIN_COMMUNITY and not work_only and abs(x["error_pct"]) > threshold_pct:
+        # 照合にはそろっていない(出どころ 1 つの)ほかの利用者の行も出す(#199)が、閾値の判定は今までどおり
+        # そろった行(consistent)だけで見る
+        if (
+            x.get("origin") == ORIGIN_COMMUNITY
+            and x.get("consistent")
+            and not work_only
+            and abs(x["error_pct"]) > threshold_pct
+        ):
             breaches.append(
                 {
                     "kind": "community_check",

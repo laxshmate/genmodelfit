@@ -375,6 +375,11 @@ class Measurement:
     # 空き + 画面などほかのアプリの分。GiB)。None は減らしていない(gpu_vram_gb がそのまま使えた)。
     # 記録だけ(1 つの出どころでは段階を上げない。docs/accuracy.md「動的 VRAM で逃がすとき」)
     vram_available_gb: float | None = None
+    # torch の確保量をサンプラの前・最中・後に分けた山(#100 の宿題 2、#199。bench.stage_peaks の形:
+    # sampler_runs と before_sampling・sampling・after_sampling)。bench の実測・提出(contrib)から来る。
+    # まとめの行では段ごとに peak_gb・min_gb の中央値と、段のあった出どころの数(sources)。
+    # 照合(calibrate)と確かめた範囲の表(coverage)だけに使い、見積もり・段階には使わない。None は記録が無い
+    stages: dict[str, Any] | None = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Measurement:

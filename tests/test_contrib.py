@@ -1203,9 +1203,12 @@ def fixture_report(db):
 def test_report_on_fixtures(fixture_report):
     _rows, rep = fixture_report
     check = [x for x in rep["check"] if x["origin"] == "community"]
-    assert [(x["model_id"], x["gpu_name"]) for x in check] == [
-        ("image_sdxl_simple", "NVIDIA GeForce RTX 3070")
+    # そろっていない(出どころ 1 つの)行も照合に出る(#199)。閾値の判定はそろった行だけ
+    assert [(x["model_id"], x["gpu_name"], x["consistent"]) for x in check] == [
+        ("image_sdxl_simple", "NVIDIA GeForce RTX 3070", True),
+        ("image_z_image_turbo_int8", "NVIDIA GeForce RTX 4060", False),
     ]
+    assert check[1]["n_sources"] == 1
     assert check[0]["n_submissions"] == 3 and check[0]["measured_gb"] == 6.96
     assert check[0]["quantity"] == "work"  # 動的 VRAM の torch_reserved は作業用メモリと比べる(#100)
     assert rep["n_fit"] == 9  # torch_reserved の提出は係数の合わせに入れない(照合だけ)

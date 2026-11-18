@@ -591,6 +591,9 @@ The RTX 5080 measurements were taken with ComfyUI's dynamic VRAM, which **uses m
    - Until per-stage peaks can be measured, they **neither set the level nor shift the estimate; they are only cross-checked** (below; `estimate.working_only`).
    - The 9 bundled RTX 5080 rows (`vram_metric` null) are total amounts as before.
    - The same for other users' submissions (bench results): they are aggregated and kept, but do not move estimates ([schema.md](schema.md), "contrib").
+   - Per-stage peaks (`stages`: the peaks before, during and after sampling) go into submissions, aggregate rows and this PC's
+     bench measurements, and are used only for the cross-check (the per-stage table) and the coverage table
+     (`python -m genmodelfit.calibrate --coverage`). They neither set levels nor shift estimates (#199).
 8. Measured values are taken as GiB (`unit` in `measurements.json`).
    - AI生成キット's records do not state the unit.
    - It is an **assumption** from the fact that ComfyUI and nvidia-smi count in MiB.
@@ -674,6 +677,17 @@ Cross-check (measured differently, so not used for fitting; predicted with the c
 | audio_stable_audio_example | NVIDIA GeForce RTX 5080 | maintainer | 47.6 s | all on GPU | 6.06 | 9.04 | +49% |
 | image_anima_base_v1 | NVIDIA GeForce RTX 5080 | maintainer | 1024x1024 | all on GPU | 6.66 | 7.02 | +5% |
 | utility_moge3_geometry_estimation | NVIDIA GeForce RTX 5080 | maintainer | - | all on GPU | 4.81 | 4.04 | -16% |
+| 3d_hunyuan3d-v2.1 | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | working memory (measurement without weights) | 1.59 | 0.78 | -51% |
+| 3d_hunyuan3d_image_to_model | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | working memory (measurement without weights) | 0.50 | 0.78 | +57% |
+| audio_ace_step_1_5_checkpoint | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | 120 s | working memory (measurement without weights) | 9.50 | 11.44 | +20% |
+| image_sdxl_simple | NVIDIA GeForce RTX 3070 | other users (1 submission, 1 source) | 1024x1024 | working memory (measurement without weights) | 2.28 | 1.06 | -53% |
+| image_sdxl_simple | NVIDIA GeForce RTX 3070 | other users (1 submission, 1 source) | 1536x1536 | working memory (measurement without weights) | 4.97 | 1.06 | -79% |
+| image_sdxl_simple | NVIDIA GeForce RTX 3070 | other users (1 submission, 1 source) | 768x768 | working memory (measurement without weights) | 1.34 | 1.06 | -21% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | 1024x1024 | working memory (measurement without weights) | 2.34 | 1.06 | -55% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | 768x768 | working memory (measurement without weights) | 1.59 | 1.06 | -33% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | 1024x1024 | working memory (measurement without weights) | 0.75 | 1.06 | +42% |
+| utility_depth_anything3_image_depth_estimation | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | working memory (measurement without weights) | 0.50 | 0.24 | -52% |
+| utility_moge_depth_estimation | NVIDIA GeForce RTX 5080 | other users (1 submission, 1 source) | - | working memory (measurement without weights) | 0.75 | 0.24 | -68% |
 
 How to read it:
 
@@ -696,6 +710,13 @@ How to read it:
 - The large negative errors of the 11 RTX 5080 rows (2026-11-13) are because a 16 GB GPU runs the VAE untiled while the usage
   formula assumes the tiled value (V_eff). Whether all-on-GPU can be chosen is decided with the untiled V, so the judgement errs
   on the safe side ("The maintainer's RTX 5080 16GB working-memory measurements" under "Cross-check" below).
+- The 11 "other users" rows are the rows of the bundled aggregate (`measurements_community.json`); each is a working-memory-only
+  measurement from 1 source. Since 0.15.1 (#199), rows that are not consistent are cross-checked too (the source column shows the
+  number of submissions and of sources). Fitting and the threshold of `contrib aggregate --report` still use only consistent rows.
+  Rows on a GPU not in the name tables and rows whose files differ from the current list are left out, as in the judgement.
+- When a measurement has per-stage peaks (`stages`), a per-stage cross-check table follows this one (before sampling ↔ T,
+  sampling ↔ S and S_full, after sampling ↔ V and V_tile, with measured ÷ formula). The bundled measurements of 2026-11-17 have
+  no per-stage peaks, so it is not shown.
 
 ## Known limits
 
@@ -727,8 +748,16 @@ How to read it:
      On 2026-11-13, 11 RTX 5080 rows were added to the cross-check, and for YuE2 the VAE node was swapped for its tiled version
      to show that the peak is the VAE stage ("Cross-check" below). 0.15.1 added to bench's `--json` the peaks split into before,
      during and after the sampler (`stages`; checked on 3 SDXL runs and 2 Wan 2.1 1.3B runs on 2026-11-14, "Cross-check" below).
-     It also goes into `measure`'s contrib submission (`measurement.stages`). Left: keep per-stage rows in the
-     cross-check, measure on other GPUs (other users' submissions will gather them)
+     It also goes into `measure`'s contrib submission (`measurement.stages`). 0.15.1 (#199) carries the per-stage peaks into
+     the aggregate rows (`measurements_community.json`) and the cross-check (`check` in `calibration.json`), and adds a
+     per-stage table to the cross-check ("Results" above). `python -m genmodelfit.calibrate --coverage` shows how far each kind
+     of formula is backed by measurements (the list changes every week, so it is not put in `calibration.json`).
+     With the list of 2026-11-17: 9 of the 49 sampling-stage formulas have measurements (models using them: 46 of the 262 with a
+     per-stage formula), 6 of the 20 VAE kinds (161 / 262), and 7 of the 68 models without a per-stage formula.
+     Of these, a whole-amount measurement (one that includes the weights and is not pinned at the GPU's limit) exists for 6
+     sampling-stage kinds (38 / 262), 3 VAE kinds (153 / 262) and 3 models without a per-stage formula. The rest are
+     working-memory-only measurements or censored ones (a lower bound only).
+     Left: gather measurements with per-stage peaks, measure on other GPUs (other users' submissions will gather them)
   3. Reduce the models without a per-stage formula (68) (Flux3 Klein, Stable Audio 3, Ming Image, MiniMax Music 3, 5 SD models found by fingerprint and 3 SeedVR2 templates were mapped in 0.15.1)
   4. Measure the RTX 3070 again ("Cross-check" below), and Wan2.1 at 832x480, 81 frames
   5. **Done (0.15.0, images only)**: the share of weights kept on the GPU when offloading (0.4). ComfyUI on NVIDIA uses
@@ -753,7 +782,7 @@ Users add submission JSON files through a Pull Request to `data/contrib/<GPU>/<d
 SDXL at four settings) and a contributor's 11 (#141, RTX 5080). 4 of them probably missed the peak and are left out
 (`contrib_nonstandard.json`, #131), so the bundled `src/genmodelfit/data/measurements_community.json` has 11 rows, one
 submission each. None is consistent yet (that needs 2 or more sources for the same GPU, model and settings), so none
-enters the calibration.
+enters the calibration. Since 0.15.1 (#199), rows from 1 source are shown in the cross-check ("Results" above).
 The rules below describe how submissions are handled.
 
 **Files measured (#90)**: other users' submissions (contrib_schema 2 and 3) and this PC's bench measurements carry `files_fp`, the fingerprint of the list's files when measured; when a weekly list update sees upstream files change (the fingerprint differs), they are no longer used. The maintainer's measurements (`measurements.json`) have no fingerprint, so they keep being used when files change (the maintainer re-measures them; the difference is that other users' rows silently stop being used while the maintainer's keep being used). `genmodelfit contrib aggregate --check` lists the bundled rows that are no longer used.
@@ -787,6 +816,10 @@ The rules below describe how submissions are handled.
 - The count (`n_used`) and the number of OOM runs in the same setup (`n_oom`) are kept.
 - A group mixing ok and OOM uses the median of the ok runs, and the OOM count is shown in the reason.
 - A group with only OOM becomes one row with `outcome: oom` (not used for estimates).
+- Per-stage peaks (`stages`; 0.15.1, #199) are taken from the submissions used for the median that have them: for each stage,
+  `peak_gb` and `min_gb` are the median per source, then the median across sources. Submissions whose number of sampler runs
+  (`sampler_runs`) differs from the most common one are left out. Rows without any submission with per-stage peaks do not
+  have the key. They are used only for the cross-check, not for estimates or levels.
 
 **When they are used:** only measurements on **the same GPU as this PC** are used for this PC's need and level.
 
@@ -969,6 +1002,8 @@ With Apple's MPS, ComfyUI's GPU name is `mps`.
 - `contrib validate` limits GPU names of vendor apple to a chip name or `mps`.
 
 ## Cross-check (measurements and public figures used neither for fitting nor for levels)
+
+Since 0.15.1 (#199), the cross-check table ("Results" above) shows other users' rows from 1 source, and adds a per-stage table for measurements with per-stage peaks.
 
 ### The maintainer's RTX 3070 8GB measurements (bench, 2026-10-19 UTC)
 
@@ -1195,7 +1230,7 @@ From the peak shapes (recorded about 60 times a second), the value read every 0.
   ACE-Step 10 s and 30 s) are listed with reasons in the bundled `contrib_nonstandard.json`, and `contrib aggregate` does not use their values
   (the submission files are not edited, because their sha256 would change). The RTX 3070 SDXL 512 px row (0.31 GB) is gone from the bundled summary.
   The RTX 5080 submissions are not in the summary yet (they are left out when the next release adds them).
-  Refitting (`python -m genmodelfit.calibrate`) does not change the coefficients or LOO (the summary row was not consistent, so it was not in the cross-check either).
+  Refitting (`python -m genmodelfit.calibrate`) does not change the coefficients or LOO (the summary row was not consistent, so it was not in the cross-check either; since 0.15.1 (#199) rows that are not consistent are cross-checked too).
 
 Measurements after the change (RTX 3070, ComfyUI 0.19.3):
 

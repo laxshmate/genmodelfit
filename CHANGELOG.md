@@ -9,6 +9,23 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **Per-stage peaks reach the aggregate and the cross-check** (#199). `Measurement.stages` is a new optional field
+  (`schema_version` stays 1): `contrib.to_measurement` keeps `measurement.stages`, and bench also stores it in the
+  measurement it saves. `contrib aggregate` puts `stages` in a row from the submissions used for its median that
+  have them (per stage, the median per source and then across sources; submissions with a different number of
+  sampler runs are left out); rows without such submissions have no key, so the bundled
+  `measurements_community.json` is unchanged. The cross-check (`calibration.json` `check`, `contrib aggregate
+  --report`) gives measurements with stages a `stages` list that sets each measured stage against the formula's
+  terms (before ↔ T, sampling ↔ S and S_full, after ↔ V and V_tile) with measured ÷ formula, and a per-stage table
+  is printed when there is such a row (none yet). Estimates, levels and coefficients do not change.
+- **`python -m genmodelfit.calibrate --coverage`** (`coverage.coverage`, #199) prints, for every model in the list at
+  the default settings, which sampling-stage formula and VAE it uses, and how many models of each kind (and of the
+  models without a per-stage formula, per type) have a usable measurement, a whole-amount measurement (one that
+  includes the weights and is not pinned at the GPU's limit) or per-stage peaks. It neither reads nor
+  writes `calibration.json` (the list changes every week). With the list of 2026-11-17: 9 of 49 sampling-stage
+  kinds and 6 of 20 VAE kinds are measured (used by 46 and 161 of the 262 models with a per-stage formula), and 7 of
+  the 68 models without one; with a whole-amount measurement, 6 sampling-stage kinds (38 / 262), 3 VAE kinds
+  (153 / 262) and 3 models without a per-stage formula.
 - **7 whole-amount measurements on an RTX 5080 with ComfyUI started with `--disable-dynamic-vram`** (bench at the
   template's settings, 2026-11-14: SDXL, Z-Image Turbo int8, Wan 2.1 1.3B, ACE-Step 1.5, Stable Audio Open, Anima,
   MoGe 3). The old behaviour keeps the weights in the torch reservation, so these check the all-on-GPU estimate at
@@ -23,8 +40,7 @@ All notable changes to this project are documented here. The format is based on
   (the same lines as `timing`) and the run's start and end; a margin around each boundary goes into no stage. Each
   stage has its peak, minimum and number of reads; the text output shows them on one line. Only when ComfyUI runs on
   the same PC and sampler lines exist. `measure`'s contrib submission carries them as `measurement.stages`
-  (optional in contrib_schema 3; checked against the measured peak; not used for aggregation, estimates or
-  levels). On an RTX 5080, SDXL at 768–1536 px peaks after sampling at 0.60–0.64 × ComfyUI's untiled VAE figure,
+  (optional in contrib_schema 3; checked against the measured peak; not used for estimates or levels). On an RTX 5080, SDXL at 768–1536 px peaks after sampling at 0.60–0.64 × ComfyUI's untiled VAE figure,
   with the sampler's reservation released first (minimum 0.09 GB), and the sampling stage is 1.7–2.4 × formula S
   (docs/accuracy.md "Cross-check"). Wan 2.1 1.3B at 832×480 (33 and 81 frames), whose usage peaks at sampling, used
   1.10–1.13 × 2·S there and 0.88–0.89 × V after it. LongCat Image (Qwen2.5-VL 7B) and Z-Image Turbo (Qwen3 4B)
@@ -45,6 +61,12 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- **Other users' rows enter the cross-check from 1 source** (#199). `calibrate.build_check_rows` no longer needs
+  `consistent`, so the 11 bundled community rows (each from 1 source, all working-memory-only) now appear in the
+  cross-check of `calibration.json` and `docs/accuracy.md`; rows on a GPU not in the name tables or with files that
+  differ from the list stay out, as in the judgement. Each `check` row has `n_sources` (community rows) and
+  `consistent`, and the source column reads "other users (3 submissions, 1 source)". Fitting (`build_rows`) and the
+  threshold of `contrib aggregate --report` still use only consistent rows.
 - **A main model stored in fp32 is counted at 2 bytes on half-precision GPUs** (13 models: Stable Audio Open /
   3 (6), SD checkpoints (3), Depth Anything 3 (2), LTX-Video, Wan Causal Forcing). ComfyUI's `unet_dtype` loads it
   in fp16 when the family has fp16, or in bf16 on GPUs with bf16 (`comfy/model_management.py:1170-1176`), and

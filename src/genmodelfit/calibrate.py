@@ -35,6 +35,7 @@ from .estimate import (
     activation_features,
     apply_precision,
     components,
+    files_match,
     formula_need,
     is_censored,
     is_community,
@@ -45,6 +46,7 @@ from .estimate import (
 )
 from .i18n import tr
 from .models import Measurement
+from .working import StageMem
 
 # 範囲(物理的にありえる幅)と事前値。事前値は #1 の仮の値で、実測を見る前に決めたもの
 BOUNDS: dict[str, tuple[float, float]] = {
@@ -82,6 +84,9 @@ class Row:
     const_gb: float = 0.0
     work_gb: float = 0.0  # 合わせる前の作業用メモリ(照合で作業用メモリだけの実測と比べる)
     staged: bool = False
+    # 段ごとの作業用メモリの式(working.StageMem。NVIDIA の半精度)。段ごとの照合(#199)に使う。
+    # 当てられなければ None
+    stage_mem: StageMem | None = None
 
     def predict(self, theta: dict[str, float]) -> float:
         return self.const_gb + sum(theta[k] * v for k, v in self.features.items())
@@ -102,10 +107,17 @@ def _rows(db: Database, c: Coefficients | None, *, same_metric: bool) -> list[Ro
     rows = []
     for m in db.measurements:
         e = db.get(m.model_id)
-        # OOM・エラー・標準でない設定の実測は使わない(estimate.usable)。ほかの利用者の実測は、見積もりには
-        # 1 件から使うが、全モデルに効く係数の合わせ直しと照合には、そろったもの(consistent)だけ入れる
-        if e is None or not usable(m) or (is_community(m) and not m.consistent):
+        # OOM・エラー・標準でない設定の実測は使わない(estimate.usable)
+        if e is None or not usable(m):
             continue
+        if is_community(m):
+            if same_metric and not m.consistent:
+                # 全モデルに効く係数の合わせ直しには、ほかの利用者の実測はそろったもの(consistent)だけ入れる
+                continue
+            if not same_metric and (m.gpu_known is False or not files_match(m, e)):
+                # 照合には出どころ 1 つから入れる(#199)。ただし判定が捨てる行(名前の表に無い GPU・
+                # 今の一覧とファイルの違う実測。estimate.pick_measurement)は照合にも出さない
+                continue
         if not (m.peak_vram_gb or 0) > 0:  # 割り算に使う(0 のピークは測り損ね)
             continue
         if (getattr(m, "vram_metric", None) == CALIBRATION_METRIC) != same_metric:
@@ -127,7 +139,9 @@ def _rows(db: Database, c: Coefficients | None, *, same_metric: bool) -> list[Ro
             feats = {k: v for k, v in act.items() if k in FIT}
             work = sum(getattr(c, k) * v for k, v in act.items() if k not in FIT)
             const = c.overhead_gb + weights + work
-        rows.append(Row(m, weights, feats, is_censored(m), e.modality, const, work, n.stages is not None))
+        rows.append(
+            Row(m, weights, feats, is_censored(m), e.modality, const, work, n.stages is not None, n.stages)
+        )
     return rows
 
 
@@ -139,12 +153,41 @@ def build_rows(db: Database, c: Coefficients | None = None) -> list[Row]:
 
 def build_check_rows(db: Database, c: Coefficients | None = None) -> list[Row]:
     """照合だけに使う実測(測り方が違うもの。bench の torch_reserved。同梱の RTX 3070 の 2 件と、
-    ほかの利用者の実測のまとめ)。全件で合わせた係数で当て、誤差を出す(係数の合わせには入れない)。"""
+    ほかの利用者の実測のまとめ)。全件で合わせた係数で当て、誤差を出す(係数の合わせには入れない)。
+    ほかの利用者の行は、そろっていなくても(出どころ 1 つでも)入れる(#199)。名前の表に無い GPU の行・
+    今の一覧とファイルの違う行は入れない(判定も使わない)。"""
     return _rows(db, c, same_metric=False)
 
 
 def _origin(m: Measurement) -> str:
     return getattr(m, "origin", None) or "maintainer"
+
+
+# 段ごとの照合(#199)で、実測の段(contrib.STAGE_NAMES)と比べる式の項(working.StageMem の属性)
+STAGE_TERMS: dict[str, tuple[str, ...]] = {
+    "before_sampling": ("T",),
+    "sampling": ("S", "S_full"),
+    "after_sampling": ("V", "V_tile"),
+}
+
+
+def stage_check(stages: dict | None, st: StageMem | None) -> list[dict] | None:
+    """段ごとの山(Measurement.stages)と式の項を並べる(#199)。段ごとに実測の山(peak_gb)と、
+    項ごとの式の値と 実測 ÷ 式(式が 0・実測が無いときは None)。段ごとに当てられないモデル(st が None)は
+    式を None にする。stages が無ければ None。"""
+    if not isinstance(stages, dict):
+        return None
+    out = []
+    for name, terms in STAGE_TERMS.items():
+        v = stages.get(name)
+        peak = v.get("peak_gb") if isinstance(v, dict) else None
+        items = []
+        for term in terms:
+            f = None if st is None else float(getattr(st, term))
+            ratio = round(peak / f, 2) if peak is not None and f is not None and f > 0 else None
+            items.append({"term": term, "formula_gb": None if f is None else round(f, 2), "ratio": ratio})
+        out.append({"stage": name, "measured_gb": peak, "terms": items})
+    return out
 
 
 def check(rows: list[Row], theta: dict[str, float]) -> list[dict]:
@@ -169,6 +212,11 @@ def check(rows: list[Row], theta: dict[str, float]) -> list[dict]:
                 "quantity": "work" if only else "full",
                 "predicted_gb": round(pred, 2),
                 "error_pct": round((pred - y) / y * 100, 1),
+                # ほかの利用者の行だけ(#199): 別々の出どころの数とそろっているか。メンテナの行は None
+                "n_sources": getattr(r.m, "n_sources", None) if is_community(r.m) else None,
+                "consistent": getattr(r.m, "consistent", None),
+                # 段ごとの山があるときだけ(#199。stage_check)
+                **({"stages": sc} if (sc := stage_check(getattr(r.m, "stages", None), r.stage_mem)) else {}),
             }
         )
     return out
@@ -386,6 +434,9 @@ def markdown_table(result: dict) -> str:
     )
     if result.get("check"):
         lines += ["", *check_table(result["check"])]
+        staged = stage_table(result["check"])
+        if staged:
+            lines += ["", *staged]
     return "\n".join(lines)
 
 
@@ -398,6 +449,21 @@ def _settings_text(s: dict) -> str:
     if s.get("seconds"):
         bits.append(tr(f"{s['seconds']:g} 秒", f"{s['seconds']:g} s"))
     return tr("・", ", ").join(bits) or "-"
+
+
+def _who(x: dict) -> str:
+    """照合の行の出どころの欄。ほかの利用者は提出の数と別々の出どころの数(#199)。"""
+    if x["origin"] != "community":
+        return tr("メンテナ", "maintainer")
+    who = tr("ほかの利用者", "other users")
+    n, k = x.get("n_submissions"), x.get("n_sources")
+    if n and k is not None:
+        sub_en = "submission" if n == 1 else "submissions"
+        src_en = "source" if k == 1 else "sources"
+        who += tr(f"({n} 件・出どころ {k})", f" ({n} {sub_en}, {k} {src_en})")
+    elif n:
+        who += tr(f"({n} 件)", f" ({n})")
+    return who
 
 
 def check_table(rows: list[dict]) -> list[str]:
@@ -421,10 +487,7 @@ def check_table(rows: list[dict]) -> list[str]:
         "|---|---|---|---|---|---:|---:|---:|",
     ]
     for x in rows:
-        community = x["origin"] == "community"
-        who = tr("ほかの利用者", "other users") if community else tr("メンテナ", "maintainer")
-        if x["origin"] == "community" and x.get("n_submissions"):
-            who += tr(f"({x['n_submissions']} 件)", f" ({x['n_submissions']})")
+        who = _who(x)
         err = tr("張り付き", "censored") if x["censored"] else f"{x['error_pct']:+.0f}%"
         what = (
             tr("作業用メモリ(重みを含まない実測)", "working memory (measurement without weights)")
@@ -439,6 +502,52 @@ def check_table(rows: list[dict]) -> list[str]:
     return lines
 
 
+def stage_table(rows: list[dict]) -> list[str]:
+    """段ごとの照合の表(#199。照合の行のうち段ごとの山(stages)のあるものだけ)。1 行 = 段 × 式の項。
+    段ごとの山のある行が無ければ空(表を出さない)。提出から来る文字は md_cell で無害にする。"""
+    from .contrib import md_cell
+
+    staged = [x for x in rows if x.get("stages")]
+    if not staged:
+        return []
+    lines = [
+        tr(
+            "段ごとの照合(サンプラの前・最中・後の torch の確保量の山と、段ごとの式の項。"
+            "前 ↔ T、最中 ↔ S・S_full、後 ↔ V(タイルにしない)・V_tile):",
+            "Cross-check by stage (peak torch reservation before, during and after sampling, against"
+            " the stage terms of the formula: before ↔ T, during ↔ S and S_full,"
+            " after ↔ V (untiled) and V_tile):",
+        ),
+        "",
+        tr(
+            "| モデル | GPU | 出どころ | 設定 | 段 | 実測 GiB | 式の項 | 式 GiB | 実測 ÷ 式 |",
+            "| Model | GPU | Source | Settings | Stage | Measured GiB | Term | Formula GiB"
+            " | Measured ÷ formula |",
+        ),
+        "|---|---|---|---|---|---:|---|---:|---:|",
+    ]
+    names = {
+        "before_sampling": tr("サンプラの前", "before sampling"),
+        "sampling": tr("サンプラ", "sampling"),
+        "after_sampling": tr("サンプラの後", "after sampling"),
+    }
+    for x in staged:
+        head = (
+            f"| {md_cell(x['model_id'])} | {md_cell(x['gpu_name'])} | {_who(x)} |"
+            f" {_settings_text(x['settings'])} |"
+        )
+        for stg in x["stages"]:
+            meas = "-" if stg["measured_gb"] is None else f"{stg['measured_gb']:.2f}"
+            for term in stg["terms"]:
+                f = "-" if term["formula_gb"] is None else f"{term['formula_gb']:.2f}"
+                ratio = "-" if term["ratio"] is None else f"{term['ratio']:.2f}"
+                lines.append(
+                    f"{head} {names.get(stg['stage'], md_cell(stg['stage']))} | {meas} |"
+                    f" {term['term']} | {f} | {ratio} |"
+                )
+    return lines
+
+
 def default_output() -> Path:
     return Path(__file__).parent / "data" / "calibration.json"
 
@@ -450,6 +559,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--output", type=Path, default=default_output(), help="書き出し先")
     p.add_argument("--dry-run", action="store_true", help="書き出さずに表だけ出す")
     p.add_argument("--date", help="記録する日付(既定は今日)")
+    p.add_argument(
+        "--coverage",
+        action="store_true",
+        help="確かめた範囲の表(式の種類ごとの実測の有無)だけを出す。calibration.json は読まない・書かない",
+    )
     args = p.parse_args(argv)
     # 出す表は docs/accuracy.ja.md にそのまま貼るので、表示の言語によらず日本語にする(#73)
     with i18n.forced("ja"):
@@ -457,6 +571,12 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _main(args: argparse.Namespace) -> int:
+    if args.coverage:
+        from .coverage import coverage, coverage_table
+
+        # 一覧は毎週変わるので calibration.json には入れない(#199)。同梱の一覧と同梱の実測だけで数える
+        print("\n".join(coverage_table(coverage(bundled_db()[0]))))
+        return 0
     db, excluded = bundled_db()
     if excluded:
         print(f"この PC の bench の実測(キャッシュ){excluded} 件は使わない(同梱の実測だけで合わせる)")
@@ -482,6 +602,8 @@ __all__ = [
     "leave_one_out",
     "main",
     "markdown_table",
+    "stage_check",
+    "stage_table",
 ]
 
 if __name__ == "__main__":
