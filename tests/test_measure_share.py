@@ -1249,7 +1249,9 @@ def test_measure_screen_shows_the_settings(capsys, monkeypatch, this_pc):
 def test_measure_choosing_a_variant_measures_it(capsys, monkeypatch, this_pc, fake_gpu, measured_db):
     from test_bench import FakeComfy
 
-    sugg = measure.suggestions(measured_db, pc())[: cli.MEASURE_LIMIT]
+    # 実測の無い式を先に勧めるので(#200)、同梱の一覧に新しい式のテンプレートが増えた週は、設定を変えた提案が
+    # 既定の件数(MEASURE_LIMIT)の外に出る。件数に頼らず、最初の設定違いの提案まで出させる
+    sugg = measure.suggestions(measured_db, pc())
     k = next(i for i, x in enumerate(sugg) if x.settings is not None)
     want = sugg[k].settings
     seen = []
@@ -1259,7 +1261,7 @@ def test_measure_choosing_a_variant_measures_it(capsys, monkeypatch, this_pc, fa
     monkeypatch.setattr(cli, "_choose_number", lambda n: k)
     answers(monkeypatch, "")
     with FakeComfy() as fake:
-        cli.main(["--lang", "ja", "measure", "--url", fake.url])
+        cli.main(["--lang", "ja", "measure", "--url", fake.url, "--limit", str(k + 1)])
     out = capsys.readouterr().out
     got = (seen[0].width, seen[0].height, seen[0].frames, seen[0].seconds)
     assert got == (want.width, want.height, want.frames, want.seconds)
