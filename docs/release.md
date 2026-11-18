@@ -469,7 +469,8 @@ Exit codes: 0 = passed, 1 = a check failed (`problems` in `result.json`), 2 = us
 - Create the labels `automated` and `data-update`. The workflow also tries to create them, but `pull-requests: write` alone sometimes cannot:
   `gh label create automated -R laxshmate/genmodelfit`, `gh label create data-update -R laxshmate/genmodelfit`
 - ci.yml jobs are skipped on PRs in the same repository (#68). Do not put ci.yml in the required checks of branch protection.
-  Put the result of the local `tools/ci_local.py` in the PR description.
+  Put the result of the local `tools/ci_local.py` in the PR description. If a run is stopped partway, `--resume`
+  (for example `--quick --resume`) skips the checks and tests that already passed on the same content; change any file and it starts over.
 
 ## Keys
 
