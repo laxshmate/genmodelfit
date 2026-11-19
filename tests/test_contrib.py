@@ -1226,7 +1226,10 @@ def test_report_on_fixtures(fixture_report):
     ]
     assert check[1]["n_sources"] == 1
     assert check[0]["n_submissions"] == 3 and check[0]["measured_gb"] == 6.96
-    assert check[0]["quantity"] == "work"  # 動的 VRAM の torch_reserved は作業用メモリと比べる(#100)
+    # 動的 VRAM の torch_reserved は GPU 全体の増分を全部載せと比べる(#217)。
+    # この提出には増分が無いので比べない
+    assert check[0]["quantity"] == "unchecked" and check[0]["error_pct"] is None
+    assert check[0]["torch_gb"] == 6.96 and check[0]["comparable"] is False
     assert rep["n_fit"] == 9  # torch_reserved の提出は係数の合わせに入れない(照合だけ)
     # 閾値 10% にすると、SDXL の作者の実測の LOO(+12.5%。#100 の段ごとの式)が引っかかる。
     # 作業用メモリだけの照合と作者の照合(RTX 3070)は判定に入れない

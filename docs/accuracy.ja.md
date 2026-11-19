@@ -648,19 +648,19 @@ music・video は張り付いていない実測が 1 件以下のため評価で
 
 | モデル | GPU | 出どころ | 設定 | 比べた量 | 実測 GiB | 推定 GiB | 誤差 |
 |---|---|---|---|---|---:|---:|---:|
-| utility_birefnet_remove_background | NVIDIA GeForce RTX 3070 | メンテナ | - | 作業用メモリ(重みを含まない実測) | 1.25 | 0.24 | -81% |
-| 3d_moge_perspective_to_mesh | NVIDIA GeForce RTX 3070 | メンテナ | - | 作業用メモリ(重みを含まない実測) | 0.72 | 0.78 | +9% |
-| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | メンテナ | 47.6 秒 | 作業用メモリ(重みを含まない実測) | 3.84 | 3.91 | +2% |
-| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | メンテナ | 30 秒 | 作業用メモリ(重みを含まない実測) | 2.56 | 2.46 | -4% |
-| audio_yue2_text2music | NVIDIA GeForce RTX 5080 | メンテナ | 97.8 秒 | 作業用メモリ(重みを含まない実測) | 4.31 | 1.37 | -68% |
-| image_sdxl_simple | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | 作業用メモリ(重みを含まない実測) | 2.53 | 1.06 | -58% |
-| image_sdxl_simple | NVIDIA GeForce RTX 5080 | メンテナ | 1536x1536 | 作業用メモリ(重みを含まない実測) | 5.50 | 1.06 | -81% |
-| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | 作業用メモリ(重みを含まない実測) | 2.25 | 1.06 | -53% |
-| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | メンテナ | 1536x1536 | 作業用メモリ(重みを含まない実測) | 4.94 | 2.02 | -59% |
-| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・33 コマ | 作業用メモリ(重みを含まない実測) | 4.41 | 0.76 | -83% |
-| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・17 コマ | 作業用メモリ(重みを含まない実測) | 3.94 | 0.42 | -89% |
-| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・49 コマ | 作業用メモリ(重みを含まない実測) | 4.69 | 1.10 | -77% |
-| utility_seedvr2_3b_int8_upscale_image | NVIDIA GeForce RTX 5080 | メンテナ | 2880x1612 | 作業用メモリ(重みを含まない実測) | 1.94 | 2.83 | +46% |
+| utility_birefnet_remove_background | NVIDIA GeForce RTX 3070 | メンテナ | - | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 2.38 | 2.13 | -11% |
+| 3d_moge_perspective_to_mesh | NVIDIA GeForce RTX 3070 | メンテナ | - | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 2.58 | 2.87 | +11% |
+| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | メンテナ | 47.6 秒 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 4.87 | 9.04 | +86% |
+| audio_stable_audio_example | NVIDIA GeForce RTX 5080 | メンテナ | 30 秒 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 4.26 | 7.59 | +78% |
+| audio_yue2_text2music | NVIDIA GeForce RTX 5080 | メンテナ | 97.8 秒 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 5.67 | 6.53 | +15% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 8.83 | 9.00 | +2% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | メンテナ | 1536x1536 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 10.58 | 9.00 | -15% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 14.97 | 13.87 | -7% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | メンテナ | 1536x1536 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 14.40 | 14.82 | 見積もりが GPU より大きい(小さい側は比べない) |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・33 コマ | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 13.88 | 11.38 | -18% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・17 コマ | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 14.18 | 11.05 | -22% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・49 コマ | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 13.38 | 11.72 | -12% |
+| utility_seedvr2_3b_int8_upscale_image | NVIDIA GeForce RTX 5080 | メンテナ | 2880x1612 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 5.81 | 7.99 | +37% |
 | image_sdxl_simple | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | 全部載せ | 9.22 | 9.00 | -2% |
 | image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | 全部載せ | 11.75 | 13.87 | +18% |
 | text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・33 コマ | 全部載せ | 11.69 | 11.38 | -3% |
@@ -668,23 +668,23 @@ music・video は張り付いていない実測が 1 件以下のため評価で
 | audio_stable_audio_example | NVIDIA GeForce RTX 5080 | メンテナ | 47.6 秒 | 全部載せ | 6.06 | 9.04 | +49% |
 | image_anima_base_v1 | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | 全部載せ | 6.66 | 7.02 | +5% |
 | utility_moge3_geometry_estimation | NVIDIA GeForce RTX 5080 | メンテナ | - | 全部載せ | 4.81 | 4.04 | -16% |
-| 3d_hunyuan3d-v2.1 | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | - | 作業用メモリ(重みを含まない実測) | 1.59 | 0.78 | -51% |
-| 3d_hunyuan3d_image_to_model | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | - | 作業用メモリ(重みを含まない実測) | 0.50 | 0.78 | +57% |
-| audio_ace_step_1_5_checkpoint | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | 120 秒 | 作業用メモリ(重みを含まない実測) | 9.50 | 11.44 | +20% |
-| image_sdxl_simple | NVIDIA GeForce RTX 3070 | ほかの利用者(1 件・出どころ 1) | 1024x1024 | 作業用メモリ(重みを含まない実測) | 2.28 | 1.06 | -53% |
-| image_sdxl_simple | NVIDIA GeForce RTX 3070 | ほかの利用者(1 件・出どころ 1) | 1536x1536 | 作業用メモリ(重みを含まない実測) | 4.97 | 1.06 | -79% |
-| image_sdxl_simple | NVIDIA GeForce RTX 3070 | ほかの利用者(1 件・出どころ 1) | 768x768 | 作業用メモリ(重みを含まない実測) | 1.34 | 1.06 | -21% |
-| image_sdxl_simple | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | 1024x1024 | 作業用メモリ(重みを含まない実測) | 2.34 | 1.06 | -55% |
-| image_sdxl_simple | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | 768x768 | 作業用メモリ(重みを含まない実測) | 1.59 | 1.06 | -33% |
-| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | 1024x1024 | 作業用メモリ(重みを含まない実測) | 0.75 | 1.06 | +42% |
-| utility_depth_anything3_image_depth_estimation | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | - | 作業用メモリ(重みを含まない実測) | 0.50 | 0.24 | -52% |
-| utility_moge_depth_estimation | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | - | 作業用メモリ(重みを含まない実測) | 0.75 | 0.24 | -68% |
+| 3d_hunyuan3d-v2.1 | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | - | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 8.59 | 9.12 | +6% |
+| 3d_hunyuan3d_image_to_model | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | - | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 6.37 | 6.85 | +7% |
+| audio_ace_step_1_5_checkpoint | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | 120 秒 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 10.57 | 22.26 | 見積もりが GPU より大きい(小さい側は比べない) |
+| image_sdxl_simple | NVIDIA GeForce RTX 3070 | ほかの利用者(1 件・出どころ 1) | 1024x1024 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 8.00 | 9.00 | 埋まった(小さい側は比べない) |
+| image_sdxl_simple | NVIDIA GeForce RTX 3070 | ほかの利用者(1 件・出どころ 1) | 1536x1536 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 7.87 | 9.00 | 埋まった(小さい側は比べない) |
+| image_sdxl_simple | NVIDIA GeForce RTX 3070 | ほかの利用者(1 件・出どころ 1) | 768x768 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 8.28 | 9.00 | 埋まった(小さい側は比べない) |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | 1024x1024 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 9.21 | 9.00 | -2% |
+| image_sdxl_simple | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | 768x768 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 8.33 | 9.00 | +8% |
+| image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | 1024x1024 | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 13.78 | 13.87 | +1% |
+| utility_depth_anything3_image_depth_estimation | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | - | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 2.39 | 2.49 | +4% |
+| utility_moge_depth_estimation | NVIDIA GeForce RTX 5080 | ほかの利用者(1 件・出どころ 1) | - | GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ | 2.33 | 2.33 | +0% |
 
 GPU 全体の使用量の照合(増分 + 式の固定分を、式の全部載せと比べる。照合だけで、判定には使わない):
 
 | モデル | GPU | 出どころ | 設定 | 読んだ道具 | 増分 GiB | 増分 + 固定分 GiB | 式 GiB | 誤差 |
 |---|---|---|---|---|---:|---:|---:|---:|
-| utility_birefnet_remove_background | NVIDIA GeForce RTX 3070 | メンテナ | - | system_stats (note) | 0.91 | 2.38 | 2.13 | -11% |
+| utility_birefnet_remove_background | NVIDIA GeForce RTX 3070 | メンテナ | - | system_stats (note) | 0.91 | 2.38 | 2.13 | 張り付き |
 | 3d_moge_perspective_to_mesh | NVIDIA GeForce RTX 3070 | メンテナ | - | system_stats (note) | 1.11 | 2.58 | 2.87 | +11% |
 | audio_stable_audio_example | NVIDIA GeForce RTX 5080 | メンテナ | 47.6 秒 | system_stats (note) | 3.40 | 4.87 | 9.04 | +86% |
 | audio_stable_audio_example | NVIDIA GeForce RTX 5080 | メンテナ | 30 秒 | system_stats (note) | 2.79 | 4.26 | 7.59 | +78% |
@@ -693,14 +693,14 @@ GPU 全体の使用量の照合(増分 + 式の固定分を、式の全部載せ
 | image_sdxl_simple | NVIDIA GeForce RTX 5080 | メンテナ | 1536x1536 | system_stats (note) | 9.11 | 10.58 | 9.00 | -15% |
 | image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | system_stats (note) | 13.50 | 14.97 | 13.87 | 張り付き |
 | image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | メンテナ | 1536x1536 | system_stats (note) | 12.93 | 14.40 | 14.82 | 張り付き |
-| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・33 コマ | system_stats (note) | 12.41 | 13.88 | 11.38 | -18% |
-| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・17 コマ | system_stats (note) | 12.71 | 14.18 | 11.05 | -22% |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・33 コマ | system_stats (note) | 12.41 | 13.88 | 11.38 | 張り付き |
+| text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・17 コマ | system_stats (note) | 12.71 | 14.18 | 11.05 | 張り付き |
 | text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・49 コマ | system_stats (note) | 11.91 | 13.38 | 11.72 | -12% |
 | utility_seedvr2_3b_int8_upscale_image | NVIDIA GeForce RTX 5080 | メンテナ | 2880x1612 | system_stats (note) | 4.34 | 5.81 | 7.99 | +37% |
 | image_sdxl_simple | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | system_stats (note) | 7.10 | 8.57 | 9.00 | +5% |
 | image_z_image_turbo_int8 | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | system_stats (note) | 12.22 | 13.69 | 13.87 | +1% |
 | text_to_video_wan | NVIDIA GeForce RTX 5080 | メンテナ | 832x480・33 コマ | system_stats (note) | 11.41 | 12.88 | 11.38 | -12% |
-| audio_ace_step_1_5_checkpoint | NVIDIA GeForce RTX 5080 | メンテナ | 120 秒 | system_stats (note) | 9.38 | 10.85 | 22.26 | +105% |
+| audio_ace_step_1_5_checkpoint | NVIDIA GeForce RTX 5080 | メンテナ | 120 秒 | system_stats (note) | 9.38 | 10.85 | 22.26 | 張り付き |
 | audio_stable_audio_example | NVIDIA GeForce RTX 5080 | メンテナ | 47.6 秒 | system_stats (note) | 3.48 | 4.95 | 9.04 | +82% |
 | image_anima_base_v1 | NVIDIA GeForce RTX 5080 | メンテナ | 1024x1024 | system_stats (note) | 5.28 | 6.75 | 7.02 | +4% |
 | utility_moge3_geometry_estimation | NVIDIA GeForce RTX 5080 | メンテナ | - | system_stats (note) | 3.20 | 4.67 | 4.04 | -14% |
@@ -721,11 +721,12 @@ GPU 全体の使用量の照合(増分 + 式の固定分を、式の全部載せ
 - GPU 全体の使用量の表(#200)は、式の全部載せ(固定分 + 重み + 作業用メモリ)の全体を、`/system_stats` の GPU 全体の増分
   (+ 式の固定分)で確かめるもの。今ある提出と作者の実測は、bench が note に書いた増分を読んだ値(「(note)」)。
   ほかのプログラムの増減も入る値なので、判定・係数・値のずらしには使わない。外れた行(式が大きい / 小さい)もそのまま書き、
-  係数を合わせない。張り付き = 実測が張り付いたか、増分 + 固定分が GPU の総量の 90% 以上(入りきっていない)。
+  係数を合わせない。張り付き = 実測が張り付いたか、増分 + 固定分か GPU 全体の使用量の最大が GPU の総量の 90% 以上
+  (入りきっていない。note から読んだ行の最大は、bench が書いた nvidia-smi などの道具の最大。#217)。
   開始前(降ろした後)に torch が 0.25 GiB を超えて確保していた行は、増分が小さく出るので比べない(「開始前に読み込み済み」。
   今ある行には無い)。開始前の torch の量が分からない行も比べない(「開始前の量が不明」。今ある行には無い)。
-  張り付きは「増分 + 固定分」で見るので、開始前からほかのプログラムが VRAM を多く使っていた実測は見逃すことがある
-  (note から読んだ行には開始前の値が無い)。動的 VRAM では、GPU 全体の増分から重みを引いた量が torch の山と合わないことがある。
+  道具の最大が読めない行(Windows の性能カウンタなど)は「増分 + 固定分」だけで見るので、開始前からほかのプログラムが
+  VRAM を多く使っていた実測は見逃すことがある。動的 VRAM では、GPU 全体の増分から重みを引いた量が torch の山と合わないことがある。
 - 「全部載せ」の 7 行(2026-11-14)は、ComfyUI を `--disable-dynamic-vram`(古い動き。重みも torch の確保量に入る)で起動して、テンプレートの設定のまま bench で測った全体の量。
   多くの利用者の既定(動的 VRAM)と違う動きなので、MoGe 3 以外は照合だけに使う(`check_only`。段階にも値のずらしにも使わない)。
   - SDXL・Wan 2.1・Anima は ±5% で合う。
@@ -739,13 +740,25 @@ GPU 全体の使用量の照合(増分 + 式の固定分を、式の全部載せ
 - Wan 2.1 1.3B の −14.7% は、上の「結論」のとおり、余裕のある GPU の山(VAE をタイルに分けない)と式の差。
 - ACE-Step 1.5 の +17.8% は、VAE(Oobleck)のタイルにしない V(20 秒で 1.9 GB)が一番重い段(#148。上の「タイル」)。
   実測 10.8 GB は重み + 固定分の下限を下回る値で、作業用メモリの情報を持たない(下の「照合」)。
-- 照合の表は作業用メモリだけの実測(#100)なので、作業用メモリの見積もり(段ごとの式は max(S, V_eff, T)、
-  当てられないモデルは種類ごとの式)と比べた。
-  BiRefNet の −81% は、画像の係数(0.23 GB/メガ画素)が拡散のモデルに合わせた値で、道具には小さすぎることを示す。
-- RTX 5080 の 11 件(2026-11-13)の大きな負の誤差は、16 GB の GPU では VAE をタイルに分けずに動かすのに、
-  使う量の式はタイルの値(V_eff)で見込むため。全部載せを選べるかはタイルにしない V で決めるので、判定は安全側
-  (下の「照合」の「RTX 5080 16GB のメンテナの作業用メモリの実測」)。
+- 動的 VRAM の torch の確保量の行(作業用メモリだけの実測。#100)は、#217 から GPU 全体の増分(`/system_stats`。
+  項目の無い古い実測は bench の note から)に式の固定分(1.47 GB)を足して、式の全部載せと比べる(比べた量
+  「GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ」、実測の欄は増分 + 固定分。下の GPU 全体の使用量の表と同じ値)。
+  増分は開始前の使用量からの差で、起動済みの ComfyUI の CUDA の文脈などの固定分を含まないため。
+  torch の確保量は重みを含まず VAE の decode なども入るので、作業用メモリの式と同じ量でない。
+  提出の照合(`contrib validate` の deviation)と同じ規則(`contrib.dynamic_comparison`)で、GPU が埋まった
+  (GPU 全体の使用量の最大が総量の 90% 以上。古い実測は note の nvidia-smi などの最大)行と、最大が分からない行は、
+  増分 + 固定分が見積もりより小さくても比べない(「埋まった」「埋まったか不明」)。全部載せの見積もりが総量の 90% より
+  大きい行(動的 VRAM は全部載せに届かない)も、同じく小さい側は比べない(「見積もりが GPU より大きい」)。
+  増分の分からない行は比べない
+  (「増分が不明」)。開始前(降ろした後)に torch が 0.25 GiB を超えて確保していた行・その量が分からない行は、
+  下の GPU 全体の使用量の表と同じく、どちらの側も比べない(「開始前に読み込み済み」「開始前の量が不明」。今ある行には無い)。
+  誤差は下の表と同じ計算(丸める前の値から)。どれも係数の合わせには使わない。
+- 下の GPU 全体の使用量の表とは「張り付き」の決め方が違う(あちらは増分 + 固定分か最大が総量の 90% 以上で比べない。
+  こちらは埋まって、かつ見積もりより小さいときだけ比べない)。そのため Z-Image Turbo int8 1024x1024 は、
+  あちらで「張り付き」、こちらで −7%。
 - 「ほかの利用者」の 11 行は同梱のまとめ(`measurements_community.json`)の行で、どれも出どころ 1 つの作業用メモリだけの実測。
+  まとめの GPU 全体の使用量の最大(`device.peak_gb`)は、提出の note の道具の最大(読めた提出だけ)を中央値でまとめた値で、
+  埋まったかは提出の照合と同じ材料で決める(#217)。
   0.15.1(#199)から、そろっていない(`consistent` でない)行も照合に出す(出どころの欄に提出の数と出どころの数)。
   係数の合わせと `contrib aggregate --report` の閾値の判定には、今までどおりそろった行だけを使う。
   名前の表に無い GPU の行・今の一覧とファイルの違う行は、判定と同じく出さない。
@@ -975,6 +988,9 @@ GPU 名は `NVIDIA` / `GeForce` の有無・大文字小文字・記号をそろ
 
 - その時点の data/contrib をまとめ直し、校正をやり直して、種類ごとの LOO 誤差と照合の誤差を表にする。
 - 閾値(既定 25%、`--threshold`)を超えたら警告を出す(`--fail-on-breach` で終了コード 3)。
+- 照合の要約は、全部載せの行(「照合」)と動的 VRAM の行(「動的 VRAM の照合」)を分けて数え、比べなかった照合の行
+  (GPU が埋まった・見積もりが GPU より大きい・増分が不明・開始前に読み込み済み)の数も並べる(#217)。GPU が埋まった行と
+  見積もりが GPU より大きい行は見積もりより小さい側だけを比べないので、要約の誤差だけでは良く見える。増分が不明の行と開始前に読み込み済みの行は、どちらの側も比べない。
 - 判定に入れるもの:
   - 評価できる種類(張り付いていない実測が 2 件以上)の LOO 誤差
   - ほかの利用者の実測の照合の誤差
@@ -1041,10 +1057,10 @@ Apple の MPS では、ComfyUI の GPU 名が `mps` になります。
 
 同梱の 2 件(BiRefNet・MoGe)は、bench が動的 VRAM で測った torch の確保量(`vram_metric: torch_reserved`、
 `offload: dynamic`)で、重みを含まない作業用メモリだけの量(#100。上の「実測の使い方」7)。
-照合は `python -m genmodelfit.calibrate` が、上の「結果」の表の下に作る(作業用メモリの見積もりと比べる)。
+照合は `python -m genmodelfit.calibrate` が、上の「結果」の表の下に作る(#217 から GPU 全体の増分 + 固定分を全部載せと比べる)。
 
-- 2 件とも当てられないモデル(道具・3D)なので、比べる相手は種類ごとの係数の式。
-- 外れ(BiRefNet −81%)は、画像の係数が拡散のモデルに合わせた値で、道具の作業用メモリを表さないため。
+- 2 件とも当てられないモデル(道具・3D)なので、#217 より前は torch の確保量を種類ごとの係数の式(作業用メモリ)と比べた。
+- そのときの外れ(BiRefNet −81%)は、画像の係数が拡散のモデルに合わせた値で、道具の作業用メモリを表さないため。
 
 ### RTX 5080 16GB のメンテナの作業用メモリの実測(bench、2026-11-13)
 

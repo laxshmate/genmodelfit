@@ -951,7 +951,7 @@ Template: `name`、`title`、`category`、`min_comfyui_version`、`open_source`�
 | `gpu_vram_gb` | float | VRAM の合計。bench は `/system_stats` の `vram_total` を GiB で小数 2 桁に丸めて保存する(例: `7.99`)。古い同梱の行は公称の大きさ(`16`) |
 | `offload` | str \| null | ComfyUI がモデルをどう置いたか: `none`(全部 GPU)/ `dynamic`(dynamic VRAM)/ `partial`(一部だけ読み込み)/ `lowvram`(`--lowvram` / `--novram`)/ `oom`(メモリ不足) |
 | `outcome` | str | `ok`(終わった)/ `oom`(メモリ不足)/ `error`(ほかの理由で失敗)。既定は `"ok"` |
-| `vram_metric` | str \| null | `peak_vram_gb` の取り方: `torch_reserved`(bench: ComfyUI のプロセスの torch の確保のピーク。CUDA コンテキストは除く)、または null(記録なし。同梱の RTX 5080 の行)。較正は null の行だけを使う(`calibrate.CALIBRATION_METRIC`)。#100: `torch_reserved` で `offload` が `dynamic` の行は重みを含まない(作業用メモリの一部だけ。`estimate.working_only`)。見積もりのずらしにも段階にも使わず、提出の照合では GPU 全体の増分(`device`)を見積もりと比べる(#217。`share` などの表示も、増分を先に出して torch の確保量と分ける。このキーの意味は変えない)。それ以外の `torch_reserved` の行は重みを含む(全体の下限) |
+| `vram_metric` | str \| null | `peak_vram_gb` の取り方: `torch_reserved`(bench: ComfyUI のプロセスの torch の確保のピーク。CUDA コンテキストは除く)、または null(記録なし。同梱の RTX 5080 の行)。較正は null の行だけを使う(`calibrate.CALIBRATION_METRIC`)。#100: `torch_reserved` で `offload` が `dynamic` の行は重みを含まない(作業用メモリの一部だけ。`estimate.working_only`)。見積もりのずらしにも段階にも使わず、提出の照合と精度の表(`calibrate`)では GPU 全体の増分(`device`)を見積もりと比べる(#217。`share` などの表示も、増分を先に出して torch の確保量と分ける。このキーの意味は変えない)。それ以外の `torch_reserved` の行は重みを含む(全体の下限) |
 | `origin` | str \| null | (#34)`measurements_community.json` の行(ほかの利用者の提出を `contrib aggregate` でまとめたもの)は `community`。保守者の同梱の行と、この PC の bench の結果は null |
 | `n_submissions` | int \| null | community の行: グループの提出数(外れ値と OOM を含む)。ファイルには `n_outliers`、`spread_mad_gb`、`spread_rel_pct`、`peak_vram_min_gb` / `peak_vram_max_gb`、`outlier_submissions`、`submissions`(各ファイルの sha8)も残るが、読み手は無視する |
 | `n_used` | int \| null | community の行: 中央値の元になった `ok` の提出数(外れ値を除く)。0.10 までは `Estimate.sample_count` だった(0.11.0 からは `n_sources`) |
@@ -1501,10 +1501,18 @@ llmfit の `validate_community_benchmarks.py` と同じく、**機械的な確�
 - `batch_sizeless`: 大きさの入力の無いテンプレート(`estimate.NO_SIZE_INPUT`)なのに `batch` が 1 でない(0.10.1 の bench が MoGe の処理の単位を枚数と記録した。判定は batch 1 なので同じ設定の実測にならない。#90)。
 - `deviation`: ピーク VRAM が、その設定での式の全部載せの見積もりから 40% より離れている。動的 VRAM の torch の確保量
   (`offload: dynamic` かつ `vram_metric: torch_reserved`。重みを含まない)は比べず、GPU 全体の増分(`measurement.device` の
-  `peak_gb − before_gb`。無ければ `note` の「/system_stats の GPU 全体の増分」。単位は GiB)を見積もりと比べる。増分が分からない
-  ものは比べない。動的 VRAM は空きに合わせて重みを載せるので、GPU が埋まったとき(`device.peak_gb` が GPU の総量の 90% 以上)と、
-  最大が分からないとき(`note` から読んだ増分)と、GPU の総量が分からないときは、増分が見積もりより小さくても出さない(大きいときは出す)。`note` から読んだ
-  増分は、`device_of` と同じく GPU の総量 × 1.05 を超えるもの・総量が分からないものを使わない(#217)。
+  `peak_gb − before_gb`。無ければ `note` の「/system_stats の GPU 全体の増分」。単位は GiB)に式の固定分(係数の
+  `overhead_gb`。増分は起動済みの ComfyUI の固定分を含まないため)を足して見積もりと比べる。増分が分からない
+  ものは比べない。動的 VRAM は空きに合わせて重みを載せるので、GPU が埋まったとき(GPU 全体の使用量の最大が GPU の総量の 90% 以上)と、
+  最大が分からないときと、GPU の総量が分からないときと、全部載せの見積もりが GPU の総量の 90% より大きい(動的 VRAM は
+  全部載せに届かない)ときは、増分 + 固定分が見積もりより小さくても出さない(大きいときは出す)。最大は
+  `device.peak_gb`、無ければ `note` の「GPU 全体(nvidia-smi など)の増分 … GB(開始前 … GB 使用、最大 … GB)」の最大
+  (複数の GPU の合計・道具の名前が ASCII でないもの(Windows の性能カウンタ)・2 つ以上あるもの・GPU の総量 × 1.05 を
+  超えるもの・増分より小さいものは使わない。使わないときは比べない側)。`note` から読んだ
+  増分は、`device_of` と同じく GPU の総量 × 1.05 を超えるもの・総量が分からないものを使わない。開始前(降ろした後)の
+  torch の確保量(`before_torch_gb`)が 0.25 GiB を超える・分からない提出は、増分が小さく出るので、どちらの側も
+  比べない(`contrib.device_clean`。精度の表の GPU 全体の使用量の照合と同じ)。最後まで動かなかった
+  (`outcome` が `ok` でない)提出は比べず、表示にも増分を出さない(#217)。
 - `below_weights`: `offload: none` なのにピーク VRAM が 重み + 固定の上乗せより小さい。見積もりは、これより小さい提出では作業用メモリをずらさず式の値を使う(#151。dynamic VRAM や部分的な読み込みでは、小さなピークは普通)。
 - `fit_change`: この提出だけで、提出された GPU の PC の段階が変わる。
   - 「提出された GPU の PC」= 名前・PCI 型番 ID・ベンダーが同じで、VRAM が提出の `vram_gb` と同じ。同じ名前の、ほかの公称 VRAM が分かっていればそれも含める(Intel Arc: `hardware._INTEL_XPU`。NVIDIA: `estimate.NVIDIA_VRAM_VARIANTS`、0.9.1: RTX 2060 / 3050 / 3060 / 3080 / 4060 Ti / 5060 Ti)。
@@ -1538,7 +1546,7 @@ CI は genmodelfit の stderr も、同じエスケープを通して要約に�
 - 残りの出どころの値の中央値が値になる。`n_used`(使った提出の数)・`n_sources`(使った出どころの数)・`n_oom`・`n_error`・`runs_evidence`(OOM の出どころが ok の出どころより少ないか)・`gpu_known`・`files_fp` を付ける(OOM の実行だけのグループは、`outcome: oom` の 1 行になり、決して使われない)。
 - グループが `consistent`(較正に入る)になるのは、使った出どころが 2 つ以上で、その幅が中央値の 15% 以内で、グループに OOM が無いとき。
 - 段ごとの山(`stages`。#199): 中央値に使った提出のうち `measurement.stages` のあるものから、段ごとに `peak_gb`・`min_gb` を出どころごとの中央値 → 出どころの間の中央値(2 桁に丸める)でまとめ、`{sampler_runs(最頻値), sources(段のあった出どころの数), before_sampling, sampling, after_sampling}` として行に入れる。`sampler_runs` が最頻値と違う提出は入れない。段のある提出が無い行・どの段の山も読めなかった行には書かない(上の「Measurement」)。
-- GPU 全体の使用量(`device`。#200): 中央値に使った提出ごとに `contrib.device_of`(`measurement.device` の項目、無ければ bench の測り方(`vram_metric: torch_reserved`)で結果が `ok` の提出だけ `contrib.device_from_note` で note から読んだ値)を使う。`tool` が最頻値(同じ数なら `contrib.DEVICE_TOOLS` の順で先のもの = `system_stats`)と違う提出・増分の分からない提出は入れない。提出ごとの増分は `delta_gb` があればそれ、無ければ `peak_gb - before_gb`。`before_gb`・`peak_gb`・`after_gb`・`before_torch_gb`・`delta_gb` を、値のある提出だけで出どころごとの中央値 → 出どころの間の中央値(2 桁。値のある提出が無ければ null)でまとめ、`{tool, sources, before_gb, peak_gb, after_gb, before_torch_gb, delta_gb, from_note}`(`from_note` は note から読んだ提出の数。0 でも書く)として行に入れる。そういう提出が無い行には書かない。`contrib.device_from_note` は bench が書く文だけを読む: 増分は「/system_stats の GPU 全体の増分 <数> GB」(無い・2 つ以上ある・0 以下なら値なし。bench は読めなかったときも 0.00 と書く)、開始前の torch は「解放後 <数> GB」、無ければ「/free はしていない(開始前に読み込み済み torch <数> GB)」、どちらも無く「開始前に /free でモデルを解放」があれば 0.0、どれも無ければ null。`tool` は `system_stats`、開始前・最大・終わりの値は null。note は提出する人が書ける文なので、数は ASCII の数字(4 桁 + 小数 3 桁まで)だけを読み、`contrib.device_of` は増分・開始前の torch が GPU の総量 × `DEVICE_VRAM_RATIO`(項目の検査と同じ上限。総量が分からなければ `MAX_GPU_VRAM_GB`)を超える note を読まない。
+- GPU 全体の使用量(`device`。#200): 中央値に使った提出ごとに `contrib.device_of`(読み方は表示・照合と同じ `contrib.submission_device` の 1 か所。#217。結果が `ok` の提出だけで、`measurement.device` の項目、無ければ bench の測り方(`vram_metric: torch_reserved`)の提出の note から `contrib.device_from_note` で読んだ値)を使う。`tool` が最頻値(同じ数なら `contrib.DEVICE_TOOLS` の順で先のもの = `system_stats`)と違う提出・増分の分からない提出は入れない。提出ごとの増分は `delta_gb` があればそれ、無ければ `peak_gb - before_gb`。`before_gb`・`peak_gb`・`after_gb`・`before_torch_gb`・`delta_gb` を、値のある提出だけで出どころごとの中央値 → 出どころの間の中央値(2 桁。値のある提出が無ければ null)でまとめ、`{tool, sources, before_gb, peak_gb, after_gb, before_torch_gb, delta_gb, from_note}`(`from_note` は note から読んだ提出の数。0 でも書く)として行に入れる。そういう提出が無い行には書かない。`contrib.device_from_note` は bench が書く文だけを読む: 増分は「/system_stats の GPU 全体の増分 <数> GB」(無い・2 つ以上ある・0 以下なら値なし。bench は読めなかったときも 0.00 と書く)、開始前の torch は「解放後 <数> GB」、無ければ「/free はしていない(開始前に読み込み済み torch <数> GB)」、どちらも無く「開始前に /free でモデルを解放」があれば 0.0、どれも無ければ null。`tool` は `system_stats`、開始前・終わりの値は null。最大(`peak_gb`)は、bench が道具の行「GPU 全体(nvidia-smi)の増分 … GB(開始前 … GB 使用、最大 … GB)」に書いた最大が 1 つだけあり、道具の名前が ASCII(複数の GPU の合計や「Windows の性能カウンタ(typeperf)」は読まない。比べない側)、増分以上・GPU の総量 × `DEVICE_VRAM_RATIO` 以下のときだけ入れ(#217。GPU が埋まったかの判定に使う)、ほかは null。note は提出する人が書ける文なので、数は ASCII の数字(4 桁 + 小数 3 桁まで)だけを読み、GPU の総量が分からない提出の note は読まず、増分・開始前の torch が総量 × `DEVICE_VRAM_RATIO`(項目の検査と同じ上限)を超える note も読まない(#217 で、総量が分からないときに `MAX_GPU_VRAM_GB` で読んでいたのをやめた)。
 - `--json` と出力の 1 行目の下に、出どころの数え方(`sources_from`: `git` / `files`)を出す。同梱のまとめは、履歴のある clone で版を出すときに作る(docs/release.ja.md「版を出す手順」)。
 - 出力の行は、`origin: "community"` の Measurement の記録(Measurement を参照)で、順は固定。だから同じ入力は常に同じファイルになる。
 
@@ -1552,10 +1560,22 @@ CI は genmodelfit の stderr も、同じエスケープを通して要約に�
 - 試験は、`submissions` の提出がすべて data/contrib にあり、それだけをまとめ直すと同梱のファイルと同じになることを確かめる。まだ入っていない提出が data/contrib にあってもよい。
 
 `--report` は、同梱の保守者の行 + 新しい community の行(ローカルのキャッシュは決して使わない)で較正(`calibrate.calibrate`)をやり直し、`report` を返す: `{threshold_pct, n_fit, coefficients, summary, by_modality, loo, check, breaches, breach, fit_changes}`。
-- `by_modality` は `{<modality>: {loo_n, loo_mean_abs_pct, loo_max_abs_pct, evaluable, check_n, check_mean_abs_pct, check_max_abs_pct}}`。
+- `by_modality` は `{<modality>: {loo_n, loo_mean_abs_pct, loo_max_abs_pct, evaluable, check_n,
+  check_mean_abs_pct, check_max_abs_pct, check_dynamic_n, check_dynamic_mean_abs_pct,
+  check_dynamic_max_abs_pct, check_not_compared_n}}`。
+  `check_*` は全部載せの照合の行、`check_dynamic_*` は動的 VRAM の行(`quantity: device_delta`)で比べたもの、
+  `check_not_compared_n` は比べなかった照合の行(`error_pct` が null)の数(#217。比べないのは見積もりより小さい側
+  だけなので、抜いた数も出す)。張り付いた行はどれにも数えない。
 - `breaches` は [{kind (`loo` / `community_check`), model_id, gpu_name, origin, error_pct}]。
 - `loo` / `check` は、`calibrate.calibrate` の行ごとの結果(`src/genmodelfit/data/calibration.json` の `loo`・`check` と同じ形)。
-  - `check` の行: `model_id`・`modality`・`gpu_name`・`gpu_vram_gb`・`origin`(`maintainer` / `community`)・`n_submissions`・`vram_metric`・`settings`・`measured_gb`・`censored`・`quantity`(`work` = 作業用メモリだけの実測を作業用メモリの見積もりと比べた / `full` = 全部載せ)・`predicted_gb`・`error_pct`。
+  - `check` の行: `model_id`・`modality`・`gpu_name`・`gpu_vram_gb`・`origin`(`maintainer` / `community`)・
+    `n_submissions`・`vram_metric`・`settings`・`measured_gb`・`censored`・
+    `quantity`(`full` = 全部載せ / `device_delta` = 動的 VRAM の torch の確保量の実測で、
+    GPU 全体の増分 + 式の固定分(`contrib.device_whole_gb`)を全部載せと比べた / `unchecked` = 動的 VRAM で増分が分からず比べない。
+    #217 より前の `work` は作業用メモリの見積もりと比べた)・`predicted_gb`・`error_pct`(比べない行は null)。
+  - (#217、動的 VRAM の行だけ)`torch_gb`(torch の確保量)・`comparable`(比べたか)。`device_delta` の行は `measured_gb` が増分 + 固定分で、
+    ほかに `delta_gb`(増分)・`filled`(GPU が埋まったか。分からなければ null)・`clean`(開始前の torch の確保量が
+    分かり小さいか。`contrib.device_clean`)。比べ方は提出の照合と同じ `contrib.dynamic_comparison`。
   - (0.15.1、#199)`n_sources`(community の行だけ。別々の出どころの数。保守者の行は null)・`consistent`(community の行のそろい。保守者の行は null)。community の行は、そろっていなくても(出どころ 1 つでも)入る。名前の表に無い GPU(`gpu_known: false`)の行・今の一覧とファイルの違う行は入らない。
   - (0.15.1、#199。段ごとの山のある実測だけ)`stages`: `[{stage, measured_gb, terms: [{term, formula_gb, ratio}]}]`。`stage` は `before_sampling`(項 `T`)・`sampling`(`S`・`S_full`)・`after_sampling`(`V`・`V_tile`)。`formula_gb` は段ごとの式(`working.StageMem`。NVIDIA の半精度)の値で、段ごとに当てられないモデルは null。`ratio` は 実測 ÷ 式(式が 0・実測が無いときは null)。
   - (0.15.1、#200。`device` のある実測か、`contrib.device_of` で bench の note から読めた実測)`device`: `{tool, delta_gb, whole_gb, formula_gb, error_pct, pinned, clean, from_note}`(`before_torch_gb` が分からない行だけ `baseline: "unknown"` も)。`delta_gb` は device の `delta_gb`(community の行は中央値、note から読んだ行は note の増分)、無ければ `peak_gb - before_gb`。`whole_gb` は `delta_gb` + 式の固定分(係数の `overhead_gb`。全部載せの見積もりに入っているのと同じ値)。`formula_gb` はその実測の設定・GPU での式の全部載せの量。`clean` は `before_torch_gb` が分かり `contrib.DEVICE_CLEAN_TORCH_GB`(0.25)以下。`pinned` は `estimate.is_censored` か、`peak_gb` か `whole_gb` が `estimate.CENSOR_RATIO` × GPU の総量以上。`error_pct` は (式 − whole) / whole × 100 で、`clean` で `pinned` でないときだけ(ほかは null)。`from_note` は note から読んだ値か(community の行は、note から読んだ提出が 1 つでもあるか)。表示だけ(照合の表の後に表を出す。誤差の代わりに「張り付き」「開始前の量が不明」「開始前に読み込み済み」、道具の後に「(note)」)で、係数の合わせにも閾値の判定にも入れない。
