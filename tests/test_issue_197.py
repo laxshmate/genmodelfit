@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import copy
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from frozenlist import FROZEN_DB, frozen_db
@@ -20,7 +20,7 @@ from genmodelfit import update, weekly
 from genmodelfit.db import Database, load
 from genmodelfit.models import ModelEntry, Review
 
-NOW = datetime(2026, 11, 17, 9, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 11, 17, 9, 0, tzinfo=UTC)
 
 
 def _iso(t: datetime) -> str:

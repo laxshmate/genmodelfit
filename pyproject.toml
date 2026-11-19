@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MPL-2.0"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES"]
 authors = [{ name = "Laxshmate", email = "laxshmate@gmail.com" }]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 keywords = ["comfyui", "diffusion", "vram", "stable-diffusion", "video-generation", "hardware", "llmfit"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -22,10 +22,10 @@ classifiers = [
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Typing :: Typed",
 ]
@@ -63,7 +63,7 @@ exclude = ["__pycache__", "*.pyc", "docs/images"]
 
 [tool.ruff]
 line-length = 110
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]

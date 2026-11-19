@@ -84,7 +84,8 @@ To check the settings, run:
    release.yml stops before publishing if the section of the tag's version is missing, has no date or is empty
    (`python tools/changelog_notes.py <version>` shows the body, or the reason, locally).
 4. Merge it to main by PR, with a normal merge commit (never squash or rebase).
-   ci.yml does not run on the PR, so put the result of `tools/ci_local.py --linux` in the PR description.
+   ci.yml does not run on the PR, so before the release run `tools/ci_local.py --linux` once (all of Python
+   3.12 to 3.15, on Windows and in WSL) and put the result in the PR description.
 5. After the merge, check that ci.yml, which runs on main after the merge, is green.
    If the merge changed `src/genmodelfit/data/db.json`, data.yml ships the list too ([Data releases](#data-releases)).
 6. **Push the tag** on the head of main. It must match `_version.py`:
@@ -308,7 +309,7 @@ Decisions:
 - **CI (ci.yml) does not run automatically on a PR created with GITHUB_TOKEN.** This is GitHub's rule, to prevent loops.
   - Instead, the build job of the same workflow runs ruff and pytest with the new list before making the PR, and the PR body says so.
   - ci.yml also does not run on PRs from branches of the same repository (#68).
-  - To check, run `python tools/ci_local.py --linux` locally, or look at ci.yml, which runs on main after the merge.
+  - To check, run `python tools/ci_local.py --merge` locally, or look at ci.yml, which runs on main after the merge.
 - **When some data could not be fetched (`sources.partial`)**: the default is failure (no PR).
   - Only when `allow_partial` is chosen in a manual run, a PR is made with a "partially missing" warning at the top of the body.
   - This applies only when everything missing was a temporary failure of HF repositories and could be carried over from the previous list (`weekly.partial_problems`). That requires all of:

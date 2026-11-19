@@ -43,8 +43,8 @@ import statistics
 import unicodedata
 from collections import Counter
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timedelta
 from datetime import date as _date
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -919,7 +919,7 @@ def build_submission(
         "contrib_schema": CONTRIB_SCHEMA,
         "kind": KIND,
         "tool": {"name": "genmodelfit", "version": __version__},
-        "date": m.date or datetime.now(timezone.utc).date().isoformat(),
+        "date": m.date or datetime.now(UTC).date().isoformat(),
         "system": _system_block(
             system, m.gpu_name, m.gpu_vram_gb, m.driver, m.gpu_backend, getattr(m, "gpu_pci_id", None)
         ),
@@ -1124,7 +1124,7 @@ def build_failures(
         "contrib_schema": CONTRIB_SCHEMA,
         "kind": FAILURES_KIND,
         "tool": {"name": "genmodelfit", "version": __version__},
-        "date": date or datetime.now(timezone.utc).date().isoformat(),
+        "date": date or datetime.now(UTC).date().isoformat(),
         "system": _system_block(system, gpu_name, gpu_vram_gb, driver, backend, pci_id),
         "comfyui_version": cv,
         **({"db": dict(db_info)} if db_info else {}),
@@ -1723,9 +1723,38 @@ def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return out
 
 
+# 読む前に断る入れ子の深さ(提出・Issue の JSON は 5 段ほど)。Python の json が深い入れ子で RecursionError を
+# 出すかは版・OS で違う(3.15 の Linux は 3 万段でも読む)ので、それに頼らず自分で数える
+MAX_JSON_NESTING = 64
+
+
+def _check_nesting(text: str) -> None:
+    """文字列の外の [ と { の深さが MAX_JSON_NESTING を超えたら RecursionError
+    (呼ぶ側が「入れ子が深すぎます」にする)。"""
+    depth = 0
+    in_str = esc = False
+    for ch in text:
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch in "[{":
+            depth += 1
+            if depth > MAX_JSON_NESTING:
+                raise RecursionError("JSON nested too deeply")
+        elif ch in "]}":
+            depth -= 1
+
+
 def loads_strict(text: str) -> Any:
     """JSON を読む。NaN・Infinity・-Infinity と、同じオブジェクトの中の重複したキーは断る
-    (Python の json は既定で読んでしまう)。"""
+    (Python の json は既定で読んでしまう)。入れ子が MAX_JSON_NESTING より深いものも断る(RecursionError)。"""
+    _check_nesting(text)
     return json.loads(text, parse_constant=_no_constants, object_pairs_hook=_no_duplicates)
 
 
@@ -1853,7 +1882,7 @@ def validate_submission(
 ) -> Report:
     """提出 1 件を検査する。db を渡すと、モデル ID が一覧にあるか・設定が種類に合うかも見る。"""
     r = Report(path=Path(path).as_posix() if path is not None else "-")
-    today = today or datetime.now(timezone.utc).date()
+    today = today or datetime.now(UTC).date()
     if not isinstance(data, dict):
         r.error("schema", tr("JSON のオブジェクトではありません", "Not a JSON object"))
         return r

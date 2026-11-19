@@ -53,7 +53,7 @@ import re
 import shutil
 import sys
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -657,7 +657,7 @@ def run(
         result["problems"].append(str(e))
         _write_json(out / "result.json", result)
         return result
-    when = now or datetime.now(timezone.utc)
+    when = now or datetime.now(UTC)
     problems = []
     if new.sources.get("partial"):
         if allow_partial:

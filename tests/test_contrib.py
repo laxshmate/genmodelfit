@@ -410,6 +410,20 @@ def test_validate_filename_duplicates_and_unreadable(tmp_path, db):
     )
 
 
+def test_nesting_limit_does_not_depend_on_python() -> None:
+    # Python の json が RecursionError を出すかは版・OS で違う(3.15 の Linux は 3 万段でも読む)ので、
+    # 自分で数えて断る
+    n = contrib.MAX_JSON_NESTING
+    assert contrib.loads_strict("[" * n + "]" * n) is not None
+    with pytest.raises(RecursionError):
+        contrib.loads_strict("[" * (n + 1) + "]" * (n + 1))
+    with pytest.raises(RecursionError):
+        contrib.loads_strict('{"a":' * (n + 1) + "1" + "}" * (n + 1))
+    # 文字列の中の括弧・エスケープした引用符は数えない
+    s = "[" * 500 + '\\"{' * 100
+    assert contrib.loads_strict(json.dumps({"s": s})) == {"s": s}
+
+
 def test_file_limits(tmp_path, db):
     big = tmp_path / "rtx-3070" / "2026-10-20-00000000.json"
     big.parent.mkdir()

@@ -57,7 +57,7 @@ models the memory changes several times over with precision, resolution, frames 
 
 ### Requirements
 
-- Windows, Linux or macOS, Python 3.10 or newer (with `uvx`, uv provides Python).
+- Windows, Linux or macOS, Python 3.12 or newer (with `uvx`, uv provides Python).
 - GPU: NVIDIA (CUDA). Without a usable NVIDIA GPU: AMD (ROCm), Intel (XPU) and Apple silicon (MPS), judged with the
   vendors' support tables. Integrated GPUs use shared memory; other PCs are judged as CPU-only. Which GPUs and OS
   versions count: [docs/hardware.md](https://github.com/laxshmate/genmodelfit/blob/main/docs/hardware.md#gpus-other-than-nvidia-070-22-23).

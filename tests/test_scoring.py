@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 from test_contrib import _sub
 
@@ -382,10 +384,10 @@ def _table_view(sel):
 
 def test_e_run_date_does_not_change_table_order_or_score(db, monkeypatch):
     """(e) 実行した日を変えても、表の並びと Score は同じ(--json は gate の HEAD の期限で変わりうる)。"""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     views = []
-    for day in (datetime(2026, 10, 21, tzinfo=timezone.utc), datetime(2027, 3, 1, tzinfo=timezone.utc)):
+    for day in (datetime(2026, 10, 21, tzinfo=UTC), datetime(2027, 3, 1, tzinfo=UTC)):
         monkeypatch.setattr(gate, "_now", lambda day=day: day)
         sel = select(db, plain(12), verified_first=False, include_unknown_license=True)
         views.append(_table_view(sel))

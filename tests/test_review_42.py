@@ -10,7 +10,7 @@ import copy
 import hashlib
 import json
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -24,7 +24,7 @@ from genmodelfit.gate import CHECK_IDS, GatePolicy, evaluate_offline
 from genmodelfit.hf import TIER_PERMISSIVE, license_tier
 from genmodelfit.models import REVIEW_REASONS, ModelEntry, Review
 
-NOW = datetime(2026, 10, 21, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 21, tzinfo=UTC)
 URL = "https://huggingface.co/org/model/blob/main/LICENSE"
 
 

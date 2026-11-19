@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from . import gate as _gate
@@ -31,7 +31,7 @@ SOURCES = ("bundled", "cache", "release", "path")
 
 
 def _iso(t: datetime | None) -> str | None:
-    return t.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if t else None
+    return t.astimezone(UTC).isoformat().replace("+00:00", "Z") if t else None
 
 
 @dataclass(frozen=True)
@@ -97,7 +97,7 @@ def compute(
     p = policy or GatePolicy()
     now = now or _gate._now()  # gate と同じ時計(試験では差し替える)
     if now.tzinfo is None:
-        now = now.replace(tzinfo=timezone.utc)
+        now = now.replace(tzinfo=UTC)
     fresh_policy = dataclasses.replace(p, max_head_age_days=None)
 
     times = [t for m in db.models for f in m.files if (t := _parse_time(f.head_checked_at)) is not None]

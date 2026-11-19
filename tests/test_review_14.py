@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -281,7 +281,7 @@ def test_http_head_status_follows_rename_once():
 
 def test_head_age_limit():
     e = _entry([_file(head_checked_at="2026-09-01T00:00:00Z")], license="mit")
-    now = datetime(2026, 10, 20, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 20, tzinfo=UTC)
     r = evaluate_offline(e, sources=SOURCES, now=now)
     c = next(c for c in r.checks if c.id == "url_reachable")
     assert not c.passed and "確認が古い" in c.detail

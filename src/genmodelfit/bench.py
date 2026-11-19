@@ -36,7 +36,7 @@ import time
 import uuid
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin, urlparse, urlsplit
@@ -2021,7 +2021,7 @@ def run(opts: BenchOptions, *, client: ComfyClient | None = None, log=None, prog
         comfyui_version=str((stats.get("system") or {}).get("comfyui_version") or "") or None,
         offload=offload,
         source=opts.source or f"genmodelfit bench {__version__}",
-        date=datetime.now(timezone.utc).date().isoformat(),
+        date=datetime.now(UTC).date().isoformat(),
         note="。".join(note_parts),
         outcome=outcome,
         standard=not nonstandard,
@@ -2059,7 +2059,7 @@ def default_output_path(m: Measurement) -> Path:
     def slug(s: str) -> str:
         return re.sub(r"[^A-Za-z0-9_.-]+", "-", s).strip("-")
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     gpu = slug(m.gpu_name.replace("NVIDIA ", "").replace("GeForce ", ""))
     return cache_dir() / "measurements" / f"{slug(m.model_id)}_{gpu}_{ts}.json"
 

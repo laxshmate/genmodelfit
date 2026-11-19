@@ -1,12 +1,12 @@
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
 
 # 同梱の一覧の HEAD は 2026-10-20 に確かめた。gate の「確認が古い」を、
 # テストを動かす日によらず決まった結果にする
-SNAPSHOT_NOW = datetime(2026, 10, 21, tzinfo=timezone.utc)
+SNAPSHOT_NOW = datetime(2026, 10, 21, tzinfo=UTC)
 
 
 @pytest.fixture(scope="session", autouse=True)

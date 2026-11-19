@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.16.0] - Unreleased
+
+### Changed
+
+- **Supported Python is now 3.12 to 3.15** (#215). Python 3.10 and 3.11 are dropped and 3.14 and 3.15 are
+  added (`requires-python = ">=3.12"`; the official support of 3.10 ended on 2026-10-01). On an older Python,
+  pip installs up to 0.15.1. Development only: the local checks are `tools/ci_local.py --quick` before each
+  push (3.12 and 3.15 on Windows), the new `--merge` once before a merge (3.12 and 3.15 in WSL) and
+  `--linux` once before a release (all versions, on Windows and in WSL).
+
+### Fixed
+
+- Submitted measurement files (and the JSON in a measurement Issue) that are nested more than 64 levels deep are
+  rejected as "nested too deeply" on every Python and OS (#215). The check used to rely on Python's JSON reader
+  running out of recursion, and Python 3.15 on Linux reads 30,000 levels without an error.
+
 ## [0.15.1] - 2026-11-19
 
 ### Added

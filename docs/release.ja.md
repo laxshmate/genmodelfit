@@ -74,7 +74,8 @@ genmodelfit の版のリリースと、モデル一覧の配り方(パッケー�
    末尾のリンクの定義も直す。この節が GitHub Release の本文になり、タグの版の節が無い・日付が無い・中身が空なら
    release.yml は公開の前に止まる(手元では `python tools/changelog_notes.py <版>` で本文か理由が見られる)。
 4. PR で main に入れる。マージは普通のマージコミット(squash・rebase はしない)。
-   PR では ci.yml が動かないので、PR の説明に `tools/ci_local.py --linux` の結果を書く。
+   PR では ci.yml が動かないので、版を出す前に `tools/ci_local.py --linux` を 1 回流し(Python 3.12〜3.15 の全部を
+   Windows と WSL で)、PR の説明にその結果を書く。
 5. マージの後に main で動いた ci.yml が緑なのを確かめる。
    マージで `src/genmodelfit/data/db.json` が変わっていれば、data.yml が一覧も配る(「[データの配布](#データの配布)」)。
 6. **タグを push する**。main の先頭に付け、`_version.py` の版と合わせる:
@@ -289,7 +290,7 @@ weekly-data.yml(手動の予備。#42 から定期の実行はメンテナの PC
 - **GITHUB_TOKEN で作った PR では CI(ci.yml)が自動で動かない**(GitHub の仕様。ループを防ぐため)。
   - 代わりに同じワークフローの build で、新しい一覧を入れた状態の ruff と pytest を通してから PR を作る(PR の本文にもそう書く)。
   - 同じリポジトリのブランチの PR でも ci.yml は動かない(#68)。
-  - 確かめるなら手元で `python tools/ci_local.py --linux` を回すか、マージの後に main で動く ci.yml を見る。
+  - 確かめるなら手元で `python tools/ci_local.py --merge` を回すか、マージの後に main で動く ci.yml を見る。
 - **一部を取得できなかったとき**(`sources.partial`): 既定は失敗(PR を作らない)。
   - 手動実行で `allow_partial` を選んだときだけ、「一部欠け」の警告を本文の先頭に付けて PR にする。
   - 条件は、欠けたのが HF のリポジトリの一時的な失敗だけで、前の一覧から引き継げたこと(`weekly.partial_problems`)。次の 4 つがすべて要る:

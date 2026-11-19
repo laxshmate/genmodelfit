@@ -56,7 +56,7 @@ llmfit との違い: llmfit は LLM だけが対象です([llmfit#41](https://gi
 
 ### 動く環境
 
-- Windows・Linux・macOS、Python 3.10 以上(`uvx` なら uv が Python を用意します)。
+- Windows・Linux・macOS、Python 3.12 以上(`uvx` なら uv が Python を用意します)。
 - GPU: NVIDIA(CUDA)。使える NVIDIA の GPU が無いときは、AMD(ROCm)・Intel(XPU)・Apple silicon(MPS)を
   各社の対応表で判定します。内蔵 GPU は共有メモリで判定し、それ以外の PC は CPU だけとして判定します。
   対象の GPU と OS の版: [docs/hardware.ja.md](https://github.com/laxshmate/genmodelfit/blob/main/docs/hardware.ja.md#nvidia-以外の-gpu0702223)。
