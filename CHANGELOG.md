@@ -17,9 +17,63 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
-- Submitted measurement files (and the JSON in a measurement Issue) that are nested more than 64 levels deep are
-  rejected as "nested too deeply" on every Python and OS (#215). The check used to rely on Python's JSON reader
-  running out of recursion, and Python 3.15 on Linux reads 30,000 levels without an error.
+- Submitted measurement files (and the JSON in a measurement Issue) nested more than 64 levels deep are
+  rejected as "nested too deeply" on every Python and OS (#215). The check used to rely on Python's JSON
+  reader running out of recursion, and Python 3.15 on Linux reads 30,000 levels without an error.
+- **Dynamic-VRAM submissions show the whole-GPU increase first** (#217). With ComfyUI 0.19's default dynamic
+  VRAM, the torch reservation (`peak_vram_gb`) is only part of the working memory and leaves out the weights,
+  so "Peak VRAM 2.28 GiB" in `share`, `measure`, `bench` and `contrib show` was misleading next to an estimate
+  of 6.25. They now print the whole-GPU increase first with the increase plus the formula's fixed part, the
+  same amount the `deviation` check uses, and say whether that amount is compared with the estimate by the
+  same rule as the check: "Whole-GPU increase: 6.46 GiB (+ fixed part 1.47 = 7.93 GiB is what compares with
+  the estimate; dynamic VRAM)", or "…; not compared with the estimate, as the GPU was filled" (the real RTX
+  3070 submission), "as the estimate is larger than the GPU", "as it is unknown whether the GPU was filled" or
+  "as torch held memory before the run". The torch reservation follows on its own line (in GiB). When the
+  increase is unknown, the line says the value is only part of the working memory. The submission file and the
+  meaning of `peak_vram_gb` are unchanged.
+- **The `deviation` notice no longer fires on almost every dynamic-VRAM submission** (#217). The torch
+  reservation was compared with the formula's working memory (114% off on a real RTX 3070 submission), but it
+  also holds the VAE decode and more. A dynamic-VRAM submission is now checked by its whole-GPU increase plus
+  the formula's fixed part (1.47 GB, the same as the whole-GPU cross-check of #200; the increase is measured
+  from the usage before the run, so it leaves out the fixed part of the ComfyUI that is already running)
+  against the formula's all-in estimate (±40%), and not at all when the increase is unknown, or when torch
+  held more than 0.25 GiB before the run or that amount is unknown (the increase comes out smaller; the same
+  rule as #200). An amount below the estimate is not reported when the GPU was filled (the peak whole-GPU
+  usage at 90% or more of the GPU total; dynamic VRAM loads only what fits), when the all-in estimate is above
+  90% of the GPU total (dynamic VRAM cannot reach it), or when the peak or the GPU total is unknown (an
+  increase in the `note` above the GPU total × 1.05 is not used, and the `note` is not read when the GPU total
+  is unknown). `offload` is matched case-insensitively, as elsewhere.
+- **Old dynamic-VRAM submissions are checked on the smaller side too** (#217). A submission without
+  `measurement.device` had no known peak, so an amount below the estimate was never reported. The peak
+  whole-GPU usage is now read from the line bench writes in the `note` for its GPU tool (in Japanese: 「GPU
+  全体(nvidia-smi)の増分 … GB(開始前 … GB 使用、最大 … GB)」), and used only when it appears once, is not a sum over several
+  GPUs, is at most the GPU total × 1.05 and is not below the increase (a line whose tool name is not ASCII,
+  such as Windows performance counters, is not read, so such a submission is not compared on that side). The
+  bundled aggregate (`measurements_community.json`) now carries that peak too, and all readers of the
+  whole-GPU usage (display, check, aggregate, accuracy table) use one function; a `note` is not read when the
+  GPU total is unknown, and an unfinished run is not read even with the field (the side that does not
+  compare). None of the 15 bundled submissions has the notice now (ACE-Step 1.5 on an RTX 5080, 9.10 + 1.47 GB
+  against 22.26 GB, is below an estimate larger than the GPU, so it is not compared).
+- **A failed submission no longer shows the increase as the amount to compare with the estimate** (#217).
+  `contrib show`, `share` and `measure` showed the whole-GPU increase of an `oom` or `error` run as the amount
+  to compare with the estimate. Only finished runs (`outcome: ok`) show it now, as in the check.
+- **`contrib validate` and `contrib show` no longer stop with a traceback on a huge integer** (#218; closes
+  #218). A number too large for a float (for example 400 digits) anywhere in a submission is now rejected as
+  "not a finite number", like NaN and inf, and `contrib show` prints such a value (in `estimate`, `timing` or
+  a failures file) as "unknown" instead of stopping.
+- **`contrib validate` and `contrib show` no longer stop on a submission of the wrong shape** (#217). When
+  `system`, `system.gpu`, `tool`, `measurement` or `measurement.settings` is not an object, or
+  `system.gpu.vendor` is a list or an object, `validate` stopped with an `AttributeError` or a `TypeError`
+  (since before 0.15.1). It now returns the shape error, and `show` prints "unknown" for what it cannot read.
+- **The accuracy table compares dynamic-VRAM rows by the whole-GPU increase** (#217).
+  `python -m genmodelfit.calibrate` compared the torch reservation with the formula's working memory. It now
+  compares the whole-GPU increase plus the formula's fixed part with the all-on-GPU amount, with the same rule
+  as the submission check (rows where the GPU was filled, or may have been, are not compared on the smaller
+  side; preloaded rows are not compared). The error is computed as in the whole-GPU usage table (they used to
+  differ by 0.1 from rounding). The `contrib aggregate --report` summary now counts the dynamic-VRAM rows
+  apart from the all-on-GPU rows and lists the rows not compared, since leaving out the smaller side of rows
+  where the GPU was filled made the summary look better. The breach check is unchanged. The coefficients, the
+  leave-one-out results and the summary in `calibration.json` are unchanged; only its cross-check rows change.
 
 ## [0.15.1] - 2026-11-19
 

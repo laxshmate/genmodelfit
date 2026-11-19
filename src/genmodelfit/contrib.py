@@ -46,7 +46,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from datetime import date as _date
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from ._version import __version__
 from .db import Database
@@ -92,6 +92,7 @@ FAILURES_SUFFIX = "-failures"  # 失敗の記録のファイル名の終わり(<
 VRAM_TOLERANCE_GB = PEAK_VRAM_SLACK_GB  # 最大 VRAM は GPU の総量 × 1.02 + これまで(estimate.peak_vram_cap)
 RAM_TOLERANCE_GB = 1.0  # 最大メモリはメインメモリ × 1.05 + これまで
 MAX_GPU_VRAM_GB = 256.0  # 1 枚の GPU の VRAM の上限(超えたら誤り。0.9.0 で 512 から下げた)
+DYNAMIC_FILLED_RATIO = 0.9  # 動的 VRAM の照合で「GPU が埋まった」とみなす device.peak_gb の割合(総量に対して)
 DEVICE_VRAM_RATIO = 1.05  # GPU 全体の使用量(measurement.device。#200)の上限: GPU の総量のこの倍
 MAX_RAM_GB = 4096.0
 # note の長さの上限(#90 で 2000 から下げた。bench の note は固定の部分が 230 字ほどで、長い失敗の理由などで
@@ -202,6 +203,18 @@ _NOTE_DELTA = re.compile(r"/system_stats の GPU 全体の増分 " + _NOTE_NUM +
 _NOTE_AFTER_FREE = re.compile(r"解放後 " + _NOTE_NUM + " GB")
 _NOTE_NO_FREE = re.compile(r"/free はしていない\(開始前に読み込み済み torch " + _NOTE_NUM + r" GB\)")
 _NOTE_FREED = "開始前に /free でモデルを解放"
+# bench が note に書く、GPU の使用率を読む道具(nvidia-smi など。gpustat の Tool.name)の値の文(#217)。
+# 最大は GPU 全体の使用量(開始前の分も入る)。複数の GPU の合計(「、複数の GPU の合計」が付く)は 1 枚の
+# 総量と比べられないので、道具の名前に「、」を許さず読まない
+_NOTE_SMI = re.compile(
+    r"GPU 全体\([A-Za-z-]{1,16}\)の増分 "
+    + _NOTE_NUM
+    + r" GB\(開始前 "
+    + _NOTE_NUM
+    + r" GB 使用、最大 "
+    + _NOTE_NUM
+    + r" GB\)"
+)
 TIMING_KEYS = {
     "queue_s",  # 送ってから実行が始まるまで
     "load_s",  # 実行の始まりからサンプラの始まりまで(モデルの読み込みと文の符号化)
@@ -801,7 +814,10 @@ def is_failures(data: Any) -> bool:
 def suggested_path(data: dict[str, Any]) -> str:
     """リポジトリの中の置き場所 data/contrib/<GPU>/<日付>-<sha8>.json(区切りは /)。
     失敗の記録は <日付>-<sha8>-failures.json(#132)。"""
-    gpu = ((data.get("system") or {}).get("gpu") or {}).get("name") or "unknown"
+    # 形の違う提出(system・gpu が辞書でない)でも落ちない(誤りは検査が別に返す)
+    system = data.get("system") if isinstance(data.get("system"), dict) else {}
+    g = system.get("gpu") if isinstance(system.get("gpu"), dict) else {}
+    gpu = g.get("name") or "unknown"
     tail = FAILURES_SUFFIX if is_failures(data) else ""
     return f"{CONTRIB_DIR}/{gpu_slug(str(gpu))}/{data.get('date')}-{content_hash(data)[:8]}{tail}.json"
 
@@ -1000,26 +1016,244 @@ def device_from_note(note: Any) -> dict[str, Any] | None:
     }
 
 
-def device_of(m: Any) -> dict[str, Any] | None:
-    """実測の GPU 全体の使用量(#200)。Measurement.device があればそれ。無ければ、bench の測り方
-    (vram_metric が torch_reserved)で最後まで動いた(outcome が ok)実測だけ note から読む
-    (device_from_note)。note は提出する人が書ける文なので、項目の検査(_check_device)と同じ上限を当てる:
-    増分・開始前の torch が GPU の総量 × DEVICE_VRAM_RATIO(総量が分からなければ MAX_GPU_VRAM_GB)を
-    超える note は読まない。"""
-    d = getattr(m, "device", None)
+def device_delta_gb(device: Any) -> float | None:
+    """GPU 全体の増分(GiB。動的 VRAM の提出で、見積もりと比べられる量)。device は measurement.device の
+    辞書(bench.device_usage の形)か device_from_note の結果。delta_gb があればそれ、無ければ
+    peak_gb − before_gb(どちらも GiB)。分からなければ None(表示・照合・まとめがこの 1 か所を使う)。"""
+    if not isinstance(device, dict):
+        return None
+    x = device.get("delta_gb")
+    if _num(x):
+        return float(x)
+    if _num(device.get("before_gb")) and _num(device.get("peak_gb")):
+        return float(device["peak_gb"]) - float(device["before_gb"])
+    return None
+
+
+def _total_of(mm: dict[str, Any], vram_gb: Any) -> float | None:
+    """GPU の総量(GiB): vram_gb(提出の system.gpu.vram_gb)、無ければ mm の gpu_vram_gb。0 以下・
+    数でなければ None。"""
+    total = vram_gb if vram_gb is not None else mm.get("gpu_vram_gb")
+    return float(total) if _num(total) and total > 0 else None
+
+
+def submission_delta_gb(mm: Any, vram_gb: Any = None) -> float | None:
+    """提出の measurement(辞書)の GPU 全体の増分(GiB)。measurement.device から、無い古い提出は bench の
+    note(device_from_note)から。0 以下・分からないものは None。表示 / 照合用で、ファイルは変えない。
+    note は提出する人が書ける文なので、device_of と同じ上限(GPU の総量 × DEVICE_VRAM_RATIO)を当て、
+    超えれば None。総量(vram_gb。無ければ mm の gpu_vram_gb)が分からなければ note は読まない。
+    最後まで動かなかった実測(outcome が ok でない。無ければ ok)は None(見積もりと比べる量でない。
+    照合も ok だけ。#217)。"""
+    x = device_delta_gb(submission_device(mm, vram_gb))
+    return x if x is not None and x > 0 else None
+
+
+def submission_device(mm: Any, vram_gb: Any = None) -> dict[str, Any] | None:
+    """実測・提出の GPU 全体の使用量の辞書(#200・#217)。読み方はこの 1 か所(表示・照合・まとめ・精度の表。
+    device_of もこれを呼ぶ)。mm は提出の measurement(辞書)か measurement_view。
+
+    - 最後まで動いた(outcome が ok。無ければ ok)実測だけ。ほかは None(見積もりと比べる量でない)
+    - measurement.device があればそれ(項目の検査は _check_device)
+    - 無い古い実測は、bench の測り方(vram_metric が torch_reserved)のときだけ note から読む
+      (device_from_note)。note は提出する人が書ける文なので、GPU の総量(vram_gb、無ければ mm の
+      gpu_vram_gb)が分からなければ読まず、増分・開始前の torch が総量 × DEVICE_VRAM_RATIO を超える note も
+      読まない。note の道具の最大
+      (note_peak_gb)は、同じ上限と 最大 ≥ 増分 の整合が合うときだけ peak_gb に入れる(GPU が埋まったかの
+      判定に使う。合わなければ None のまま)
+    総量が分からないときの上限(前の device_of は MAX_GPU_VRAM_GB で読んだ)と outcome は、比べない側に
+    そろえた。"""
+    if not isinstance(mm, dict) or (mm.get("outcome") or "ok") != "ok":
+        return None
+    d = mm.get("device")
     if isinstance(d, dict):
         return d
-    if getattr(m, "vram_metric", None) != "torch_reserved" or (getattr(m, "outcome", None) or "ok") != "ok":
+    if mm.get("vram_metric") != "torch_reserved":
         return None
-    d = device_from_note(getattr(m, "note", None))
-    if d is None:
+    total = _total_of(mm, vram_gb)
+    if total is None:
         return None
-    vram = getattr(m, "gpu_vram_gb", None)
-    cap = vram * DEVICE_VRAM_RATIO if _num(vram) and vram > 0 else MAX_GPU_VRAM_GB
+    d = device_from_note(mm.get("note"))
+    cap = total * DEVICE_VRAM_RATIO
+    if d is None or d["delta_gb"] > cap:
+        return None
     torch = d["before_torch_gb"]
-    if d["delta_gb"] > cap or (torch is not None and torch > cap):
+    if torch is not None and torch > cap:
         return None
+    peak = note_peak_gb(mm.get("note"))
+    if peak is not None and d["delta_gb"] <= peak <= cap:
+        d["peak_gb"] = peak
     return d
+
+
+def device_clean(device: Any) -> bool:
+    """開始前(降ろした後)の torch の確保量 before_torch_gb が分かり DEVICE_CLEAN_TORCH_GB 以下か(#200)。
+    開始前に確保していた分は測っている間に使い回されて増分が小さく出るので、偽なら増分を見積もりと比べない
+    (calibrate.device_check と dynamic_comparison の 1 か所)。分からなければ偽。"""
+    torch = device.get("before_torch_gb") if isinstance(device, dict) else None
+    return bool(_num(torch) and torch <= DEVICE_CLEAN_TORCH_GB)
+
+
+def measurement_view(m: Any) -> dict[str, Any]:
+    """Measurement を、提出の measurement の形(辞書)の、動的 VRAM の表示・照合が読む項目だけに
+    (submission_delta_gb・dynamic_comparison。cli の表示と calibrate の精度の表)。"""
+    return {
+        "offload": getattr(m, "offload", None),
+        "vram_metric": getattr(m, "vram_metric", None),
+        "outcome": getattr(m, "outcome", None),  # 最後まで動かなかった実測には増分を出さない(#217)
+        "model_id": getattr(m, "model_id", None),
+        "settings": getattr(m, "settings", None),  # Settings(提出の辞書と同じく estimate_comparison が読む)
+        "device": getattr(m, "device", None),
+        "note": getattr(m, "note", None),
+        "peak_vram_gb": getattr(m, "peak_vram_gb", None),
+        "spilled": getattr(m, "spilled", None),  # 照らすか(cross_checked)
+        "gpu_vram_gb": getattr(m, "gpu_vram_gb", None),
+    }
+
+
+def note_peak_gb(note: Any) -> float | None:
+    """bench が note に書いた、GPU の使用率を読む道具(nvidia-smi など)の最大(GiB。GPU 全体の使用量。#217)。
+    「GPU 全体(<道具>)の増分 <数> GB(開始前 <数> GB 使用、最大 <数> GB)」の最大の数。無い・2 つ以上ある
+    (bench は 1 つしか書かない)なら None。上限・増分との整合は呼ぶ側(submission_peak_gb)が見る。"""
+    if not isinstance(note, str):
+        return None
+    hits = _NOTE_SMI.findall(note)
+    if len(hits) != 1:
+        return None
+    return float(hits[0][2])
+
+
+def submission_peak_gb(mm: Any, vram_gb: Any = None) -> float | None:
+    """提出の measurement(辞書)の GPU 全体の使用量の最大(GiB)。動的 VRAM で「GPU が埋まった」かを決める
+    (dynamic_comparison)。submission_device の peak_gb(measurement.device の値か、note の道具の最大)。
+    分からなければ None。"""
+    d = submission_device(mm, vram_gb)
+    x = d.get("peak_gb") if isinstance(d, dict) else None
+    return float(x) if _num(x) else None
+
+
+def device_whole_gb(delta_gb: float, overhead_gb: float) -> float:
+    """GPU 全体の増分 + 式の固定分(GiB。#200)。増分は開始前の使用量からの差なので、起動済みの ComfyUI の
+    CUDA の文脈などの固定分を含まない。式の全部載せ(固定分を含む)と比べるときは、この値を使う
+    (calibrate.device_check と dynamic_comparison の 1 か所)。overhead_gb は係数の overhead_gb。"""
+    return delta_gb + overhead_gb
+
+
+class DynamicComparison(NamedTuple):
+    """dynamic_comparison の結果。"""
+
+    delta_gb: float  # GPU 全体の増分(GiB)
+    whole_gb: float  # 増分 + 式の固定分(device_whole_gb。全部載せと比べる量)
+    # 比べてよいか(偽: 開始前に torch が確保していた(clean でない)、または GPU が埋まった・埋まったか
+    # 分からない・見積もりが GPU より大きいうえ、増分 + 固定分が見積もりより小さい)
+    comparable: bool
+    filled: bool | None  # GPU が埋まったか(最大か総量が分からなければ None)
+    clean: bool  # 開始前の torch の確保量が分かり小さいか(device_clean)
+    # 全部載せの見積もりが GPU の総量 × DYNAMIC_FILLED_RATIO より大きいか(動的 VRAM は全部載せに届かない)
+    over_gpu: bool = False
+
+
+def dynamic_comparison(
+    mm: Any, full: float, overhead_gb: float, vram_gb: Any = None
+) -> DynamicComparison | None:
+    """動的 VRAM の torch の確保量の実測(is_dynamic_torch)を、式の全部載せの見積もり full(GiB)と比べる
+    ときの GPU 全体の増分と、比べてよいか(DynamicComparison)。提出の照合(_check_against_estimate)と精度の表
+    (calibrate.check)がこの 1 か所を使う(#217)。overhead_gb は式の固定分(係数の overhead_gb)。
+
+    torch の確保量は重みを含まず VAE の decode なども入るので、作業用メモリの式と同じ量でない。比べられるのは
+    GPU 全体の増分(submission_delta_gb)に式の固定分を足した量(device_whole_gb。#200 の device_check と
+    同じ)だけで、増分が分からなければ None(比べない)。動的 VRAM は空きに合わせて重みを載せるので、GPU が
+    埋まったとき(最大 submission_peak_gb が総量の DYNAMIC_FILLED_RATIO 以上)は、増分 + 固定分が見積もりより
+    小さくても比べない(比べてよいかが偽)。最大か総量が分からなければ埋まったかを決められないので、同じく
+    小さい側は比べない。全部載せの見積もりが総量の DYNAMIC_FILLED_RATIO より大きいときも、動的 VRAM は
+    全部載せに届かないので同じく小さい側は比べない。開始前に torch が確保していた(device_clean が偽。
+    device_check と同じ)ときは、増分が小さく出るのでどちらの側も比べない。"""
+    if not is_dynamic_torch(mm) or not (_num(full) and full > 0) or not _num(overhead_gb):
+        return None
+    delta = submission_delta_gb(mm, vram_gb)
+    if delta is None:
+        return None
+    whole = device_whole_gb(delta, float(overhead_gb))
+    total = _total_of(mm, vram_gb)
+    peak = submission_peak_gb(mm, vram_gb)
+    filled = None if total is None or peak is None else peak >= total * DYNAMIC_FILLED_RATIO
+    clean = device_clean(submission_device(mm, vram_gb))
+    # 見積もりが GPU に入らない(総量 × DYNAMIC_FILLED_RATIO を超える)なら、動的 VRAM は全部載せに届かないので
+    # 「埋まった」と同じく小さい側は比べない(大きい側は比べる)
+    over_gpu = total is not None and full > total * DYNAMIC_FILLED_RATIO
+    small = (filled is not False or over_gpu) and whole < full
+    return DynamicComparison(delta, whole, clean and not small, filled, clean, over_gpu)
+
+
+def _formula_full(entry: Any, settings: Settings | None) -> tuple[float, Any, Any] | None:
+    """(式の全部載せの見積もり, 精度を当てた部品, 係数)。見積もりは GiB で実測でずらさない
+    (estimate.formula_need の full)。提出の照合(_check_against_estimate)が使う。部品が分からない・
+    計算できないときは None。"""
+    from .estimate import apply_precision, components, formula_need, load_coefficients, settings_for
+
+    if entry is None:
+        return None
+    parts = components(entry)
+    if parts.unknown:
+        return None
+    c = load_coefficients()
+    try:
+        s = settings_for(entry, settings)
+        parts = apply_precision(parts, entry, s)
+        full = formula_need(entry, s, c, parts).full
+    except (TypeError, ValueError, AttributeError, KeyError, ZeroDivisionError, OverflowError):
+        return None  # OverflowError: float にできない整数の設定(#218)
+    if not (_num(full) and full > 0):
+        return None
+    return float(full), parts, c
+
+
+def cross_checked(mm: Any) -> bool:
+    """提出の measurement を式の見積もりと照らすか(validate の _check_against_estimate と表示の
+    estimate_comparison の 1 か所)。最後まで動いた(outcome が ok)・最大 VRAM が 0 より大きい・
+    メインメモリに逃がしていない(spilled が真でない)ものだけ。"""
+    if not isinstance(mm, dict):
+        return False
+    peak = mm.get("peak_vram_gb")
+    return mm.get("outcome") == "ok" and _num(peak) and peak > 0 and mm.get("spilled") is not True
+
+
+def estimate_comparison(mm: Any, entry: Any, vram_gb: Any = None) -> DynamicComparison | None:
+    """提出の measurement(辞書。settings は辞書か Settings)を、提出の照合(_check_against_estimate)と
+    同じ見積もり(_formula_full の全部載せと係数の固定分)で dynamic_comparison に掛けた結果。表示
+    (cli の _vram_rows)が「見積もりと比べる」かを照合と同じ判定で決めるのに使う。見積もりが出せなければ
+    None。照らすかは validate と同じ cross_checked。"""
+    if entry is None or not cross_checked(mm):
+        return None
+    s = mm.get("settings")
+    try:
+        settings = (
+            s
+            if isinstance(s, Settings)
+            else Settings.from_dict({k: v for k, v in (s or {}).items() if k in SETTINGS_KEYS})
+        )
+    except (TypeError, ValueError, AttributeError):
+        return None
+    got = _formula_full(entry, settings)
+    if got is None:
+        return None
+    full, _parts, c = got
+    return dynamic_comparison(mm, full, c.overhead_gb, vram_gb)
+
+
+def is_dynamic_torch(mm: Any) -> bool:
+    """動的 VRAM で torch の確保量を最大 VRAM にした実測か(重みを含まない。#100、estimate.working_only)。"""
+    return (
+        # offload は estimate.working_only と同じく小文字にそろえて見る
+        isinstance(mm, dict)
+        and str(mm.get("offload") or "").lower() == "dynamic"
+        and mm.get("vram_metric") == "torch_reserved"
+    )
+
+
+def device_of(m: Any) -> dict[str, Any] | None:
+    """実測(Measurement)の GPU 全体の使用量(#200)。読み方は submission_device と同じ(measurement_view を
+    通す。まとめ・精度の表が使う)。"""
+    return submission_device(measurement_view(m))
 
 
 TIMING_ORDER = (
@@ -1668,9 +1902,18 @@ class Report:
         return asdict(self)
 
 
+def _finite(x: int | float) -> bool:
+    """有限の数か。float にできないほど大きい整数(#218)も有限でないとみなす(math.isfinite は
+    OverflowError を出す)。"""
+    try:
+        return math.isfinite(x)
+    except OverflowError:
+        return False
+
+
 def _num(x: Any) -> bool:
-    """有限の数か(NaN・inf は数とみなさない)。"""
-    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+    """有限の数か(NaN・inf・float にできない整数は数とみなさない。#218)。"""
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and _finite(x)
 
 
 def number_problems(data: Any) -> list[str]:
@@ -1685,11 +1928,11 @@ def number_problems(data: Any) -> list[str]:
             for i, v in enumerate(x[:100]):
                 walk(v, f"{where}[{i}]")
         elif isinstance(x, (int, float)) and not isinstance(x, bool):
-            if not math.isfinite(x):
+            if not _finite(x):
                 out.append(
                     tr(
-                        f"{where} が有限の数ではありません(NaN・inf)",
-                        f"{where} is not a finite number (NaN or inf)",
+                        f"{where} が有限の数ではありません(NaN・inf・float にできない大きさの整数)",
+                        f"{where} is not a finite number (NaN, inf, or an integer too large for a float)",
                     )
                 )
             elif x < 0:
@@ -2103,7 +2346,8 @@ def _check_system(r: Report, data: dict[str, Any]) -> tuple[Any, Any]:
         if drv is None:
             r.warn("driver_missing", tr("system.gpu.driver がありません", "system.gpu.driver is missing"))
         vendor, backend = gpu.get("vendor"), gpu.get("backend")
-        if vendor is not None and vendor not in VENDOR_BACKEND:
+        # リスト・辞書(ハッシュできない値)でも落ちずに誤りにする
+        if vendor is not None and (not isinstance(vendor, str) or vendor not in VENDOR_BACKEND):
             r.error(
                 "value",
                 tr(
@@ -2914,8 +3158,8 @@ def _check_measurement(r: Report, mm: dict[str, Any], vram: Any, ram: Any, db: D
                 f"settings.precision must be a known precision ({', '.join(PRECISION_BYTES)})",
             ),
         )
-    if entry is not None and outcome == "ok" and _num(peak) and peak > 0 and mm.get("spilled") is not True:
-        _check_against_estimate(r, entry, mm, s, peak)
+    if entry is not None and cross_checked(mm):
+        _check_against_estimate(r, entry, mm, s, peak, vram)
     if entry is not None:
         mod = entry.modality
         if mod not in MODALITIES:
@@ -2963,39 +3207,39 @@ def _check_measurement(r: Report, mm: dict[str, Any], vram: Any, ram: Any, db: D
 
 
 def _check_against_estimate(
-    r: Report, entry: Any, mm: dict[str, Any], s: dict[str, Any], peak: float
+    r: Report, entry: Any, mm: dict[str, Any], s: dict[str, Any], peak: float, gpu_vram: Any = None
 ) -> None:
     """式の見積もりと比べ、ありそうにない値を注意にする(失敗にはしない。マージするメンテナが見る)。"""
-    from .estimate import apply_precision, components, formula_need, load_coefficients, settings_for
-
-    parts = components(entry)
-    if parts.unknown:
-        return
-    c = load_coefficients()
     try:
-        settings = settings_for(entry, Settings.from_dict({k: v for k, v in s.items() if k in SETTINGS_KEYS}))
-        parts = apply_precision(parts, entry, settings)
-        n = formula_need(entry, settings, c, parts)
-        full = n.full
+        settings = Settings.from_dict({k: v for k, v in s.items() if k in SETTINGS_KEYS})
     except (TypeError, ValueError):
         return
-    # 作業用メモリだけの実測(torch_reserved かつ動的 VRAM。#100、estimate.working_only)は重みを含まないので、
-    # 式の作業用メモリ(一番重い段)と比べる。見積もりにも段階にも使わず、照合だけに使う
-    if mm.get("vram_metric") == "torch_reserved" and mm.get("offload") == "dynamic":
-        work = n.act
-        if work > 0 and abs(peak - work) / work > NOTICE_DEVIATION:
-            r.notice(
-                "deviation",
-                tr(
-                    f"作業用メモリだけの実測(動的 VRAM の torch の確保量。照合だけに使う){peak} GB が、式の"
-                    f"作業用メモリ {work:.2f} GB から {abs(peak - work) / work:.0%} 外れています"
-                    f"(±{NOTICE_DEVIATION:.0%} を超えた。見積もりにも段階にも使わない)",
-                    "The working-memory-only measurement (torch reservation with dynamic VRAM; cross-check"
-                    f" only), {peak} GB, is {abs(peak - work) / work:.0%} off the formula's working memory"
-                    f" of {work:.2f} GB"
-                    f" (beyond ±{NOTICE_DEVIATION:.0%}; not used for estimates or levels)",
-                ),
-            )
+    got = _formula_full(entry, settings)
+    if got is None:
+        return
+    full, parts, c = got
+    # 作業用メモリだけの実測(torch_reserved かつ動的 VRAM。#100、estimate.working_only)は、GPU 全体の増分を
+    # 見積もり(full)と比べる。増分が分からない・GPU が埋まった(か分からない)ときの小さい側は比べない
+    # (dynamic_comparison。精度の表と同じ規則)。見積もりにも段階にも使わない
+    if is_dynamic_torch(mm):
+        got_dyn = dynamic_comparison(mm, full, c.overhead_gb, gpu_vram)
+        if got_dyn is not None:
+            delta, whole = got_dyn.delta_gb, got_dyn.whole_gb
+            off = abs(whole - full) / full
+            if off > NOTICE_DEVIATION and got_dyn.comparable:
+                r.notice(
+                    "deviation",
+                    tr(
+                        f"GPU 全体の増分 {delta:.2f} GB + 式の固定分 {c.overhead_gb:.2f} GB = {whole:.2f} GB"
+                        f"(動的 VRAM。照合だけに使う)が、式の見積もり {full:.2f} GB から"
+                        f" {off:.0%} 外れています"
+                        f"(±{NOTICE_DEVIATION:.0%} を超えた。見積もりにも段階にも使わない)",
+                        f"The whole-GPU increase of {delta:.2f} GB plus the formula's fixed part of"
+                        f" {c.overhead_gb:.2f} GB, {whole:.2f} GB (dynamic VRAM; cross-check only), is"
+                        f" {off:.0%} off the formula estimate of {full:.2f} GB"
+                        f" (beyond ±{NOTICE_DEVIATION:.0%}; not used for estimates or levels)",
+                    ),
+                )
     elif full > 0 and abs(peak - full) / full > NOTICE_DEVIATION:
         r.notice(
             "deviation",
@@ -3727,13 +3971,7 @@ def aggregate_device(used: list[tuple[str, Measurement]]) -> dict[str, Any] | No
     出どころの数、from_note は note から読んだ提出の数(0 でも書く)。使える提出が無いときは None
     (行に device を書かない)。"""
 
-    def delta(d: dict[str, Any]) -> float | None:
-        x = d.get("delta_gb")
-        if _num(x):
-            return float(x)
-        if _num(d.get("before_gb")) and _num(d.get("peak_gb")):
-            return float(d["peak_gb"]) - float(d["before_gb"])
-        return None
+    delta = device_delta_gb
 
     have = [(src, d) for src, m in used if (d := device_of(m)) is not None]
     counts = Counter(d.get("tool") for _, d in have if d.get("tool") in DEVICE_TOOLS)
@@ -4044,6 +4282,9 @@ def accuracy_report(db: Database, threshold_pct: float = DEFAULT_THRESHOLD_PCT) 
                 "evaluable": mod in evaluable,
                 "check_n": 0,
                 "check_errors_pct": [],
+                "check_dynamic_n": 0,
+                "check_dynamic_errors_pct": [],
+                "check_not_compared_n": 0,
             },
         )
 
@@ -4067,11 +4308,20 @@ def accuracy_report(db: Database, threshold_pct: float = DEFAULT_THRESHOLD_PCT) 
         if x["censored"]:
             continue
         b = slot(x["modality"])
-        b["check_n"] += 1
-        b["check_errors_pct"].append(x["error_pct"])
-        # 作業用メモリだけの実測(#100。quantity が work)は照合の表に出すだけで、閾値の判定に入れない
-        # (段ごとの山を測れるようになるまで、作業用メモリの見積もりとは粗くしか比べられない)
-        work_only = x.get("quantity") == "work"
+        # 比べない行(動的 VRAM で増分が分からない・GPU が埋まった・開始前に読み込み済み。calibrate.check)は
+        # 誤差の要約に入れず、数だけ check_not_compared_n に出す(抜いた行があることを隠さない。比べないのは
+        # 見積もりより小さい側だけなので、要約だけ見ると良く見える)。動的 VRAM の行(device_delta)は
+        # 全部載せの行と別に数える(check_dynamic_*)
+        if x["error_pct"] is None:
+            b["check_not_compared_n"] += 1
+            continue
+        dyn = "check_dynamic" if x.get("quantity") == "device_delta" else "check"
+        b[f"{dyn}_n"] += 1
+        b[f"{dyn}_errors_pct"].append(x["error_pct"])
+        # 作業用メモリだけの実測(#100。動的 VRAM の torch の確保量。#217 から quantity は device_delta で、
+        # GPU 全体の増分を全部載せと比べる)は照合の表に出すだけで、閾値の判定に入れない(ほかのプログラムの
+        # 増減も入る量で、動的 VRAM は空きに合わせて重みを載せる)
+        work_only = x.get("quantity") in ("work", "device_delta", "unchecked")
         # 照合にはそろっていない(出どころ 1 つの)ほかの利用者の行も出す(#199)が、閾値の判定は今までどおり
         # そろった行(consistent)だけで見る
         if (
@@ -4090,7 +4340,7 @@ def accuracy_report(db: Database, threshold_pct: float = DEFAULT_THRESHOLD_PCT) 
                 }
             )
     for b in by.values():
-        for k in ("loo", "check"):
+        for k in ("loo", "check", "check_dynamic"):
             errs = [abs(e) for e in b.pop(f"{k}_errors_pct")]
             b[f"{k}_mean_abs_pct"] = round(sum(errs) / len(errs), 1) if errs else None
             b[f"{k}_max_abs_pct"] = round(max(errs), 1) if errs else None

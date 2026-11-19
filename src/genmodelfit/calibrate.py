@@ -83,7 +83,8 @@ class Row:
     censored: bool
     modality: str = ""
     const_gb: float = 0.0
-    work_gb: float = 0.0  # 合わせる前の作業用メモリ(照合で作業用メモリだけの実測と比べる)
+    # 合わせる前の作業用メモリ(#217 から照合には使わない。check は GPU 全体の増分と比べる)
+    work_gb: float = 0.0
     staged: bool = False
     # 段ごとの作業用メモリの式(working.StageMem。NVIDIA の半精度)。段ごとの照合(#199)に使う。
     # 当てられなければ None
@@ -204,6 +205,12 @@ def stage_check(stages: dict | None, st: StageMem | None) -> list[dict] | None:
     return out
 
 
+def error_pct(predicted: float, measured: float) -> float:
+    """(予測 − 実測) / 実測 × 100 を 1 桁に丸めた誤差(%)。照合の行(check)と GPU 全体の使用量の照合
+    (device_check)が同じ計算・同じ丸めの順で使う(丸める前の値から)。"""
+    return round((predicted - measured) / measured * 100, 1)
+
+
 def device_check(r: Row, theta: dict[str, float]) -> dict | None:
     """GPU 全体の使用量(contrib.device_of: Measurement.device か、bench の note から読んだ値。#200)と
     式の全部載せを並べる。照合に出すだけで、係数の合わせ・値のずらし・段階には使わない。
@@ -221,7 +228,7 @@ def device_check(r: Row, theta: dict[str, float]) -> dict | None:
     - error_pct: (formula − whole) / whole × 100(1 桁)。clean で pinned でないときだけ(whole が 0 以下も None)
     - from_note: note から読んだ値か(まとめの行は note から読んだ提出が 1 つでもあるか)
     device が無い・読めなければ None。"""
-    from .contrib import DEVICE_CLEAN_TORCH_GB, device_of
+    from .contrib import device_clean, device_of, device_whole_gb
 
     d = device_of(r.m)
     if not isinstance(d, dict):
@@ -235,11 +242,11 @@ def device_check(r: Row, theta: dict[str, float]) -> dict | None:
         if not (num(before) and num(peak)):
             return None
         delta = peak - before
-    whole = delta + r.overhead_gb
+    whole = device_whole_gb(delta, r.overhead_gb)
     formula = r.predict(theta)
     vram = r.m.gpu_vram_gb or 0
     torch = d.get("before_torch_gb")
-    clean = bool(num(torch) and torch <= DEVICE_CLEAN_TORCH_GB)
+    clean = device_clean(d)
     pinned = bool(
         is_censored(r.m)
         or (vram > 0 and num(peak) and peak >= CENSOR_RATIO * vram)
@@ -251,7 +258,7 @@ def device_check(r: Row, theta: dict[str, float]) -> dict | None:
         "delta_gb": round(delta, 2),
         "whole_gb": round(whole, 2),
         "formula_gb": round(formula, 2),
-        "error_pct": round((formula - whole) / whole * 100, 1) if ok else None,
+        "error_pct": error_pct(formula, whole) if ok else None,
         "pinned": pinned,
         "clean": clean,
         **({} if num(torch) else {"baseline": "unknown"}),  # 開始前の torch の量が分からない(clean でない)
@@ -260,12 +267,36 @@ def device_check(r: Row, theta: dict[str, float]) -> dict | None:
 
 
 def check(rows: list[Row], theta: dict[str, float]) -> list[dict]:
+    """照合の行。作業用メモリだけの実測(estimate.working_only。動的 VRAM の torch の確保量)は、torch の
+    確保量が作業用メモリの式と同じ量でない(重みを含まず VAE の decode なども入る)ので、GPU 全体の増分を
+    式の全部載せと比べる(quantity "device_delta"。measured_gb は増分 + 式の固定分(contrib.device_whole_gb。
+    device_check と同じ)、delta_gb は増分、torch_gb は torch の確保量)。
+    増分が分からない・GPU が埋まった(か分からない)ときの小さい側は、提出の照合と同じ規則
+    (contrib.dynamic_comparison)で比べず、comparable を偽、error_pct を None にする(quantity は
+    増分が分からなければ "unchecked"。filled は埋まったか、分からなければ None)。係数の合わせ(fit)には
+    使わない(照合の行は build_check_rows だけ)。"""
+    from .contrib import dynamic_comparison, measurement_view
+
     out = []
     for r in rows:
-        # 作業用メモリだけの実測(estimate.working_only)は作業用メモリの見積もりと比べる
-        only = working_only(r.m)
-        pred = r.work_gb + sum(theta[k] * v for k, v in r.features.items()) if only else r.predict(theta)
+        pred = r.predict(theta)
         y = r.m.peak_vram_gb
+        extra: dict = {}
+        if working_only(r.m):
+            dyn = dynamic_comparison(measurement_view(r.m), pred, r.overhead_gb, r.m.gpu_vram_gb)
+            extra = {"torch_gb": y, "comparable": bool(dyn and dyn.comparable)}
+            if dyn is None:
+                quantity, err = "unchecked", None
+            else:
+                quantity, y = "device_delta", round(dyn.whole_gb, 2)
+                extra["delta_gb"] = round(dyn.delta_gb, 2)
+                # 丸める前の増分 + 固定分から(device_check と同じ計算・丸めの順)
+                err = error_pct(pred, dyn.whole_gb) if dyn.comparable else None
+                extra["filled"] = dyn.filled
+                extra["clean"] = dyn.clean
+                extra["over_gpu"] = dyn.over_gpu
+        else:
+            quantity, err = "full", error_pct(pred, y)
         out.append(
             {
                 "model_id": r.m.model_id,
@@ -278,9 +309,10 @@ def check(rows: list[Row], theta: dict[str, float]) -> list[dict]:
                 "settings": {k: v for k, v in vars(r.m.settings).items() if v is not None and k != "batch"},
                 "measured_gb": y,
                 "censored": r.censored,
-                "quantity": "work" if only else "full",
+                "quantity": quantity,
                 "predicted_gb": round(pred, 2),
-                "error_pct": round((pred - y) / y * 100, 1),
+                "error_pct": err,
+                **extra,
                 # ほかの利用者の行だけ(#199): 別々の出どころの数とそろっているか。メンテナの行は None
                 "n_sources": getattr(r.m, "n_sources", None) if is_community(r.m) else None,
                 "consistent": getattr(r.m, "consistent", None),
@@ -562,12 +594,39 @@ def check_table(rows: list[dict]) -> list[str]:
     ]
     for x in rows:
         who = _who(x)
-        err = tr("張り付き", "censored") if x["censored"] else f"{x['error_pct']:+.0f}%"
-        what = (
-            tr("作業用メモリ(重みを含まない実測)", "working memory (measurement without weights)")
-            if x.get("quantity") == "work"
-            else tr("全部載せ", "all on GPU")
-        )
+        q = x.get("quantity")
+        if x["censored"]:
+            err = tr("張り付き", "censored")
+        elif q == "unchecked":
+            err = tr("増分が不明", "increase unknown")
+        elif x["error_pct"] is None and x.get("clean") is False:
+            # device_table と同じ文(開始前に torch が確保していた・その量が分からない。比べない)
+            unknown = (x.get("device") or {}).get("baseline") == "unknown"
+            err = (
+                tr("開始前の量が不明", "baseline unknown")
+                if unknown
+                else tr("開始前に読み込み済み", "preloaded")
+            )
+        elif x["error_pct"] is None and x.get("filled") is not True and x.get("over_gpu"):
+            err = tr(
+                "見積もりが GPU より大きい(小さい側は比べない)",
+                "estimate larger than the GPU (smaller side not compared)",
+            )
+        elif x["error_pct"] is None and x.get("filled") is None:
+            err = tr("埋まったか不明(小さい側は比べない)", "fill unknown (smaller side not compared)")
+        elif x["error_pct"] is None:
+            err = tr("埋まった(小さい側は比べない)", "filled (smaller side not compared)")
+        else:
+            err = f"{round(x['error_pct']):+d}%"  # -0.2 を「-0%」と書かない(device_table と同じ)
+        what = {
+            "device_delta": tr(
+                "GPU 全体の増分 + 固定分(動的 VRAM)↔ 全部載せ",
+                "whole-GPU increase + fixed part (dynamic VRAM) ↔ all on GPU",
+            ),
+            "unchecked": tr(
+                "torch の確保量(動的 VRAM。比べない)", "torch reserved (dynamic VRAM; not compared)"
+            ),
+        }.get(q, tr("全部載せ", "all on GPU"))
         lines.append(
             f"| {md_cell(x['model_id'])} | {md_cell(x['gpu_name'])} | {who} |"
             f" {_settings_text(x['settings'])} | {what} |"

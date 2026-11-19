@@ -354,6 +354,8 @@ def test_validate_notices_do_not_fail(key, value, code, db, tmp_path, capsys):
     確認(notices)としてジョブのまとめに出すだけで、まとめにも使う(マージするメンテナが見る)。"""
     d = good()
     _set(d, key, value)
+    if code == "deviation":  # 動的 VRAM の torch の確保量は式と比べない(#217)。比べる載せ方にする
+        d["measurement"]["offload"] = "partial"
     if key == "system.gpu.name":  # 表に無い GPU は世代・compute の照合もしない
         d["system"]["gpu"]["arch"] = d["system"]["gpu"]["compute_capability"] = None
     r = contrib.validate_submission(d, db, today=TODAY)
@@ -1224,7 +1226,10 @@ def test_report_on_fixtures(fixture_report):
     ]
     assert check[1]["n_sources"] == 1
     assert check[0]["n_submissions"] == 3 and check[0]["measured_gb"] == 6.96
-    assert check[0]["quantity"] == "work"  # 動的 VRAM の torch_reserved は作業用メモリと比べる(#100)
+    # 動的 VRAM の torch_reserved は GPU 全体の増分を全部載せと比べる(#217)。
+    # この提出には増分が無いので比べない
+    assert check[0]["quantity"] == "unchecked" and check[0]["error_pct"] is None
+    assert check[0]["torch_gb"] == 6.96 and check[0]["comparable"] is False
     assert rep["n_fit"] == 9  # torch_reserved の提出は係数の合わせに入れない(照合だけ)
     # 閾値 10% にすると、SDXL の作者の実測の LOO(+12.5%。#100 の段ごとの式)が引っかかる。
     # 作業用メモリだけの照合と作者の照合(RTX 3070)は判定に入れない
@@ -2113,6 +2118,7 @@ def test_share_check_refuses_ng_and_errors_only(db):
     assert why and any("privacy" in w for w in why)
     d = good()
     d["measurement"]["peak_vram_gb"] = 0.5  # 確認(deviation・below_weights)だけでは断らない
+    d["measurement"]["offload"] = "partial"  # 動的 VRAM の torch の確保量は式と比べない(#217)
     r = contrib.validate_submission(d, db, today=TODAY, check_filename=False)
     assert r.notices and contrib.share_check(contrib.privacy_checklist(d), r) == []
 

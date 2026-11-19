@@ -500,9 +500,11 @@ def test_device_of_has_the_same_limit_as_the_field():
     assert contrib.device_of(replace(m, note=DELTA_LINE.format("50.00"))) is None
     torch = DELTA_LINE.format("2.00") + "(解放前 torch 9.00 GB、解放後 9.00 GB)"
     assert contrib.device_of(replace(m, note=torch)) is None
-    unknown = replace(m, gpu_vram_gb=None)  # 総量が分からなければ MAX_GPU_VRAM_GB
-    assert contrib.device_of(replace(unknown, note=DELTA_LINE.format("50.00")))["delta_gb"] == 50.0
-    assert contrib.device_of(replace(unknown, note=DELTA_LINE.format("300.00"))) is None
+    # 総量が分からなければ note は読まない(#217 で submission_device にそろえた。比べない側)
+    unknown = replace(m, gpu_vram_gb=None)
+    assert contrib.device_of(replace(unknown, note=DELTA_LINE.format("5.00"))) is None
+    # 最後まで動かなかった実測は、項目があっても読まない(#217。同じ理由)
+    assert contrib.device_of(replace(m, device=_device(), outcome="oom")) is None
     # bench が device を作れなかった実測(note は 0.00): 照合の行を作らない
     assert contrib.device_of(replace(m, note=DELTA_LINE.format("0.00"))) is None
 

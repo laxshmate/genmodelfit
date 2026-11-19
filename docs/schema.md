@@ -991,7 +991,7 @@ Template: `name`, `title`, `category`, `min_comfyui_version`, `open_source`, `re
 | `gpu_vram_gb` | float | total VRAM. bench stores `/system_stats` `vram_total` in GiB rounded to 2 decimals (e.g. `7.99`); older bundled rows hold the nominal size (`16`) |
 | `offload` | str \| null | how ComfyUI placed the model: `none` (all on GPU) / `dynamic` (dynamic VRAM) / `partial` (partially loaded) / `lowvram` (`--lowvram` / `--novram`) / `oom` (ran out of memory) |
 | `outcome` | str | `ok` (finished) / `oom` (out of memory) / `error` (failed for another reason). Default `"ok"` |
-| `vram_metric` | str \| null | how `peak_vram_gb` was taken: `torch_reserved` (bench: peak torch reservation of the ComfyUI process, excluding the CUDA context) or null (not recorded; the bundled RTX 5080 rows). Calibration uses only rows with null (`calibrate.CALIBRATION_METRIC`). #100: `torch_reserved` with `offload: dynamic` excludes the weights (working memory only; `estimate.working_only`): such rows neither shift the estimate nor set the level, and the cross-check compares them with the working-memory estimate. Other `torch_reserved` rows include the weights (a lower bound of the total) |
+| `vram_metric` | str \| null | how `peak_vram_gb` was taken: `torch_reserved` (bench: peak torch reservation of the ComfyUI process, excluding the CUDA context) or null (not recorded; the bundled RTX 5080 rows). Calibration uses only rows with null (`calibrate.CALIBRATION_METRIC`). #100: `torch_reserved` with `offload: dynamic` excludes the weights (only part of the working memory; `estimate.working_only`): such rows neither shift the estimate nor set the level, and a submission's cross-check and the accuracy table (`calibrate`) compare the whole-GPU increase (`device`) with the estimate instead (#217; `share` and the other displays show the increase first and the torch reservation separately; the meaning of this key is unchanged). Other `torch_reserved` rows include the weights (a lower bound of the total) |
 | `origin` | str \| null | (#34) `community` for rows of `measurements_community.json` (other users' submissions aggregated by `contrib aggregate`); null for the maintainer's bundled rows and this PC's bench results |
 | `n_submissions` | int \| null | community rows: submissions in the group (outliers and OOM included). The file also keeps `n_outliers`, `spread_mad_gb`, `spread_rel_pct`, `peak_vram_min_gb` / `peak_vram_max_gb`, `outlier_submissions` and `submissions` (sha8 of each file), which the reader ignores |
 | `n_used` | int \| null | community rows: `ok` submissions behind the median (outliers removed). Was `Estimate.sample_count` up to 0.10 (`n_sources` since 0.11.0) |
@@ -1645,7 +1645,22 @@ Apple or a new NVIDIA, still used; or a generic name or placeholder, not used), 
 name that does not fit the name form; a maintainer checks it for personal names), `gpu_vram_nominal` (0.11.0: VRAM
 that is not the name's nominal amount; an error unless a modified card), `batch_sizeless` (a template without a size input, `estimate.NO_SIZE_INPUT`, with `batch` other than 1:
 0.10.1's bench recorded MoGe's processing batch as the batch; judging uses batch 1, so it is not a same-settings
-measurement; #90), `deviation` (peak VRAM more than 40% away from the formula's all-in estimate for those settings),
+measurement; #90), `deviation` (peak VRAM more than 40% away from the formula's all-in estimate for those
+settings; for dynamic VRAM the torch reservation, which excludes the weights, is not compared: the whole-GPU
+increase (`measurement.device` `peak_gb − before_gb`, else the `note`'s "/system_stats" increase; GiB) plus
+the formula's fixed part (the coefficient `overhead_gb`; the increase leaves out the fixed part of the ComfyUI
+that is already running) is, nothing is compared when the increase is unknown, and when the GPU was filled
+(the peak whole-GPU usage at 90% or more of the GPU total), or when the all-on-GPU estimate is above 90% of
+the GPU total (dynamic VRAM cannot reach it), or when the peak is unknown or the GPU total is unknown, an
+increase plus fixed part below the estimate is not reported either; the peak is `device.peak_gb`, else the
+peak that bench writes in the `note` for its GPU tool (nvidia-smi or another; not used for a tool name that is
+not ASCII, such as Windows performance counters, which leaves that side not compared, for a sum over several
+GPUs, when it appears twice or more, above the GPU total × 1.05 or below the increase); an increase read from
+the `note` above the GPU total × 1.05, or with the GPU total unknown, is not used, as in `device_of`; when the
+torch reservation before the run (after unloading, `before_torch_gb`) is above 0.25 GiB or unknown, nothing is
+compared, as the increase comes out smaller (`contrib.device_clean`, as in the whole-GPU usage cross-check of
+the accuracy table); a submission that did not finish (`outcome` other than `ok`) is not compared and its
+displays show no increase; #217),
 `below_weights` (`offload: none` but peak VRAM below the weights + fixed overhead; estimates do not shift the
 working memory for a submission below it and use the formula value (#151) — with dynamic VRAM / partial loading a smaller peak is normal), `fit_change` (this
 submission alone would change the level on a PC with the submitted GPU — same name, PCI model ID and vendor, VRAM =
@@ -1691,7 +1706,7 @@ group. Per-stage peaks (`stages`, #199): from the submissions used for the media
 `peak_gb` and `min_gb` of each stage are the median per source, then the median across sources (rounded to 2
 digits), put in the row as `{sampler_runs (the most common value), sources (the number of sources with stages),
 before_sampling, sampling, after_sampling}`; submissions with a different `sampler_runs` are left out, and rows
-without any submission with stages, or where no stage has a peak, do not have the key ("Measurement" above). Whole-GPU use (`device`, #200): for each submission used for the median, `contrib.device_of` (the `measurement.device` field, else, for a run measured the bench way (`vram_metric: torch_reserved`, outcome `ok`), the values read from the note by `contrib.device_from_note`); submissions with another `tool` than the most common one (on a tie, the first in `contrib.DEVICE_TOOLS`, i.e. `system_stats`), or without an increase, are left out. The increase per submission is `delta_gb` when given, else `peak_gb - before_gb`. `before_gb`, `peak_gb`, `after_gb`, `before_torch_gb` and `delta_gb` are the median per source, then the median across sources, over the submissions that have the value (2 digits; null when none has it), put in the row as `{tool, sources, before_gb, peak_gb, after_gb, before_torch_gb, delta_gb, from_note}` (`from_note`: the number of submissions read from the note, written even when 0); rows without any such submission do not have the key. `contrib.device_from_note` reads only the lines bench writes: the increase from "/system_stats の GPU 全体の増分 <n> GB" (missing, more than one, or 0 or less: no value; bench writes 0.00 also when it could not read it), the start torch from "解放後 <n> GB", else from "/free はしていない(開始前に読み込み済み torch <n> GB)", else 0.0 when "開始前に /free でモデルを解放" is there, else null; `tool` is `system_stats`, the start, peak and end values are null. The note is text a submitter can write, so only ASCII digits (up to 4 digits + 3 decimals) are read, and `contrib.device_of` does not read a note whose increase or start torch is above the GPU total × `DEVICE_VRAM_RATIO` (the same limit as the field's check; `MAX_GPU_VRAM_GB` when the total is unknown).
+without any submission with stages, or where no stage has a peak, do not have the key ("Measurement" above). Whole-GPU use (`device`, #200): for each submission used for the median, `contrib.device_of` (read in one place, `contrib.submission_device`, the same as the display and the check, #217; only runs with outcome `ok`: the `measurement.device` field, else, for a run measured the bench way (`vram_metric: torch_reserved`), the values read from the note by `contrib.device_from_note`); submissions with another `tool` than the most common one (on a tie, the first in `contrib.DEVICE_TOOLS`, i.e. `system_stats`), or without an increase, are left out. The increase per submission is `delta_gb` when given, else `peak_gb - before_gb`. `before_gb`, `peak_gb`, `after_gb`, `before_torch_gb` and `delta_gb` are the median per source, then the median across sources, over the submissions that have the value (2 digits; null when none has it), put in the row as `{tool, sources, before_gb, peak_gb, after_gb, before_torch_gb, delta_gb, from_note}` (`from_note`: the number of submissions read from the note, written even when 0); rows without any such submission do not have the key. `contrib.device_from_note` reads only the lines bench writes: the increase from "/system_stats の GPU 全体の増分 <n> GB" (missing, more than one, or 0 or less: no value; bench writes 0.00 also when it could not read it), the start torch from "解放後 <n> GB", else from "/free はしていない(開始前に読み込み済み torch <n> GB)", else 0.0 when "開始前に /free でモデルを解放" is there, else null; `tool` is `system_stats`, the start and end values are null. The peak (`peak_gb`) is the peak bench writes in its GPU tool line ("GPU 全体(nvidia-smi)の増分 … GB(開始前 … GB 使用、最大 … GB)"), set only when there is exactly one such line, the tool name is ASCII (a sum over several GPUs and "Windows の性能カウンタ(typeperf)" are not read: the side that does not compare), and it is at least the increase and at most the GPU total × `DEVICE_VRAM_RATIO` (#217; used to decide whether the GPU was filled); else null. The note is text a submitter can write, so only ASCII digits (up to 4 digits + 3 decimals) are read, a note of a submission whose GPU total is unknown is not read, and a note whose increase or start torch is above the GPU total × `DEVICE_VRAM_RATIO` (the same limit as the field's check) is not read either (#217 stopped reading it with `MAX_GPU_VRAM_GB` when the total is unknown).
 aggregate is made from a clone with history when releasing (docs/release.md "Releasing a version"). Output rows are Measurement records
 with `origin: "community"` (see Measurement) in a fixed order, so the same input always gives the same file.
 `--output` writes `{unit, source: "community", contrib_schema, date (latest submission date), method, submissions,
@@ -1713,14 +1728,27 @@ The bundled copy is `src/genmodelfit/data/measurements_community.json`, which is
   gives the bundled file. Submissions in data/contrib that are not in it yet are allowed.
 
 `--report` re-runs the calibration (`calibrate.calibrate`) on the bundled maintainer rows plus the new community rows
-(never the local cache) and returns `report`: `{threshold_pct, n_fit, coefficients, summary, by_modality, loo, check,
-breaches, breach, fit_changes}`. `by_modality` is `{<modality>: {loo_n, loo_mean_abs_pct, loo_max_abs_pct, evaluable,
-check_n, check_mean_abs_pct, check_max_abs_pct}}`; `breaches` is [{kind (`loo` / `community_check`), model_id,
-gpu_name, origin, error_pct}]; `loo` / `check` are the per-row results of `calibrate.calibrate` (the same shape as `loo` and `check` in
+(never the local cache) and returns `report`: `{threshold_pct, n_fit, coefficients, summary, by_modality, loo,
+check, breaches, breach, fit_changes}`. `by_modality` is `{<modality>: {loo_n, loo_mean_abs_pct,
+loo_max_abs_pct, evaluable, check_n, check_mean_abs_pct, check_max_abs_pct, check_dynamic_n,
+check_dynamic_mean_abs_pct, check_dynamic_max_abs_pct, check_not_compared_n}}` (`check_*`: the all-on-GPU
+cross-check rows; `check_dynamic_*`: the compared dynamic-VRAM rows, `quantity: device_delta`;
+`check_not_compared_n`: the number of cross-check rows not compared, `error_pct` null; #217, since only the
+side below the estimate is left out, the count is shown too; censored rows are counted in none of them);
+`breaches` is [{kind (`loo` / `community_check`), model_id, gpu_name, origin, error_pct}]; `loo` / `check` are
+the per-row results of `calibrate.calibrate` (the same shape as `loo` and `check` in
 `src/genmodelfit/data/calibration.json`).
 - A `check` row: `model_id`, `modality`, `gpu_name`, `gpu_vram_gb`, `origin` (`maintainer` / `community`),
-  `n_submissions`, `vram_metric`, `settings`, `measured_gb`, `censored`, `quantity` (`work` = a working-memory-only
-  measurement compared with the working-memory estimate / `full` = all on GPU), `predicted_gb`, `error_pct`.
+  `n_submissions`, `vram_metric`, `settings`, `measured_gb`, `censored`, `quantity` (`full` = all on GPU /
+  `device_delta` = a torch reservation measured with dynamic VRAM, compared by the whole-GPU increase plus the
+  formula's fixed part (`contrib.device_whole_gb`) with the all-on-GPU amount / `unchecked` = dynamic VRAM
+  with an unknown increase, not compared; before #217, `work` compared with the working-memory estimate),
+  `predicted_gb`, `error_pct` (null for rows not compared).
+- (#217, dynamic-VRAM rows only) `torch_gb` (the torch reservation) and `comparable` (whether it was
+  compared). In a `device_delta` row `measured_gb` is the increase plus the fixed part, with `delta_gb` (the
+  increase), `filled` (whether the GPU was filled; null when unknown) and `clean` (whether the torch
+  reservation before the run is known and small, `contrib.device_clean`). The comparison is
+  `contrib.dynamic_comparison`, the same as the submission check.
 - (0.15.1, #199) `n_sources` (community rows only: the number of separate sources; null for maintainer rows) and
   `consistent` (whether the community row is consistent; null for maintainer rows). Community rows are included even
   when not consistent (from 1 source). Rows on a GPU not in the name tables (`gpu_known: false`) and rows whose files
