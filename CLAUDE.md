@@ -42,12 +42,15 @@
   (どちらも VRAM・メモリには数えない。docs/scoring.md「既定で切ってある部品」)
 - REST の serve は(未定)(作るならポートは ~/.claude/PORTS.md で選んで登録する)
 - 実装は Claude、レビューはユーザ。Issue ごとに 1 本の PR。依存する PR は前の PR のブランチから作り、PR の説明に書く
-- **全試験は手元で通してから push する**(2026-10-22 オーナー決定、2026-10-28 に回数を見直し)。
-  - push の前に毎回: `tools/ci_local.py --quick`(Windows の Python 3.10 と 3.13・ruff・配布物。約 15 分)。
+- **全試験は手元で通してから push する**(2026-10-22 オーナー決定、2026-10-28 に回数を見直し、2026-11-19 に Python
+  3.12〜3.15 に合わせて回数を見直し)。
+  - push の前に毎回: `tools/ci_local.py --quick`(Windows の Python 3.12 と 3.15・ruff・配布物。約 25 分)。
     途中で止まったら `--quick --resume` で続きから流せる(同じ中身のときだけ。1 ファイルでも変えたら最初から)
-  - マージの前に 1 回(積んだ PR の最後のブランチで): `tools/ci_local.py --linux`(ci.yml と同じ検査を Windows と WSL で
-    順に流す。約 1 時間。メモリを食わないよう 1 つずつ)GitHub の ci.yml は確認用で、このリポジトリの
-  ブランチの PR では動かない(main へのマージ後・手動・フォークからの PR だけ)。PR の説明に手元の結果を書く。
+  - マージの前に 1 回(積んだ PR の最後のブランチで): `tools/ci_local.py --merge`(WSL の中で Python 3.12 と 3.15 の試験・
+    配布物。Windows では流さない。約 25 分。メモリを食わないよう 1 つずつ)
+  - 版を出す前に 1 回: `tools/ci_local.py --linux`(ci.yml と同じ検査を全部の版 × Windows と WSL で順に流す。約 90 分)
+  - GitHub の ci.yml は確認用で、このリポジトリのブランチの PR では動かない(main へのマージ後・手動・フォークからの PR だけ)。
+    PR の説明に手元の結果を書く。
   ci.yml の検査を変えたら ci_local.py も合わせる(tests/test_release.py が対応を見る)
 - **文書は英語版と日本語版の組**(2026-10-23。README / README.ja、CONTRIBUTING / CONTRIBUTING.ja、docs の X.md / X.ja.md。
   目次は docs/README.md)。片方を直したらもう片方も同じ内容に直す。1 つのファイルに 2 つの言語を混ぜない。
@@ -60,7 +63,7 @@
 uv venv --python 3.12; uv pip install -e ".[dev]"
 .venv\Scripts\python -m pytest -q
 .venv\Scripts\ruff check . ; .venv\Scripts\ruff format --check .
-.venv\Scripts\python tools\ci_local.py --linux    # push の前に必ず: ci.yml と同じ検査(3.10〜3.13・ruff・配布物)を Windows と WSL で
+.venv\Scripts\python tools\ci_local.py --linux    # 版を出す前に 1 回: ci.yml と同じ検査(3.12〜3.15・ruff・配布物)を Windows と WSL で
 .venv\Scripts\genmodelfit system | recommend --json | fit | search <語> | types | info <id> | update | download <id> | gate | diff | review list | bench <template> | contrib {make|show|validate|aggregate}
 .venv\Scripts\python -m genmodelfit.calibrate      # 実測から係数を合わせ直す(calibration.json と精度の表)
 .venv\Scripts\genmodelfit update --heads-only --no-cache --output src\genmodelfit\data\db.json   # 同梱の一覧の HEAD だけやり直す

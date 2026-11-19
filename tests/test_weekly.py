@@ -15,7 +15,7 @@ from __future__ import annotations
 import copy
 import json
 import shutil
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -26,7 +26,7 @@ from genmodelfit.diff import diff_db
 from genmodelfit.update import LICENSE_POLICY, UpdateFailed
 
 FIX = Path(__file__).parent / "fixtures" / "update"
-NOW = datetime(2026, 10, 21, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 21, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)

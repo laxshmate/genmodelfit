@@ -31,7 +31,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -673,12 +673,12 @@ def _parse_time(v: str | None) -> datetime | None:
         t = datetime.fromisoformat(v.replace("Z", "+00:00"))
     except ValueError:
         return None
-    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+    return t if t.tzinfo else t.replace(tzinfo=UTC)
 
 
 def _now() -> datetime:
     """今の時刻(UTC)。試験では差し替える。"""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def check_url(m: ModelEntry, max_age_days: int | None = None, now: datetime | None = None) -> Check:

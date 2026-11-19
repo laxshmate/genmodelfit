@@ -20,7 +20,7 @@ import os
 import re
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin, urlsplit
@@ -182,7 +182,7 @@ def parse_time(value: Any) -> datetime:
         raise ValueError(
             tr(f"日時にタイムゾーンがありません: {value!r}", f"the date and time has no time zone: {value!r}")
         )
-    return dt.astimezone(timezone.utc)
+    return dt.astimezone(UTC)
 
 
 def _read_state(state_dir: Path | None = None) -> datetime | None:
@@ -266,7 +266,7 @@ def update_from_release(
             )
         )
     # 記録を先に進める。後の書き込みが失敗しても、同じ配布はもう一度取り込める(同じ日時は通す)
-    state = {"generated_at": new_time.isoformat(), "accepted_at": datetime.now(timezone.utc).isoformat()}
+    state = {"generated_at": new_time.isoformat(), "accepted_at": datetime.now(UTC).isoformat()}
     _atomic_write(state_path(state_dir), (json.dumps(state) + "\n").encode("utf-8"))
     _atomic_write(dest or cached_db_path(), data)
     return db

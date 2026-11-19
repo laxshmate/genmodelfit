@@ -15,7 +15,7 @@ import json
 import os
 import statistics
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -692,7 +692,7 @@ def mark_shared(data: dict[str, Any]) -> str:
     marks = load_shared()
     mm = data.get("measurement") if isinstance(data.get("measurement"), dict) else {}
     marks[sha] = {
-        "date": datetime.now(timezone.utc).date().isoformat(),
+        "date": datetime.now(UTC).date().isoformat(),
         "model_id": mm.get("model_id"),
     }
     _write_json_atomic(shared_path(), {"shared": marks})

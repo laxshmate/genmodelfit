@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -17,8 +17,6 @@ from genmodelfit import cli, remote
 from genmodelfit.db import load as load_db
 from genmodelfit.gate import GatePolicy, evaluate_offline
 from genmodelfit.status import DataStatus, compute
-
-UTC = timezone.utc
 
 
 def _bundled_checked() -> datetime:

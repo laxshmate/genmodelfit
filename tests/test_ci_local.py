@@ -380,8 +380,8 @@ def test_wheel_all_passed_is_skipped_as_a_whole(run, capsys) -> None:
 def test_wheel_for_other_versions_is_not_skipped(run) -> None:
     assert run(*WHEEL_ONLY) == 0
     run.fake.calls.clear()
-    assert run("--resume", "--python", "3.12", "3.13", "--no-tests") == 0
-    assert run.fake.count(is_build) == 1  # 3.13 の分は流していないので、配布物は最初から
+    assert run("--resume", "--python", "3.12", "3.15", "--no-tests") == 0
+    assert run.fake.count(is_build) == 1  # 3.15 の分は流していないので、配布物は最初から
 
 
 # --- WSL ---------------------------------------------------------------------------------------
@@ -427,6 +427,72 @@ def test_tree_key_none_value_means_no_record(run, ci) -> None:
     assert not list(run.envs.glob("resume-*"))
     assert run("--tree-key", "deadbeef", *TESTS_ONLY) == 0
     assert run.json()["key"] == "deadbeef"
+
+
+# --- --merge(マージの前の分)・PYYAML_FORCE_LIBYAML ----------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "extra", [["--quick"], ["--linux"], ["--linux-only"], ["--python", "3.12"], ["--python", "3.12", "3.15"]]
+)
+def test_merge_cannot_combine(ci, monkeypatch, extra) -> None:
+    monkeypatch.setattr(ci.shutil, "which", lambda name: "/bin/" + name)
+    with pytest.raises(SystemExit) as e:
+        ci.main(["--merge", *extra])
+    assert e.value.code == 2
+
+
+def test_merge_runs_quick_versions_in_wsl_only(ci, monkeypatch) -> None:
+    monkeypatch.setattr(ci.shutil, "which", lambda name: "/bin/" + name)
+    seen = []
+
+    def fake_wsl(args) -> bool:
+        seen.append(args)
+        return True
+
+    def no_local(*a, **kw):
+        raise AssertionError("--merge は Windows(この OS)では流さない")
+
+    monkeypatch.setattr(ci, "run_in_wsl", fake_wsl)
+    monkeypatch.setattr(ci.subprocess, "run", no_local)
+    monkeypatch.setattr(ci, "run_tests", no_local)
+    monkeypatch.setattr(ci, "run_wheel", no_local)
+    assert ci.main(["--merge"]) == 0
+    (args,) = seen
+    assert args.python == ci.QUICK_VERSIONS == ["3.12", "3.15"]
+    assert not args.no_wheel and not args.no_tests  # 配布物も流す
+
+
+def test_merge_wsl_command_is_linux_only_quick_versions(ci, monkeypatch) -> None:
+    # --merge を main から通し、WSL に渡す引数(版・--resume・--no-wheel)を見る
+    got = []
+    real = ci.run_in_wsl
+    monkeypatch.setattr(ci, "run_in_wsl", lambda a: got.append(a) or True)
+    assert ci.main(["--merge", "--resume", "--no-wheel", "--wsl-distro", "D"]) == 0
+    (args,) = got
+    monkeypatch.setattr(ci, "run_in_wsl", real)
+    script = _wsl_script(ci, monkeypatch, args, ["k", "k"])
+    assert f"--python {' '.join(ci.QUICK_VERSIONS)}" in script
+    assert "--resume" in script and "--no-wheel" in script
+    # ruff は WSL の中で最初の版(= LINT_VERSION)の 1 回だけ
+    assert ci.QUICK_VERSIONS[0] == ci.LINT_VERSION
+
+
+def test_install_sets_pyyaml_force_libyaml_off(run, ci) -> None:
+    # 3.15 の Windows に pyyaml の完成品が無くても、組み立ての道具が無い PC で入るように
+    assert run(*TESTS_ONLY) == 0
+    env = next(kw for c, kw in run.fake.calls if is_install(c))["env"]
+    assert env["PYYAML_FORCE_LIBYAML"] == "0"
+    assert ci.INSTALL_ENV == {"PYYAML_FORCE_LIBYAML": "0"}
+
+
+def test_versions_default_to_all(run, ci) -> None:
+    assert run("--no-wheel") == 0
+    assert len(run.fake.cmds(is_pytest)) == len(ci.VERSIONS) == 4
+    run.fake.calls.clear()
+    assert run("--quick", "--no-wheel") == 0
+    assert len(run.fake.cmds(is_pytest)) == 2
+    assert len(run.fake.cmds(is_ruff_check)) == 1
 
 
 # --- pytest のプラグイン(tools/ci_plugins/ci_resume.py)-------------------------------------------------

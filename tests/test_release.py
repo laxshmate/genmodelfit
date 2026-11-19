@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -106,7 +106,7 @@ def test_sign_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ],
 )
 def test_parse_time_same_instant(text: str) -> None:
-    assert remote.parse_time(text) == datetime(2026, 10, 20, tzinfo=timezone.utc)
+    assert remote.parse_time(text) == datetime(2026, 10, 20, tzinfo=UTC)
 
 
 def test_parse_time_fraction() -> None:
@@ -531,6 +531,35 @@ def test_ci_local_matches_ci_workflow() -> None:
     for args in ci_local.WHEEL_COMMANDS:
         assert "genmodelfit " + " ".join(args) in wheel_runs
     assert "tools/check_dist.py dist" in wheel_runs
+
+
+def test_supported_python_versions_agree() -> None:
+    # pyproject の版・ci.yml の matrix・ci_local.VERSIONS は同じ版の組(直し忘れると落ちる)
+    import importlib.util
+    import tomllib
+
+    spec = importlib.util.spec_from_file_location("ci_local", ROOT / "tools" / "ci_local.py")
+    ci_local = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ci_local)
+    proj = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    project = proj["project"]
+    classifiers = [
+        c.rsplit("::", 1)[1].strip()
+        for c in project["classifiers"]
+        if re.fullmatch(r"Programming Language :: Python :: 3\.\d+", c)
+    ]
+    ci_matrix = _wf("ci.yml")["jobs"]["test"]["strategy"]["matrix"]["python"]
+    assert classifiers == ci_matrix == ci_local.VERSIONS
+    oldest = ci_local.VERSIONS[0]
+    assert project["requires-python"] == f">={oldest}"
+    assert proj["tool"]["ruff"]["target-version"] == "py" + oldest.replace(".", "")
+    # 軽い組は、いちばん古い版と新しい版
+    assert [ci_local.VERSIONS[0], ci_local.VERSIONS[-1]] == ci_local.QUICK_VERSIONS
+    assert ci_local.WHEEL_VERSIONS == ci_local.QUICK_VERSIONS
+    assert oldest == ci_local.LINT_VERSION
+    # .[dev] を入れるときの環境も同じ(pyyaml の完成品が無い版のため)
+    install = next(s for s in _wf("ci.yml")["jobs"]["test"]["steps"] if s.get("name") == "Install")
+    assert install.get("env") == ci_local.INSTALL_ENV
 
 
 def test_check_dist(tmp_path: Path) -> None:

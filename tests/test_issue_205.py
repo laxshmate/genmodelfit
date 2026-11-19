@@ -15,7 +15,7 @@ import dataclasses
 import json
 import random
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -24,7 +24,7 @@ from genmodelfit.db import Database, load, load_measurements
 from genmodelfit.diff import diff_db
 from genmodelfit.models import Measurement, ModelEntry, Settings
 
-NOW = datetime(2026, 10, 21, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 21, tzinfo=UTC)
 
 # id -> 式の鍵(試験用に差し替える)。A と G は実測がある。
 KEYS = {

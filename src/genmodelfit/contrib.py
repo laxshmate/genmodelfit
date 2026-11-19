@@ -43,8 +43,8 @@ import statistics
 import unicodedata
 from collections import Counter
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timedelta
 from datetime import date as _date
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -919,7 +919,7 @@ def build_submission(
         "contrib_schema": CONTRIB_SCHEMA,
         "kind": KIND,
         "tool": {"name": "genmodelfit", "version": __version__},
-        "date": m.date or datetime.now(timezone.utc).date().isoformat(),
+        "date": m.date or datetime.now(UTC).date().isoformat(),
         "system": _system_block(
             system, m.gpu_name, m.gpu_vram_gb, m.driver, m.gpu_backend, getattr(m, "gpu_pci_id", None)
         ),
@@ -1124,7 +1124,7 @@ def build_failures(
         "contrib_schema": CONTRIB_SCHEMA,
         "kind": FAILURES_KIND,
         "tool": {"name": "genmodelfit", "version": __version__},
-        "date": date or datetime.now(timezone.utc).date().isoformat(),
+        "date": date or datetime.now(UTC).date().isoformat(),
         "system": _system_block(system, gpu_name, gpu_vram_gb, driver, backend, pci_id),
         "comfyui_version": cv,
         **({"db": dict(db_info)} if db_info else {}),
@@ -1853,7 +1853,7 @@ def validate_submission(
 ) -> Report:
     """提出 1 件を検査する。db を渡すと、モデル ID が一覧にあるか・設定が種類に合うかも見る。"""
     r = Report(path=Path(path).as_posix() if path is not None else "-")
-    today = today or datetime.now(timezone.utc).date()
+    today = today or datetime.now(UTC).date()
     if not isinstance(data, dict):
         r.error("schema", tr("JSON のオブジェクトではありません", "Not a JSON object"))
         return r

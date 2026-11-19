@@ -34,7 +34,7 @@ import hashlib
 import json
 from collections.abc import Iterable
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -379,7 +379,7 @@ def card_url(m: Any) -> str | None:
 
 
 def _today(today: str | None) -> str:
-    return today or datetime.now(timezone.utc).date().isoformat()
+    return today or datetime.now(UTC).date().isoformat()
 
 
 def _https_url(text: str) -> bool:

@@ -2,13 +2,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-"""ci.yml と同じ検査を手元で流す(2026-10-22 オーナー決定。2026-10-28 に毎回は --quick に)。
+"""ci.yml と同じ検査を手元で流す(2026-10-22 オーナー決定。2026-10-28 に毎回は --quick に、
+2026-11-19 に Python 3.12〜3.15 とマージの前の --merge に)。
 
-    python tools/ci_local.py --quick         # push の前に毎回: 3.10 と 3.13、ruff、配布物(約 15 分)
-    python tools/ci_local.py                 # この PC の OS で Python 3.10〜3.13 と配布物
-    python tools/ci_local.py --linux         # 続けて WSL の中でも同じものを流す(Windows から)
+    python tools/ci_local.py --quick         # push の前に毎回: 3.12 と 3.15、ruff、配布物(約 25 分)
+    python tools/ci_local.py --merge         # マージの前に 1 回: WSL の中で 3.12 と 3.15 と配布物(約 25 分)
+    python tools/ci_local.py                 # この PC の OS で Python 3.12〜3.15 と配布物(約 11 分)
+    python tools/ci_local.py --linux         # 版を出す前に 1 回: 続けて WSL の中でも全部の版(約 90 分)
     python tools/ci_local.py --linux-only    # WSL の中だけ
-    python tools/ci_local.py --python 3.12 --no-wheel   # 絞って流す
+    python tools/ci_local.py --python 3.12 3.15 --no-wheel   # 絞って流す
     python tools/ci_local.py --quick --resume   # 途中で止まったら、同じ中身のまま続きから(下の「再開」)
 
 再開(--resume): 検査が通るたびに、git の管理するファイル全部の中身から作った鍵と一緒に記録する
@@ -22,7 +24,7 @@ venv と install は毎回流す。落ちた検査は記録しない。迷った
 ci.yml との対応:
 - test: 版ごとに venv(.ci/<OS>-py<版>。2 回目からは作り直さない)に `.[dev]` を入れ、3.12 だけ ruff、
   全部の版で pytest と CLI の 3 つのコマンド
-- wheel: wheel と sdist を作り、twine check と tools/check_dist.py、まっさらな venv(3.10・3.12・3.13)に
+- wheel: wheel と sdist を作り、twine check と tools/check_dist.py、まっさらな venv(3.12・3.15)に
   wheel だけを入れて主なコマンド。dev の依存が入っていないことも見る
 - 網羅率(--cov)は表示だけなので流さない
 
@@ -51,11 +53,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_DIR = Path(__file__).resolve().parent / "ci_plugins"  # pytest のプラグインだけを置く
-VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+VERSIONS = ["3.12", "3.13", "3.14", "3.15"]
 LINT_VERSION = "3.12"  # ci.yml と同じ。ruff はこの版だけ
-# --quick: いちばん古い版と新しい版だけ(新しい版だけで落ちる不具合を毎回見つける。全部はマージの前に 1 回)
-QUICK_VERSIONS = ["3.10", "3.13"]
-WHEEL_VERSIONS = ["3.10", "3.12", "3.13"]
+# --quick / --merge: いちばん古い版と新しい版だけ(新しい版だけで落ちる不具合を見つける)。全部は版を出す前
+QUICK_VERSIONS = ["3.12", "3.15"]
+WHEEL_VERSIONS = ["3.12", "3.15"]
+# pyyaml は 3.15 の Windows に完成品(wheel)が無く、組み立ての道具が無い PC では入らない。完成品があるときは
+# 使われないので害が無い(dev の依存だけ。配布物の venv には pyyaml は入らない)
+INSTALL_ENV = {"PYYAML_FORCE_LIBYAML": "0"}
 SMOKE = [
     ["system", "--json", "--vram", "8", "--ram", "32"],
     ["recommend", "--json", "--vram", "8", "--ram", "32", "--no-cache", "-n", "3"],
@@ -245,11 +250,12 @@ def run_tests(r: Runner, ver: str, env_root: Path, cache: Path, *, lint: bool | 
     py = venv_python(env_dir)
     if not py.exists() and not r.step(f"py{ver} venv", ["uv", "venv", "-q", "--python", ver, str(env_dir)]):
         return
-    if not r.step(f"py{ver} install", ["uv", "pip", "install", "-q", "--python", str(py), "-e", ".[dev]"]):
+    install = ["uv", "pip", "install", "-q", "--python", str(py), "-e", ".[dev]"]
+    if not r.step(f"py{ver} install", install, env=child_env(**INSTALL_ENV)):
         return
     lint = ver == LINT_VERSION if lint is None else lint
     if lint:
-        # ruff は版ごとの venv で流すので、記録の名前に版を入れる(--quick の 3.10 の結果を 3.12 の分にしない)
+        # ruff は版ごとの venv で流すので、記録の名前に版を入れる(別の版の結果を使い回さない)
         r.step("ruff check", [str(py), "-m", "ruff", "check", "."], resume_key=f"py{ver} ruff check")
         r.step(
             "ruff format --check",
@@ -394,10 +400,16 @@ def wsl_distro(listing: str | None = None) -> str | None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--python", nargs="+", default=VERSIONS, choices=VERSIONS, help="流す Python の版")
+    ap.add_argument(
+        "--python",
+        nargs="+",
+        default=None,
+        choices=VERSIONS,
+        help="流す Python の版(既定: 全部)",
+    )
     ap.add_argument("--no-wheel", action="store_true", help="配布物の確かめを飛ばす")
     ap.add_argument("--no-tests", action="store_true", help="試験と ruff を飛ばす(配布物だけ流し直す)")
-    ap.add_argument("--linux", action="store_true", help="続けて WSL の中でも流す")
+    ap.add_argument("--linux", action="store_true", help="版を出す前に 1 回: 続けて WSL の中でも流す")
     ap.add_argument("--linux-only", action="store_true", help="WSL の中だけで流す")
     ap.add_argument(
         "--wsl-distro",
@@ -407,7 +419,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--quick",
         action="store_true",
-        help="push の前の毎回の分: 3.10 と 3.13 だけ(ruff は 3.10 で)と配布物。全部はマージの前に 1 回",
+        help="push の前の毎回の分: 3.12 と 3.15 だけ(ruff は 3.12 で)と配布物",
+    )
+    ap.add_argument(
+        "--merge",
+        action="store_true",
+        help="マージの前に 1 回の分: WSL の中で 3.12 と 3.15 と配布物(Windows では流さない)。"
+        "全部の版は版を出す前の --linux",
     )
     ap.add_argument(
         "--resume",
@@ -417,10 +435,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--tree-key", default=None, help=argparse.SUPPRESS)  # WSL の中で使う(git が無い)
     ap.add_argument("--env-dir", default=str(ROOT / ".ci"), help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
+    if args.merge:
+        if args.quick or args.linux or args.linux_only or args.python is not None:
+            ap.error("--merge は --quick / --linux / --linux-only / --python と一緒に使えない")
+        # --linux-only --python 3.12 3.15 と同じ道(ruff は WSL の最初の版 3.12 で 1 回)
+        args.linux_only = True
+        args.python = QUICK_VERSIONS
     if args.quick:
         if args.linux or args.linux_only:
             ap.error("--quick は --linux / --linux-only と一緒に使えない(全部を流すときは --quick を外す)")
         args.python = QUICK_VERSIONS
+    if args.python is None:
+        args.python = VERSIONS
     if shutil.which("uv") is None:
         print("uv が見つかりません(https://docs.astral.sh/uv/)", file=sys.stderr)
         return 2
@@ -438,7 +464,7 @@ def main(argv: list[str] | None = None) -> int:
         with tempfile.TemporaryDirectory(prefix="gmf-ci-") as t:
             tmp = Path(t)
             for i, ver in enumerate([] if args.no_tests else args.python):
-                # --quick では 3.12 を流さないので、ruff は最初の版で流す
+                # --quick は ruff を最初の版(いちばん古い版 = LINT_VERSION)で 1 回だけ流す
                 run_tests(r, ver, env_root, tmp / "smoke-cache", lint=(i == 0) if args.quick else None)
             if not args.no_wheel:
                 wheel_versions = [v for v in args.python if v in WHEEL_VERSIONS]

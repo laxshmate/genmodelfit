@@ -40,7 +40,7 @@ import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -236,7 +236,7 @@ def free_port() -> int:
 def log_path(cache: Path | None = None) -> Path:
     from .db import cache_dir
 
-    day = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    day = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     return (cache or cache_dir()) / f"comfyui-{day}.log"
 
 
