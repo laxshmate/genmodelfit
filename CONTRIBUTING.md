@@ -212,7 +212,7 @@ Timeout and files:
 | Field | How it is measured |
 |---|---|
 | `peak_vram_gb` | Reads `/system_stats` about every 0.03 seconds during generation and takes the maximum of the amount torch allocated (`torch_vram_total`). If the maximum is a brief spike shorter than the polling interval, it varies from run to run, so the run is not a standard measurement (#131). This is the ComfyUI process's share and does not include the CUDA context (about 0.3 to 0.5 GB). If `torch_vram_total` is unavailable, the increase over the whole GPU is used instead and a warning is left. |
-| "GPU-wide increase" in `note` | The maximum total GPU usage (`nvidia-smi`; the tool above for non-NVIDIA, about every 1 second) minus the value before the start. Changes by other apps are included. Not written if there is no tool. |
+| `device` ("GPU-wide increase") | (0.15.1, #200) The whole-GPU usage (`/system_stats`, else `nvidia-smi` on NVIDIA) before the start, its maximum while measuring and at the end; the increase is the maximum minus the value before the start. Changes by other apps are included. The same increase is also written in `note` (older submissions have it only there). Not written if there is no tool. |
 | `peak_ram_gb` | Maximum resident memory of the ComfyUI process (and its child processes) listening on the port. Only processes whose command line contains `main.py` or `comfy` are counted. Empty if ComfyUI is on another PC or the process cannot be identified. |
 | `seconds` | From sending the workflow to its end (including model loading). The run time ComfyUI counted goes into `note`. |
 | `offload` | Read from the ComfyUI log: `dynamic` (dynamic VRAM) / `partial` (only part was put on the GPU) / `lowvram` (started with `--lowvram` / `--novram`) / `none` (everything fit) / `oom` (failed from out of memory). Empty if unknown. |
@@ -260,6 +260,8 @@ genmodelfit bench image_sdxl_simple --url http://127.0.0.1:8188 --resolution 102
 | (0.13.0) The estimate at that time, made without your measurements or any of this model on your GPU: level, how it runs, VRAM, working memory, RAM, time | `good`, `gpu`, `6.1` ... |
 | (0.13.0) Time breakdown in seconds (queue, load, sampling, seconds per step, decode, total; unknown ones are null) and whether it was the first load | `0.1`, `4.2`, `20.0`, `1.0` ... |
 | (0.13.0) A mark when the peak VRAM went over the GPU total into shared memory, and by how much | `spilled: true`, `1.31` |
+| (0.15.1) The whole-GPU memory use while measuring (`measurement.device`: the tool's name, before, peak and after in GiB, and the torch reservation at the start) | `system_stats`, `1.05`, `7.1`, `1.44`, `0.0` |
+| (0.15.1) The torch reservation peaks before, during and after the sampler (`measurement.stages`: peak, lowest and number of readings per stage, and the number of sampler runs) | `0.38`, `9.31`, `276`, `1` |
 | (0.13.0) The list version (date only, start of the db.json sha256) | `2026-10-21`, `0123456789ab` |
 | (0.13.0) Failure records (one file per run): model ID, settings, kind (`missing_nodes` / `timeout` / `error` / `oom`), elapsed time, missing node names, exception type name, node type | `LoadMoGeModel`, `torch.OutOfMemoryError` |
 | Note (`note`: bench's description of how it measured) | A sentence containing something that looks like a path, URL, PC name, user name, email, UUID, IP or time is removed as a whole |

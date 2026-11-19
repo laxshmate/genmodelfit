@@ -234,6 +234,8 @@ No `~/.netrc` credentials, no telemetry. Nothing is sent on its own.
 - the model, settings, result, peak VRAM / RAM, time and its breakdown (queue, load, sampling, decode), how the model
   was loaded (`offload`), how it was measured, a fingerprint of the model files, and a mark when the peak VRAM went
   over the GPU total into shared memory
+- the whole-GPU memory use while measuring (before, peak and after, in GiB, and the tool that read it), and the
+  torch reservation peaks before, during and after the sampler (numbers only)
 - the estimate genmodelfit made for that run (without your measurements of that model on that GPU)
 - one failure record file per run: the model, the kind of failure, missing node names, the error's type name and the
   failing node type

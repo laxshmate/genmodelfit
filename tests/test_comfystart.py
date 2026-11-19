@@ -452,6 +452,25 @@ def test_share_asks_then_starts_then_drops_missing_nodes(capsys, monkeypatch, th
     assert "=== 測る計画(ComfyUI を確かめたあと) ===" in out and "needs_new_nodes" in out
 
 
+def test_share_rechecks_recorded_missing_nodes_after_start(capsys, monkeypatch, this_pc, starter, tmp_path):
+    """起動する前の計画は保存した記録で外すが、起動したあとは本物の確かめで決め直す(ノードを足したかもしれない)。"""
+    from test_share_pr import TOKEN, FakeGitHub, _write_missing_nodes, sugg
+
+    d = venv_install(tmp_path)
+    monkeypatch.setattr(
+        measure, "suggestions", lambda *a, **k: [sugg("needs_new_nodes", 60), sugg("b_ok", 60)]
+    )
+    monkeypatch.setattr(cli, "_current_comfyui_version", lambda *a, **k: "0.19.3")
+    _write_missing_nodes("needs_new_nodes", "0.19.3")
+    _fake_run(monkeypatch, starter)
+    monkeypatch.setattr(cli, "_node_check", lambda url: SimpleNamespace(missing=lambda mid: []))  # 足した
+    monkeypatch.setattr(cli, "_share_session", lambda: FakeGitHub())
+    monkeypatch.setenv("GITHUB_TOKEN", TOKEN)
+    assert cli.main(["share", "--yes", "--json", "--comfyui-dir", str(d)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert len([e for e in starter if e[0] == "run"]) == 2 and out["skipped"] == []
+
+
 def test_launch_hides_github_tokens_and_checks_the_port(tmp_path, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "gho_x")
     monkeypatch.setenv("GH_TOKEN", "gho_y")

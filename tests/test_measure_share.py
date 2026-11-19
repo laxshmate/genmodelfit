@@ -1469,3 +1469,78 @@ def test_shared_marks_survive_a_failed_write(monkeypatch):
     assert measure.shared_path().read_bytes() == before
     assert first in json.loads(before)["shared"]
     assert not list(measure.shared_path().parent.glob("*.tmp"))
+
+
+def test_saved_line_shows_whole_gpu_for_dynamic_vram():
+    """送っていない実測の行は、動的 VRAM なら中身の表示と同じ「GPU 全体の増分 + 固定分」(torch の確保量は
+    重みを数えず GPU の総量も超えうるので出さない)。増分が無ければ何の量かを書く。動的 VRAM でなければ
+    最大 VRAM。"""
+    d = json.loads(GOOD[0].read_text(encoding="utf-8"))
+    gpu = d["system"]["gpu"]
+    gpu["vram_gb"] = 8.0
+    mm = d["measurement"]
+    mm.update(
+        offload="dynamic",
+        vram_metric="torch_reserved",
+        peak_vram_gb=9.31,
+        outcome="ok",
+        device={
+            "tool": "system_stats",
+            "before_gb": 1.05,
+            "peak_gb": 7.1,
+            "after_gb": 1.44,
+            "before_torch_gb": 0.0,
+        },
+    )
+    s = measure.SavedSubmission(Path("x.json"), d, "0" * 64, False)
+    delta = contrib.submission_delta_gb(mm, 8.0)
+    _over, whole = cli._fixed_and_whole(delta)
+    line = cli._saved_line(1, s)
+    assert f"GPU 全体 {whole:.2f} GiB" in line and "9.31" not in line
+    mm.update(spilled=True, spilled_gb=1.31)  # 共有メモリへ逃げた分は書く(中身の表示と同じ)
+    assert f"GPU 全体 {whole:.2f} GiB・1.31 GiB 共有メモリへ" in cli._saved_line(1, s)
+    mm.pop("spilled"), mm.pop("spilled_gb")
+    mm.pop("device")
+    mm["note"] = None
+    assert "torch の確保量 9.31 GiB" in cli._saved_line(1, s)
+    mm.update(offload="none", vram_metric="nvidia_smi", peak_vram_gb=6.5)
+    line = cli._saved_line(1, s)
+    assert "6.5 GiB" in line and "GPU 全体" not in line and "torch" not in line
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"measurement": {"model_id": "x", "peak_vram_gb": 1, "outcome": "ok"}, "system": "abc"},
+        {"measurement": {"model_id": "x", "peak_vram_gb": 1, "outcome": "ok"}, "system": {"gpu": "abc"}},
+        {
+            "measurement": {"model_id": "x", "peak_vram_gb": 1, "outcome": "ok", "settings": [1]},
+            "system": {"gpu": {"name": "g", "vram_gb": 8}},
+        },
+        {"failures": [{"model_id": "x", "outcome": "missing_nodes", "missing_nodes": 5}], "system": {}},
+    ],
+)
+def test_odd_saved_files_do_not_stop_the_lists(data):
+    """手で写した・古い版の形の違うファイルがキャッシュにあっても、一覧・提案・失敗の鍵が落ちない。"""
+    sub = measure.submissions_dir() / "g"
+    sub.mkdir(parents=True, exist_ok=True)
+    (sub / "2026-11-19-aaaaaaaa.json").write_text(json.dumps(data), encoding="utf-8")
+    saved = measure.saved_submissions()
+    assert [s.to_dict() for s in saved] and all(cli._saved_line(i, s) for i, s in enumerate(saved, 1))
+    cli._saved_measurements()
+    measure.saved_failure_keys()
+
+
+def test_measurement_view_marks_spilled_like_the_submission():
+    """share の途中経過(Measurement)と contrib show(提出)が、共有メモリへ逃げたかを同じ線で決める。"""
+    m = Measurement(
+        model_id="audio_ace_step_1_5_checkpoint",
+        gpu_name="NVIDIA GeForce RTX 3070",
+        gpu_vram_gb=8.0,
+        peak_vram_gb=9.31,
+        seconds=43.2,
+        outcome="ok",
+    )
+    assert contrib.measurement_view(m)["spilled"] is True
+    assert contrib.measurement_view(Measurement(**{**m.__dict__, "peak_vram_gb": 6.0}))["spilled"] is None
+    assert contrib.measurement_view(Measurement(**{**m.__dict__, "outcome": "oom"}))["spilled"] is None

@@ -1129,7 +1129,7 @@ bench が Measurement を埋める方法(測り方):
 | `budget_seconds` | float | `--budget`(既定 300。`measure.SHARE_BUDGET_SECONDS`) |
 | `plan` | Suggestion[] | 測る、入っている提案(`measure` の `suggestions` の項目) |
 | `download_plan` | Suggestion[] | 入っていない提案のうち、残りの時間に収まるもの |
-| `skipped` | object[] | `{model_id, name, missing_nodes}`: ComfyUI に無いノードが要るので外したもの |
+| `skipped` | object[] | `{model_id, name, missing_nodes, from_record?}`: ComfyUI に無いノードが要るので外したもの。ComfyUI に尋ねず、この PC に保存した同じ版の ComfyUI の失敗の記録で決めたものは `from_record: true`(0.16.1) |
 | `pending` | object[] | 測る前の、送っていない実測(`share --issue --json` の `submissions` の項目) |
 | `measured` | object[] | `{model_id, settings, outcome, peak_vram_gb, seconds, submission}` |
 | `failed` | object[] | `{model_id, settings, error}`(ComfyUI を起動できなかったときは `model_id` が null) |
@@ -1155,7 +1155,10 @@ bench が Measurement を埋める方法(測り方):
   まだ測っていない行の後なので、入っているものの中では時間が残ったときだけ取る(落とすものは、入っているものの残りの
   時間で決めるので、入っている測り直しの行が先)。ComfyUI に届けば、その ComfyUI に無いノードを
   使う提案を外し(`skipped`)、次の提案で埋める(`download_plan` も)。起動する ComfyUI なら起動したあとで行い、新しい
-  計画を見せる。
+  計画を見せる。`--dry-run` は ComfyUI に尋ねないので、この PC に保存した同じ版の ComfyUI の `missing_nodes` の
+  失敗の記録があるものを外す(`from_record`。0.16.1、`measure.saved_missing_nodes`)。本番は記録では外さない
+  (カスタムノードを足しても版は変わらない)。起動したあとの確かめで決める。起動中の ComfyUI が無いときの
+  `measure` の一覧は `--dry-run` と同じ。
 - **順**: 合計の時間を付けた計画 → 1 回の `[Y/n]`(測ることと ComfyUI の起動を兼ねる。`--yes` で省く)→ もうある
   トークンを確かめる → ComfyUI の起動 → 1 つずつ測る(`_measure_run`。`measure` と同じ。失敗しても残りは続け、Ctrl+C
   なら送るかに進む)→ ファイルのすべてと個人の情報の点検を見せる → 送り方を選ぶ(`1) PR 2) Issue q) 送らない`。

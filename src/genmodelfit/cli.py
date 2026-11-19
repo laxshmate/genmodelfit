@@ -2861,16 +2861,46 @@ def _saved_line(i: int, s) -> str:
         mark = tr("(送った印あり)", " (marked as sent)") if s.shared else ""
         return f"  {i:>2}. " + "  ".join(bits) + mark
     secs = d["seconds"]
-    peak = d["peak_vram_gb"]
     bits = [
         str(d["date"]),
         str(d["model_id"]),
         str(d["gpu"]),
         str(d["outcome"]),
-        f"{peak:g} GiB" if isinstance(peak, (int, float)) else "-",
+        _saved_vram(s),
         tr(f"{secs:g} 秒", f"{secs:g} s") if isinstance(secs, (int, float)) else "-",
     ]
     return f"  {i:>2}. " + "  ".join(bits) + (tr("(送った印あり)", " (marked as sent)") if s.shared else "")
+
+
+def _saved_vram(s) -> str:
+    """送っていない実測の 1 行の VRAM。動的 VRAM の実測は、中身の表示(_vram_rows)・照合と同じ
+    「GPU 全体の増分 + 固定分」(torch の確保量は重みを数えず、GPU の総量を超えることもあるので出さない)。
+    増分が分からない動的 VRAM の実測と、動的 VRAM でない実測は最大 VRAM(peak_vram_gb)。"""
+    from .contrib import is_dynamic_torch, submission_delta_gb
+
+    data = getattr(s, "data", None) or {}
+    mm = data.get("measurement") if isinstance(data, dict) else None
+    mm = mm if isinstance(mm, dict) else {}
+    peak = mm.get("peak_vram_gb")
+    if is_dynamic_torch(mm):
+        gpu = _d(_d(data.get("system")).get("gpu"))
+        delta = submission_delta_gb(mm, gpu.get("vram_gb"))
+        if delta is not None:
+            _over, whole = _fixed_and_whole(delta)
+            spill = mm.get("spilled_gb") if mm.get("spilled") is True else None
+            if isinstance(spill, (int, float)) and not isinstance(spill, bool):
+                # GPU 全体の使用量は専用の VRAM だけ。共有メモリへ逃げた分は中身の表示と同じく書く
+                return tr(
+                    f"GPU 全体 {whole:.2f} GiB・{spill:g} GiB 共有メモリへ",
+                    f"whole GPU {whole:.2f} GiB, {spill:g} GiB to shared memory",
+                )
+            return tr(f"GPU 全体 {whole:.2f} GiB", f"whole GPU {whole:.2f} GiB")
+        if isinstance(peak, (int, float)) and not isinstance(peak, bool):
+            # 増分が分からないときは、最大 VRAM と読まれないよう何の量かを書く(重みを数えない)
+            return tr(f"torch の確保量 {peak:g} GiB", f"torch reserved {peak:g} GiB")
+    if isinstance(peak, (int, float)) and not isinstance(peak, bool):
+        return f"{peak:g} GiB"
+    return "-"
 
 
 def _choose_number(count: int) -> int | None:
@@ -3036,7 +3066,7 @@ def _saved_measurements() -> list:
             continue  # 失敗の記録(#132)は実測でない
         try:
             out.append(to_measurement(sub.data))
-        except (KeyError, TypeError, ValueError):
+        except (AttributeError, KeyError, TypeError, ValueError):  # 形の違うファイルは飛ばす
             continue
     return out
 
@@ -4133,6 +4163,26 @@ def _share_screen(
     return lines
 
 
+class _SavedNodeCheck:
+    """ComfyUI を確かめられないとき(--dry-run・起動する前・measure の一覧)のノードの確かめ: この PC に保存した
+    失敗の記録で、同じ版の ComfyUI に無いと分かっているノード(measure.saved_missing_nodes)。記録の無いものは
+    外さない(起動したあとで本物の確かめをする)。"""
+
+    def __init__(self, table: dict[str, list[str]]):
+        self.table = table
+        self.unchecked: list[str] = []
+
+    def missing(self, model_id: str) -> list[str]:
+        return list(self.table.get(model_id, []))
+
+
+def _saved_node_check(version: Any) -> _SavedNodeCheck | None:
+    from .measure import saved_missing_nodes
+
+    table = saved_missing_nodes(version)
+    return _SavedNodeCheck(table) if table else None
+
+
 def _node_check(url: str):
     """ComfyUI のノードの確かめ(bench.NodeCheck。試験で差し替える)。"""
     from .bench import NodeCheck
@@ -4155,7 +4205,10 @@ def _share_replan(sugg: list, budget: float, checker, skipped: list[dict[str, An
             return False
         miss = checker.missing(x.model_id)
         if miss and all(d["model_id"] != x.model_id for d in skipped):
-            skipped.append({"model_id": x.model_id, "name": x.model_name, "missing_nodes": miss})
+            d = {"model_id": x.model_id, "name": x.model_name, "missing_nodes": miss}
+            if isinstance(checker, _SavedNodeCheck):
+                d["from_record"] = True
+            skipped.append(d)
         return bool(miss)
 
     plan, total = share_plan(sugg, budget, skip=skip)
@@ -4174,7 +4227,15 @@ def _skipped_lines(skipped: list[dict[str, Any]]) -> list[str]:
         )
     ]
     for d in skipped:
-        out.append(f"  - {d['name']} [{d['model_id']}]: {', '.join(d['missing_nodes'])}")
+        rec = (
+            tr(
+                "(前に測ったときの記録。同じ版の ComfyUI)",
+                " (from the record of an earlier run; same ComfyUI version)",
+            )
+            if d.get("from_record")
+            else ""
+        )
+        out.append(f"  - {d['name']} [{d['model_id']}]: {', '.join(d['missing_nodes'])}{rec}")
     return out
 
 
@@ -5238,7 +5299,13 @@ def _cmd_share(args: argparse.Namespace) -> int:
                 include_unknown_license=bool(getattr(args, "include_unknown_license", False)),
                 comfyui_version=comfy_version,
             )
-            plan, total, dl_plan = _share_replan(sugg, budget, checker, skipped)
+            # --dry-run は ComfyUI のノードを確かめないので、保存した失敗の記録で、同じ版の ComfyUI では
+            # ノードが足りないと分かっているものを外す(本番は記録で外さない: カスタムノードを足しても版は
+            # 変わらないので、起動したあとの本物の確かめで決める)
+            plan_check = checker
+            if checker is None and args.dry_run:
+                plan_check = _saved_node_check(comfy_version)
+            plan, total, dl_plan = _share_replan(sugg, budget, plan_check, skipped)
             _note_unchecked(args, checker)
             unknown = sum(1 for x in sugg if x.installed is not None and x.installed.state == "unknown")
             if url is None and start is None:
@@ -8300,14 +8367,22 @@ def _cmd_measure(args: argparse.Namespace) -> int:
             )
             return 0
         skipped: list[dict[str, Any]] = []
+        checker: Any = None
         if url is not None and _interactive():
             # 起動中の ComfyUI に無いノードの要るものは、選べないように外す(#124)
             checker = _node_check(url)
+        elif url is None:
+            # 起動していなければ、同じ版の ComfyUI でノードが足りなかった記録のあるものを外す
+            checker = _saved_node_check(version)
+        if checker is not None:
             keep = []
             for x in sugg:
                 miss = checker.missing(x.model_id)
                 if miss:
-                    skipped.append({"model_id": x.model_id, "name": x.model_name, "missing_nodes": miss})
+                    d = {"model_id": x.model_id, "name": x.model_name, "missing_nodes": miss}
+                    if isinstance(checker, _SavedNodeCheck):
+                        d["from_record"] = True
+                    skipped.append(d)
                 else:
                     keep.append(x)
             sugg = keep
