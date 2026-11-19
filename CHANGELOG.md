@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
-## [Unreleased]
+## [0.16.1] - Unreleased
 
 ### Fixed
 
