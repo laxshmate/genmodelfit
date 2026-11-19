@@ -2042,7 +2042,11 @@ def cmd_bench(args: argparse.Namespace) -> int:
         print(f"ComfyUI:   {m.comfyui_version or unknown}")
         print(f"Settings:  {', '.join(p for p in parts if p) or '(as in the template)'}")
         print(f"Result:    {m.outcome}{'' if m.standard else ' (non-standard conditions)'}")
-        print(f"Peak VRAM: {m.peak_vram_gb:.2f} GB (the ComfyUI process)")
+        if rows := _vram_rows(_measurement_view(m)):
+            for h, v in rows:
+                print(f"{_label(h, 11)}{v}")
+        else:
+            print(f"Peak VRAM: {m.peak_vram_gb:.2f} GB (the ComfyUI process)")
         if result.stages:
             print(f"By stage:  {_stages_text(result.stages)}")
         if m.peak_ram_gb is not None:
@@ -2070,7 +2074,11 @@ def cmd_bench(args: argparse.Namespace) -> int:
     print(f"ComfyUI:  {m.comfyui_version or '不明'}")
     print(f"設定:     {'、'.join(p for p in parts if p) or '(テンプレートのまま)'}")
     print(f"結果:     {m.outcome}{'' if m.standard else '(標準でない条件)'}")
-    print(f"最大 VRAM: {m.peak_vram_gb:.2f} GB(ComfyUI のプロセス)")
+    if rows := _vram_rows(_measurement_view(m)):
+        for h, v in rows:
+            print(f"{_label(h, 10)}{v}")
+    else:
+        print(f"最大 VRAM: {m.peak_vram_gb:.2f} GB(ComfyUI のプロセス)")
     if result.stages:
         print(f"段ごと:   {_stages_text(result.stages)}")
     if m.peak_ram_gb is not None:
@@ -2124,6 +2132,100 @@ def _shown(v: Any, unit: str = "") -> str:
     return tr("不明", "unknown") if v is None else f"{v}{unit}"
 
 
+def _measurement_view(m: Any) -> dict[str, Any]:
+    """Measurement を、表示の判定(_vram_rows)が読む提出の measurement の形(辞書)に。"""
+    return {
+        "offload": getattr(m, "offload", None),
+        "vram_metric": getattr(m, "vram_metric", None),
+        "device": getattr(m, "device", None),
+        "note": getattr(m, "note", None),
+        "peak_vram_gb": getattr(m, "peak_vram_gb", None),
+        "gpu_vram_gb": getattr(m, "gpu_vram_gb", None),
+    }
+
+
+def _vram_rows(mm: dict[str, Any], vram_gb: Any = None) -> list[tuple[str, str]] | None:
+    """動的 VRAM(offload: dynamic かつ vram_metric: torch_reserved)の最大 VRAM の表示の行 (見出し, 値)。
+    それ以外は None(今までの表示)。動的 VRAM では torch の確保量(peak_vram_gb)に重みが入らず、見積もりと
+    比べられるのは GPU 全体の増分(contrib.submission_delta_gb。単位はどちらも GiB)なので、増分が分かるとき
+    はそれを先に出して分ける。分からないときは 1 行で、作業用メモリの一部だけであることを添える。
+    ファイルの項目(peak_vram_gb の意味)は変えない。表示だけ(#217)。vram_gb は GPU の総量(note から読む
+    増分の上限。submission_delta_gb)。"""
+    from .contrib import is_dynamic_torch, submission_delta_gb
+
+    if not is_dynamic_torch(mm):
+        return None
+    peak = mm.get("peak_vram_gb")
+    metric = _shown(mm.get("vram_metric"))
+    delta = submission_delta_gb(mm, vram_gb)
+    if delta is None:
+        return [
+            (
+                tr("最大 VRAM", "Peak VRAM"),
+                tr(
+                    f"{_shown(peak, ' GiB')}(測り方 {metric}。動的 VRAM では作業用メモリの一部だけで、"
+                    "重みは数えない)",
+                    f"{_shown(peak, ' GiB')} (metric {metric}; with dynamic VRAM this is only part of the"
+                    " working memory, weights are not counted)",
+                ),
+            )
+        ]
+    return [
+        (
+            tr("GPU 全体の増分", "Whole-GPU increase"),
+            tr(
+                f"{delta:.2f} GiB(動的 VRAM。見積もりと比べるのはこちら)",
+                f"{delta:.2f} GiB (dynamic VRAM; compare this with the estimate)",
+            ),
+        ),
+        (
+            tr("torch の確保量", "torch reserved"),
+            tr(
+                f"{_shown(peak, ' GiB')}(動的 VRAM では作業用メモリの一部だけ。測り方 {metric})",
+                f"{_shown(peak, ' GiB')} (with dynamic VRAM only part of the working memory;"
+                f" metric {metric})",
+            ),
+        ),
+    ]
+
+
+def _label(head: str, cols: int) -> str:
+    """「見出し: 」を表示の幅(全角は 2 桁)で cols 桁にそろえる(ほかの行の値と同じ桁から書く)。
+    見出しが長ければ空白 1 つ。"""
+    import unicodedata
+
+    s = head + ":"
+    w = sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in s)
+    return s + " " * max(1, cols - w)
+
+
+def _gpu_vram_of(data: dict[str, Any]) -> Any:
+    """提出の system.gpu.vram_gb(無ければ None)。"""
+    g = (data.get("system") or {}).get("gpu") if isinstance(data.get("system"), dict) else None
+    return g.get("vram_gb") if isinstance(g, dict) else None
+
+
+def _peak_vram_inline(m: Any) -> str:
+    """1 行の結果用の最大 VRAM(share の途中経過)。動的 VRAM で増分が分かれば増分を先に出す。"""
+    rows = _vram_rows(_measurement_view(m))
+    peak = m.peak_vram_gb
+    if rows and len(rows) == 2:
+        from .contrib import submission_delta_gb
+
+        delta = submission_delta_gb(_measurement_view(m))
+        return tr(
+            f"GPU 全体の増分 {delta:.2f} GiB(動的 VRAM。torch の確保量 {peak:.2f} GiB は一部だけ)",
+            f"whole-GPU increase {delta:.2f} GiB"
+            f" (dynamic VRAM; torch reserved {peak:.2f} GiB is only a part)",
+        )
+    if rows:
+        return tr(
+            f"最大 VRAM {peak:.2f} GiB(動的 VRAM では作業用メモリの一部だけ)",
+            f"peak VRAM {peak:.2f} GiB (with dynamic VRAM only part of the working memory)",
+        )
+    return tr(f"最大 VRAM {peak:.2f} GB", f"peak VRAM {peak:.2f} GB")
+
+
 def format_submission(data: dict[str, Any], footer: bool = True) -> list[str]:
     """提出の中身を人が読める形に(contrib show)。ファイルの項目はすべて出す。
     footer が偽なら最後の「どこにも送らない」の文を出さない(share が PR で送るとき。#124)。"""
@@ -2166,7 +2268,11 @@ def format_submission(data: dict[str, Any], footer: bool = True) -> list[str]:
         f"モデル:     {_shown(mm.get('model_id'))}",
         f"設定:       {', '.join(f'{k}={v}' for k, v in s.items()) or '(テンプレートのまま)'}",
         f"結果:       {_shown(mm.get('outcome'))}{'' if mm.get('standard', True) else '(標準でない条件)'}",
-        f"最大 VRAM:  {_shown(peak, ' GiB')}(測り方 {_shown(mm.get('vram_metric'))})",
+        *(
+            [f"{_label(h, 12)}{v}" for h, v in rows]
+            if (rows := _vram_rows(mm, _gpu_vram_of(data)))
+            else [f"最大 VRAM:  {_shown(peak, ' GiB')}(測り方 {_shown(mm.get('vram_metric'))})"]
+        ),
         f"最大メモリ: {_shown(mm.get('peak_ram_gb'), ' GiB')}",
         f"時間:       {_shown(mm.get('seconds'), ' 秒')}",
         f"載せ方:     {_shown(mm.get('offload'))}",
@@ -2220,7 +2326,11 @@ def _format_submission_en(data: dict[str, Any], footer: bool = True) -> list[str
         f"Settings:   {', '.join(f'{k}={v}' for k, v in s.items()) or '(as in the template)'}",
         "Result:    "
         f" {_shown(mm.get('outcome'))}{'' if mm.get('standard', True) else ' (non-standard conditions)'}",
-        f"Peak VRAM:  {_shown(peak, ' GiB')} (metric {_shown(mm.get('vram_metric'))})",
+        *(
+            [f"{_label(h, 12)}{v}" for h, v in rows]
+            if (rows := _vram_rows(mm, _gpu_vram_of(data)))
+            else [f"Peak VRAM:  {_shown(peak, ' GiB')} (metric {_shown(mm.get('vram_metric'))})"]
+        ),
         f"Peak RAM:   {_shown(mm.get('peak_ram_gb'), ' GiB')}",
         f"Time:       {_shown(mm.get('seconds'), ' s')}",
         f"Offload:    {_shown(mm.get('offload'))}",
@@ -4517,8 +4627,8 @@ def _share_measure_one(
         secs = tr(f"、{m.seconds:g} 秒", f", {m.seconds:g} s") if m.seconds is not None else ""
         print(
             tr(
-                f"結果: {m.outcome}、最大 VRAM {m.peak_vram_gb:.2f} GB{secs}",
-                f"Result: {m.outcome}, peak VRAM {m.peak_vram_gb:.2f} GB{secs}",
+                f"結果: {m.outcome}、{_peak_vram_inline(m)}{secs}",
+                f"Result: {m.outcome}, {_peak_vram_inline(m)}{secs}",
             )
             + left,
             flush=True,
@@ -8338,7 +8448,11 @@ def _cmd_measure(args: argparse.Namespace) -> int:
         )
     )
     print(tr(f"結果:      {m.outcome}", f"Result:    {m.outcome}"))
-    print(tr(f"最大 VRAM: {m.peak_vram_gb:.2f} GB", f"Peak VRAM: {m.peak_vram_gb:.2f} GB"))
+    if rows := _vram_rows(_measurement_view(m)):
+        for h, v in rows:
+            print(f"{_label(h, 11)}{v}")
+    else:
+        print(tr(f"最大 VRAM: {m.peak_vram_gb:.2f} GB", f"Peak VRAM: {m.peak_vram_gb:.2f} GB"))
     if m.seconds is not None:
         print(tr(f"時間:      {m.seconds:g} 秒", f"Time:      {m.seconds:g} s"))
     if result.failed:

@@ -991,7 +991,7 @@ Template: `name`, `title`, `category`, `min_comfyui_version`, `open_source`, `re
 | `gpu_vram_gb` | float | total VRAM. bench stores `/system_stats` `vram_total` in GiB rounded to 2 decimals (e.g. `7.99`); older bundled rows hold the nominal size (`16`) |
 | `offload` | str \| null | how ComfyUI placed the model: `none` (all on GPU) / `dynamic` (dynamic VRAM) / `partial` (partially loaded) / `lowvram` (`--lowvram` / `--novram`) / `oom` (ran out of memory) |
 | `outcome` | str | `ok` (finished) / `oom` (out of memory) / `error` (failed for another reason). Default `"ok"` |
-| `vram_metric` | str \| null | how `peak_vram_gb` was taken: `torch_reserved` (bench: peak torch reservation of the ComfyUI process, excluding the CUDA context) or null (not recorded; the bundled RTX 5080 rows). Calibration uses only rows with null (`calibrate.CALIBRATION_METRIC`). #100: `torch_reserved` with `offload: dynamic` excludes the weights (working memory only; `estimate.working_only`): such rows neither shift the estimate nor set the level, and the cross-check compares them with the working-memory estimate. Other `torch_reserved` rows include the weights (a lower bound of the total) |
+| `vram_metric` | str \| null | how `peak_vram_gb` was taken: `torch_reserved` (bench: peak torch reservation of the ComfyUI process, excluding the CUDA context) or null (not recorded; the bundled RTX 5080 rows). Calibration uses only rows with null (`calibrate.CALIBRATION_METRIC`). #100: `torch_reserved` with `offload: dynamic` excludes the weights (only part of the working memory; `estimate.working_only`): such rows neither shift the estimate nor set the level, and a submission's cross-check compares the whole-GPU increase (`device`) with the estimate instead (#217; `share` and the other displays show the increase first and the torch reservation separately; the meaning of this key is unchanged). Other `torch_reserved` rows include the weights (a lower bound of the total) |
 | `origin` | str \| null | (#34) `community` for rows of `measurements_community.json` (other users' submissions aggregated by `contrib aggregate`); null for the maintainer's bundled rows and this PC's bench results |
 | `n_submissions` | int \| null | community rows: submissions in the group (outliers and OOM included). The file also keeps `n_outliers`, `spread_mad_gb`, `spread_rel_pct`, `peak_vram_min_gb` / `peak_vram_max_gb`, `outlier_submissions` and `submissions` (sha8 of each file), which the reader ignores |
 | `n_used` | int \| null | community rows: `ok` submissions behind the median (outliers removed). Was `Estimate.sample_count` up to 0.10 (`n_sources` since 0.11.0) |
@@ -1645,7 +1645,13 @@ Apple or a new NVIDIA, still used; or a generic name or placeholder, not used), 
 name that does not fit the name form; a maintainer checks it for personal names), `gpu_vram_nominal` (0.11.0: VRAM
 that is not the name's nominal amount; an error unless a modified card), `batch_sizeless` (a template without a size input, `estimate.NO_SIZE_INPUT`, with `batch` other than 1:
 0.10.1's bench recorded MoGe's processing batch as the batch; judging uses batch 1, so it is not a same-settings
-measurement; #90), `deviation` (peak VRAM more than 40% away from the formula's all-in estimate for those settings),
+measurement; #90), `deviation` (peak VRAM more than 40% away from the formula's all-in estimate for those
+settings; for dynamic VRAM the torch reservation, which excludes the weights, is not compared: the whole-GPU
+increase (`measurement.device` `peak_gb − before_gb`, else the `note`'s "/system_stats" increase; GiB) is,
+nothing is compared when it is unknown, and when the GPU was filled (`device.peak_gb` at 90% or more of the
+GPU total), or when the peak is unknown (an increase read from the `note`) or the GPU total is unknown, an
+increase below the estimate is not reported either; an increase read from the `note` above the GPU total ×
+1.05, or with the GPU total unknown, is not used, as in `device_of`; #217),
 `below_weights` (`offload: none` but peak VRAM below the weights + fixed overhead; estimates do not shift the
 working memory for a submission below it and use the formula value (#151) — with dynamic VRAM / partial loading a smaller peak is normal), `fit_change` (this
 submission alone would change the level on a PC with the submitted GPU — same name, PCI model ID and vendor, VRAM =

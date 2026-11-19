@@ -92,6 +92,7 @@ FAILURES_SUFFIX = "-failures"  # 失敗の記録のファイル名の終わり(<
 VRAM_TOLERANCE_GB = PEAK_VRAM_SLACK_GB  # 最大 VRAM は GPU の総量 × 1.02 + これまで(estimate.peak_vram_cap)
 RAM_TOLERANCE_GB = 1.0  # 最大メモリはメインメモリ × 1.05 + これまで
 MAX_GPU_VRAM_GB = 256.0  # 1 枚の GPU の VRAM の上限(超えたら誤り。0.9.0 で 512 から下げた)
+DYNAMIC_FILLED_RATIO = 0.9  # 動的 VRAM の照合で「GPU が埋まった」とみなす device.peak_gb の割合(総量に対して)
 DEVICE_VRAM_RATIO = 1.05  # GPU 全体の使用量(measurement.device。#200)の上限: GPU の総量のこの倍
 MAX_RAM_GB = 4096.0
 # note の長さの上限(#90 で 2000 から下げた。bench の note は固定の部分が 230 字ほどで、長い失敗の理由などで
@@ -998,6 +999,71 @@ def device_from_note(note: Any) -> dict[str, Any] | None:
         "delta_gb": delta,
         "from_note": True,
     }
+
+
+def device_delta_gb(device: Any) -> float | None:
+    """GPU 全体の増分(GiB。動的 VRAM の提出で、見積もりと比べられる量)。device は measurement.device の
+    辞書(bench.device_usage の形)か device_from_note の結果。delta_gb があればそれ、無ければ
+    peak_gb − before_gb(どちらも GiB)。分からなければ None(表示・照合・まとめがこの 1 か所を使う)。"""
+    if not isinstance(device, dict):
+        return None
+    x = device.get("delta_gb")
+    if _num(x):
+        return float(x)
+    if _num(device.get("before_gb")) and _num(device.get("peak_gb")):
+        return float(device["peak_gb"]) - float(device["before_gb"])
+    return None
+
+
+def submission_delta_gb(mm: Any, vram_gb: Any = None) -> float | None:
+    """提出の measurement(辞書)の GPU 全体の増分(GiB)。measurement.device から、無い古い提出は bench の
+    note(device_from_note)から。0 以下・分からないものは None。表示 / 照合用で、ファイルは変えない。
+    note は提出する人が書ける文なので、device_of と同じ上限(GPU の総量 × DEVICE_VRAM_RATIO)を当て、
+    超えれば None。総量(vram_gb。無ければ mm の gpu_vram_gb)が分からなければ note は読まない。"""
+    if not isinstance(mm, dict):
+        return None
+    d = mm.get("device")
+    if not isinstance(d, dict):
+        if mm.get("vram_metric") != "torch_reserved":
+            return None
+        total = vram_gb if vram_gb is not None else mm.get("gpu_vram_gb")
+        if not (_num(total) and total > 0):
+            return None
+        d = device_from_note(mm.get("note"))
+        if d is None or d["delta_gb"] > total * DEVICE_VRAM_RATIO:
+            return None
+    x = device_delta_gb(d)
+    return x if x is not None and x > 0 else None
+
+
+def _formula_full(entry: Any, settings: Settings | None) -> tuple[float, Any, Any] | None:
+    """(式の全部載せの見積もり, 精度を当てた部品, 係数)。見積もりは GiB で実測でずらさない
+    (estimate.formula_need の full)。提出の照合(_check_against_estimate)が使う。部品が分からない・
+    計算できないときは None。"""
+    from .estimate import apply_precision, components, formula_need, load_coefficients, settings_for
+
+    if entry is None:
+        return None
+    parts = components(entry)
+    if parts.unknown:
+        return None
+    c = load_coefficients()
+    try:
+        s = settings_for(entry, settings)
+        parts = apply_precision(parts, entry, s)
+        full = formula_need(entry, s, c, parts).full
+    except (TypeError, ValueError, AttributeError, KeyError, ZeroDivisionError):
+        return None
+    if not (_num(full) and full > 0):
+        return None
+    return float(full), parts, c
+
+
+def is_dynamic_torch(mm: Any) -> bool:
+    """動的 VRAM で torch の確保量を最大 VRAM にした実測か(重みを含まない。#100、estimate.working_only)。"""
+    return (
+        isinstance(mm, dict) and mm.get("offload") == "dynamic" and mm.get("vram_metric") == "torch_reserved"
+    )
 
 
 def device_of(m: Any) -> dict[str, Any] | None:
@@ -2915,7 +2981,7 @@ def _check_measurement(r: Report, mm: dict[str, Any], vram: Any, ram: Any, db: D
             ),
         )
     if entry is not None and outcome == "ok" and _num(peak) and peak > 0 and mm.get("spilled") is not True:
-        _check_against_estimate(r, entry, mm, s, peak)
+        _check_against_estimate(r, entry, mm, s, peak, vram)
     if entry is not None:
         mod = entry.modality
         if mod not in MODALITIES:
@@ -2963,39 +3029,47 @@ def _check_measurement(r: Report, mm: dict[str, Any], vram: Any, ram: Any, db: D
 
 
 def _check_against_estimate(
-    r: Report, entry: Any, mm: dict[str, Any], s: dict[str, Any], peak: float
+    r: Report, entry: Any, mm: dict[str, Any], s: dict[str, Any], peak: float, gpu_vram: Any = None
 ) -> None:
     """式の見積もりと比べ、ありそうにない値を注意にする(失敗にはしない。マージするメンテナが見る)。"""
-    from .estimate import apply_precision, components, formula_need, load_coefficients, settings_for
-
-    parts = components(entry)
-    if parts.unknown:
-        return
-    c = load_coefficients()
     try:
-        settings = settings_for(entry, Settings.from_dict({k: v for k, v in s.items() if k in SETTINGS_KEYS}))
-        parts = apply_precision(parts, entry, settings)
-        n = formula_need(entry, settings, c, parts)
-        full = n.full
+        settings = Settings.from_dict({k: v for k, v in s.items() if k in SETTINGS_KEYS})
     except (TypeError, ValueError):
         return
-    # 作業用メモリだけの実測(torch_reserved かつ動的 VRAM。#100、estimate.working_only)は重みを含まないので、
-    # 式の作業用メモリ(一番重い段)と比べる。見積もりにも段階にも使わず、照合だけに使う
-    if mm.get("vram_metric") == "torch_reserved" and mm.get("offload") == "dynamic":
-        work = n.act
-        if work > 0 and abs(peak - work) / work > NOTICE_DEVIATION:
-            r.notice(
-                "deviation",
-                tr(
-                    f"作業用メモリだけの実測(動的 VRAM の torch の確保量。照合だけに使う){peak} GB が、式の"
-                    f"作業用メモリ {work:.2f} GB から {abs(peak - work) / work:.0%} 外れています"
-                    f"(±{NOTICE_DEVIATION:.0%} を超えた。見積もりにも段階にも使わない)",
-                    "The working-memory-only measurement (torch reservation with dynamic VRAM; cross-check"
-                    f" only), {peak} GB, is {abs(peak - work) / work:.0%} off the formula's working memory"
-                    f" of {work:.2f} GB"
-                    f" (beyond ±{NOTICE_DEVIATION:.0%}; not used for estimates or levels)",
-                ),
+    got = _formula_full(entry, settings)
+    if got is None:
+        return
+    full, parts, c = got
+    # 作業用メモリだけの実測(torch_reserved かつ動的 VRAM。#100、estimate.working_only)は重みを含まず、
+    # VAE の decode なども入るので、式の作業用メモリ(n.act)とは同じ量でない。見積もり(full)と比べられるのは
+    # GPU 全体の増分(measurement.device。無ければ note)だけ。動的 VRAM は空きに合わせて重みを載せるので、
+    # GPU が埋まったとき(device.peak_gb が総量の 90% 以上)は増分が見積もりより小さくても知らせない。
+    # 増分が分からなければ照合しない。見積もりにも段階にも使わない
+    # note から読んだ古い提出は最大(peak_gb)が分からず、device はあっても GPU の総量が分からない提出は割合が
+    # 出せないので、どちらも埋まったかを決められず、小さい側は知らせない
+    if is_dynamic_torch(mm):
+        delta = submission_delta_gb(mm, gpu_vram)
+        if delta is not None and full > 0:
+            dev = mm.get("device")
+            dev_peak = dev.get("peak_gb") if isinstance(dev, dict) else None
+            filled = (
+                not _num(dev_peak)
+                or not (_num(gpu_vram) and gpu_vram > 0)
+                or dev_peak >= gpu_vram * DYNAMIC_FILLED_RATIO
             )
+            off = abs(delta - full) / full
+            if off > NOTICE_DEVIATION and not (filled and delta < full):
+                r.notice(
+                    "deviation",
+                    tr(
+                        f"GPU 全体の増分 {delta:.2f} GB(動的 VRAM。照合だけに使う)が、式の見積もり"
+                        f" {full:.2f} GB から {off:.0%} 外れています"
+                        f"(±{NOTICE_DEVIATION:.0%} を超えた。見積もりにも段階にも使わない)",
+                        f"The whole-GPU increase of {delta:.2f} GB (dynamic VRAM; cross-check only) is"
+                        f" {off:.0%} off the formula estimate of {full:.2f} GB"
+                        f" (beyond ±{NOTICE_DEVIATION:.0%}; not used for estimates or levels)",
+                    ),
+                )
     elif full > 0 and abs(peak - full) / full > NOTICE_DEVIATION:
         r.notice(
             "deviation",
@@ -3727,13 +3801,7 @@ def aggregate_device(used: list[tuple[str, Measurement]]) -> dict[str, Any] | No
     出どころの数、from_note は note から読んだ提出の数(0 でも書く)。使える提出が無いときは None
     (行に device を書かない)。"""
 
-    def delta(d: dict[str, Any]) -> float | None:
-        x = d.get("delta_gb")
-        if _num(x):
-            return float(x)
-        if _num(d.get("before_gb")) and _num(d.get("peak_gb")):
-            return float(d["peak_gb"]) - float(d["before_gb"])
-        return None
+    delta = device_delta_gb
 
     have = [(src, d) for src, m in used if (d := device_of(m)) is not None]
     counts = Counter(d.get("tool") for _, d in have if d.get("tool") in DEVICE_TOOLS)

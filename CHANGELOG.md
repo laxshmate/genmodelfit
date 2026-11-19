@@ -17,9 +17,22 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
-- Submitted measurement files (and the JSON in a measurement Issue) that are nested more than 64 levels deep are
-  rejected as "nested too deeply" on every Python and OS (#215). The check used to rely on Python's JSON reader
-  running out of recursion, and Python 3.15 on Linux reads 30,000 levels without an error.
+- Submitted measurement files (and the JSON in a measurement Issue) nested more than 64 levels deep are
+  rejected as "nested too deeply" on every Python and OS (#215). The check used to rely on Python's JSON
+  reader running out of recursion, and Python 3.15 on Linux reads 30,000 levels without an error.
+- **Dynamic-VRAM submissions show the whole-GPU increase first** (#217). With ComfyUI 0.19's default dynamic
+  VRAM, the torch reservation (`peak_vram_gb`) is only part of the working memory and leaves out the weights,
+  so "Peak VRAM 2.28 GiB" in `share`, `measure`, `bench` and `contrib show` was misleading next to an estimate
+  of 6.25. They now print "Whole-GPU increase: 6.46 GiB (dynamic VRAM; compare this with the estimate)" first
+  and the torch reservation on its own line (in GiB). When the increase is unknown, the line says the value is
+  only part of the working memory. The submission file and the meaning of `peak_vram_gb` are unchanged.
+- **The `deviation` notice no longer fires on almost every dynamic-VRAM submission** (#217). The torch
+  reservation was compared with the formula's working memory (114% off on a real RTX 3070 submission), but it
+  also holds the VAE decode and more. A dynamic-VRAM submission is now checked by its whole-GPU increase
+  against the formula's all-in estimate (±40%), and not at all when the increase is unknown. An increase below
+  the estimate is not reported when the GPU was filled (`device.peak_gb` at 90% or more of the GPU total;
+  dynamic VRAM loads only what fits), or when the peak or the GPU total is unknown (an old submission whose
+  increase is read from its `note`; a value above the GPU total × 1.05 there is not used).
 
 ## [0.15.1] - 2026-11-19
 

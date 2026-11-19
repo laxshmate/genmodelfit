@@ -951,7 +951,7 @@ Template: `name`、`title`、`category`、`min_comfyui_version`、`open_source`�
 | `gpu_vram_gb` | float | VRAM の合計。bench は `/system_stats` の `vram_total` を GiB で小数 2 桁に丸めて保存する(例: `7.99`)。古い同梱の行は公称の大きさ(`16`) |
 | `offload` | str \| null | ComfyUI がモデルをどう置いたか: `none`(全部 GPU)/ `dynamic`(dynamic VRAM)/ `partial`(一部だけ読み込み)/ `lowvram`(`--lowvram` / `--novram`)/ `oom`(メモリ不足) |
 | `outcome` | str | `ok`(終わった)/ `oom`(メモリ不足)/ `error`(ほかの理由で失敗)。既定は `"ok"` |
-| `vram_metric` | str \| null | `peak_vram_gb` の取り方: `torch_reserved`(bench: ComfyUI のプロセスの torch の確保のピーク。CUDA コンテキストは除く)、または null(記録なし。同梱の RTX 5080 の行)。較正は null の行だけを使う(`calibrate.CALIBRATION_METRIC`)。#100: `torch_reserved` で `offload` が `dynamic` の行は重みを含まない(作業用メモリだけ。`estimate.working_only`)。見積もりのずらしにも段階にも使わず、照合では作業用メモリの見積もりと比べる。それ以外の `torch_reserved` の行は重みを含む(全体の下限) |
+| `vram_metric` | str \| null | `peak_vram_gb` の取り方: `torch_reserved`(bench: ComfyUI のプロセスの torch の確保のピーク。CUDA コンテキストは除く)、または null(記録なし。同梱の RTX 5080 の行)。較正は null の行だけを使う(`calibrate.CALIBRATION_METRIC`)。#100: `torch_reserved` で `offload` が `dynamic` の行は重みを含まない(作業用メモリの一部だけ。`estimate.working_only`)。見積もりのずらしにも段階にも使わず、提出の照合では GPU 全体の増分(`device`)を見積もりと比べる(#217。`share` などの表示も、増分を先に出して torch の確保量と分ける。このキーの意味は変えない)。それ以外の `torch_reserved` の行は重みを含む(全体の下限) |
 | `origin` | str \| null | (#34)`measurements_community.json` の行(ほかの利用者の提出を `contrib aggregate` でまとめたもの)は `community`。保守者の同梱の行と、この PC の bench の結果は null |
 | `n_submissions` | int \| null | community の行: グループの提出数(外れ値と OOM を含む)。ファイルには `n_outliers`、`spread_mad_gb`、`spread_rel_pct`、`peak_vram_min_gb` / `peak_vram_max_gb`、`outlier_submissions`、`submissions`(各ファイルの sha8)も残るが、読み手は無視する |
 | `n_used` | int \| null | community の行: 中央値の元になった `ok` の提出数(外れ値を除く)。0.10 までは `Estimate.sample_count` だった(0.11.0 からは `n_sources`) |
@@ -1499,7 +1499,12 @@ llmfit の `validate_community_benchmarks.py` と同じく、**機械的な確�
 - `gpu_name_form`: NVIDIA の GPU 名が名前の形に合わない(0.11.0。メンテナが確かめる。個人の名前などが入っていないか)。
 - `gpu_vram_nominal`: VRAM が名前の公称の量に合わない(0.11.0。改造品でなければ誤り)。
 - `batch_sizeless`: 大きさの入力の無いテンプレート(`estimate.NO_SIZE_INPUT`)なのに `batch` が 1 でない(0.10.1 の bench が MoGe の処理の単位を枚数と記録した。判定は batch 1 なので同じ設定の実測にならない。#90)。
-- `deviation`: ピーク VRAM が、その設定での式の全部載せの見積もりから 40% より離れている。
+- `deviation`: ピーク VRAM が、その設定での式の全部載せの見積もりから 40% より離れている。動的 VRAM の torch の確保量
+  (`offload: dynamic` かつ `vram_metric: torch_reserved`。重みを含まない)は比べず、GPU 全体の増分(`measurement.device` の
+  `peak_gb − before_gb`。無ければ `note` の「/system_stats の GPU 全体の増分」。単位は GiB)を見積もりと比べる。増分が分からない
+  ものは比べない。動的 VRAM は空きに合わせて重みを載せるので、GPU が埋まったとき(`device.peak_gb` が GPU の総量の 90% 以上)と、
+  最大が分からないとき(`note` から読んだ増分)と、GPU の総量が分からないときは、増分が見積もりより小さくても出さない(大きいときは出す)。`note` から読んだ
+  増分は、`device_of` と同じく GPU の総量 × 1.05 を超えるもの・総量が分からないものを使わない(#217)。
 - `below_weights`: `offload: none` なのにピーク VRAM が 重み + 固定の上乗せより小さい。見積もりは、これより小さい提出では作業用メモリをずらさず式の値を使う(#151。dynamic VRAM や部分的な読み込みでは、小さなピークは普通)。
 - `fit_change`: この提出だけで、提出された GPU の PC の段階が変わる。
   - 「提出された GPU の PC」= 名前・PCI 型番 ID・ベンダーが同じで、VRAM が提出の `vram_gb` と同じ。同じ名前の、ほかの公称 VRAM が分かっていればそれも含める(Intel Arc: `hardware._INTEL_XPU`。NVIDIA: `estimate.NVIDIA_VRAM_VARIANTS`、0.9.1: RTX 2060 / 3050 / 3060 / 3080 / 4060 Ti / 5060 Ti)。

@@ -354,6 +354,8 @@ def test_validate_notices_do_not_fail(key, value, code, db, tmp_path, capsys):
     確認(notices)としてジョブのまとめに出すだけで、まとめにも使う(マージするメンテナが見る)。"""
     d = good()
     _set(d, key, value)
+    if code == "deviation":  # 動的 VRAM の torch の確保量は式と比べない(#217)。比べる載せ方にする
+        d["measurement"]["offload"] = "partial"
     if key == "system.gpu.name":  # 表に無い GPU は世代・compute の照合もしない
         d["system"]["gpu"]["arch"] = d["system"]["gpu"]["compute_capability"] = None
     r = contrib.validate_submission(d, db, today=TODAY)
@@ -2113,6 +2115,7 @@ def test_share_check_refuses_ng_and_errors_only(db):
     assert why and any("privacy" in w for w in why)
     d = good()
     d["measurement"]["peak_vram_gb"] = 0.5  # 確認(deviation・below_weights)だけでは断らない
+    d["measurement"]["offload"] = "partial"  # 動的 VRAM の torch の確保量は式と比べない(#217)
     r = contrib.validate_submission(d, db, today=TODAY, check_filename=False)
     assert r.notices and contrib.share_check(contrib.privacy_checklist(d), r) == []
 
