@@ -1,0 +1,92 @@
+{
+ "contrib_schema": 3,
+ "kind": "genmodelfit-measurement",
+ "tool": {
+  "name": "genmodelfit",
+  "version": "0.16.0"
+ },
+ "date": "2026-11-19",
+ "system": {
+  "os_family": "windows",
+  "ram_total_gb": 32,
+  "gpu": {
+   "name": "NVIDIA GeForce RTX 3070",
+   "vram_gb": 8.0,
+   "arch": "ampere",
+   "compute_capability": "8.6",
+   "driver": "610.88",
+   "vendor": "nvidia",
+   "backend": "cuda"
+  }
+ },
+ "comfyui_version": "0.19.3",
+ "db": {
+  "generated_at": "2026-11-17",
+  "sha256": "d06e22489c27"
+ },
+ "measurement": {
+  "model_id": "audio_ace_step_1_5_checkpoint",
+  "settings": {
+   "seconds": 120.0,
+   "steps": 8,
+   "precision": "bf16"
+  },
+  "outcome": "ok",
+  "standard": true,
+  "offload": "dynamic",
+  "peak_vram_gb": 9.31,
+  "peak_ram_gb": 11.64,
+  "seconds": 43.2,
+  "vram_metric": "torch_reserved",
+  "note": "GPU 全体(nvidia-smi)の増分 6.06 GB(開始前 1.76 GB 使用、最大 7.82 GB)。/system_stats の GPU 全体の増分 6.05 GB。開始前に /free でモデルを解放。ComfyUI の実行時間 42.9 秒。計測 1351 回",
+  "files_fp": "73d7361e2640d05ffb401b33d21abbbc5d24dae056791a096afd7961f590508d",
+  "estimate": {
+   "fit_level": "marginal",
+   "run_mode": "sequential",
+   "vram_gb": 6.21,
+   "vram_resident_gb": 22.26,
+   "work_gb": 11.44,
+   "ram_required_gb": 7.57,
+   "seconds": 30.0,
+   "basis": "estimated",
+   "measurements": "bundled-excluding-this-gpu"
+  },
+  "timing": {
+   "queue_s": 0.05,
+   "load_s": 31.8,
+   "sampling_s": 2.0,
+   "sec_per_step": 0.25,
+   "decode_s": 9.1,
+   "save_s": null,
+   "total_s": 43.2,
+   "cold_load": true
+  },
+  "spilled": true,
+  "spilled_gb": 1.31,
+  "stages": {
+   "sampler_runs": 1,
+   "before_sampling": {
+    "peak_gb": 0.38,
+    "min_gb": 0.0,
+    "samples": 973
+   },
+   "sampling": {
+    "peak_gb": 0.38,
+    "min_gb": 0.34,
+    "samples": 29
+   },
+   "after_sampling": {
+    "peak_gb": 9.31,
+    "min_gb": 0.12,
+    "samples": 276
+   }
+  },
+  "device": {
+   "tool": "system_stats",
+   "before_gb": 1.05,
+   "peak_gb": 7.1,
+   "after_gb": 1.44,
+   "before_torch_gb": 0.0
+  }
+ }
+}
