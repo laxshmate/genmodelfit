@@ -1054,6 +1054,9 @@ def test_inside_ignores_extended_paths_of_files_being_deleted(tmp_path, monkeypa
     orig = Path.resolve
 
     def resolve(self, strict=False):
+        if str(self).startswith(EXT):
+            # 拡張パスは解決しない(\\?\UNC\srv… を本物のネットワークに問い合わせ、WinError 64 で落ちた)
+            return self
         r = orig(self, strict)
         return Path(EXT + str(r)) if self.name.endswith((".lock", ".part")) else r
 
