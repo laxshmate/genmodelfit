@@ -5,6 +5,32 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 変更の記録。書き方は Keep a Changelog にならう。
 
+## [0.16.1] - Unreleased
+
+### Fixed
+
+- **The "Unsent measurements" rows of `share` show the same VRAM amount as the content view** (#222). With
+  dynamic VRAM they printed the torch reservation (`peak_vram_gb`), which leaves out the weights and can exceed
+  the GPU total (9.31 GiB on an 8 GiB RTX 3070), next to "whole-GPU increase + fixed part 7.52 GiB" in the
+  content shown below. They now print "whole GPU 7.52 GiB" (with the amount that went to shared memory when the
+  run spilled), and "torch reserved …" when the increase is unknown. The JSON keeps `peak_vram_gb`.
+- **`share --dry-run` no longer plans models this ComfyUI cannot run** (#222). It never asks the ComfyUI for its
+  nodes, so a model that had failed with `missing_nodes` stayed in the plan run after run. It now leaves out the
+  models with such a failure record saved on this PC for the same ComfyUI version (`skipped` gains
+  `from_record: true`; versions are compared like the remeasure rows, so `v0.19.3` and `0.19.3` match). A real
+  run still decides after asking the ComfyUI (adding custom nodes does not change the version). The `measure`
+  list does the same when no ComfyUI is running.
+- The result line of `share` / `measure` / `bench` now says when the run spilled into shared memory, like
+  `contrib show` of the same run (#222). The in-memory measurement had no `spilled` mark, so the two views
+  disagreed; the mark is now decided by the same line as the submission (`contrib.spilled_gb`). No bundled
+  measurement changes.
+- Odd files in the cache's `submissions` folder (copied by hand or from an older version: `system` or
+  `system.gpu` not an object, `settings` a list, `missing_nodes` not a list) no longer stop `share`, its plan
+  screen, `share --issue` and `measure` with an exception (#222); they are skipped or shown with unknown fields.
+- README "What `share` sends" and CONTRIBUTING "What goes in" now list the whole-GPU memory use
+  (`measurement.device`) and the per-stage torch peaks (`measurement.stages`), which submissions have carried
+  since 0.15.1 (#222).
+
 ## [0.16.0] - 2026-11-19
 
 ### Changed

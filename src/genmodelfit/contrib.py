@@ -1095,7 +1095,14 @@ def device_clean(device: Any) -> bool:
 
 def measurement_view(m: Any) -> dict[str, Any]:
     """Measurement を、提出の measurement の形(辞書)の、動的 VRAM の表示・照合が読む項目だけに
-    (submission_delta_gb・dynamic_comparison。cli の表示と calibrate の精度の表)。"""
+    (submission_delta_gb・dynamic_comparison。cli の表示と calibrate の精度の表)。
+    spilled は、Measurement に印が無ければ提出を作るとき(build_submission)と同じ線で決める(share の途中経過と
+    contrib show が同じことを言うように)。"""
+    spilled = getattr(m, "spilled", None)
+    if spilled is None and getattr(m, "outcome", None) == "ok":
+        spilled = (
+            spilled_gb(getattr(m, "peak_vram_gb", None), getattr(m, "gpu_vram_gb", None)) is not None or None
+        )
     return {
         "offload": getattr(m, "offload", None),
         "vram_metric": getattr(m, "vram_metric", None),
@@ -1105,7 +1112,7 @@ def measurement_view(m: Any) -> dict[str, Any]:
         "device": getattr(m, "device", None),
         "note": getattr(m, "note", None),
         "peak_vram_gb": getattr(m, "peak_vram_gb", None),
-        "spilled": getattr(m, "spilled", None),  # 照らすか(cross_checked)
+        "spilled": spilled,  # 照らすか(cross_checked)
         "gpu_vram_gb": getattr(m, "gpu_vram_gb", None),
     }
 

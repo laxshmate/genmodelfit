@@ -1190,7 +1190,7 @@ the issue form (#113). `contrib share` is `share --issue` with `command: "contri
 | `budget_seconds` | float | `--budget` (default 300, `measure.SHARE_BUDGET_SECONDS`) |
 | `plan` | Suggestion[] | the installed suggestions to measure (the items of `measure`'s `suggestions`) |
 | `download_plan` | Suggestion[] | the suggestions that are not installed and fit the time left |
-| `skipped` | object[] | `{model_id, name, missing_nodes}`: left out because the ComfyUI lacks nodes |
+| `skipped` | object[] | `{model_id, name, missing_nodes, from_record?}`: left out because the ComfyUI lacks nodes. `from_record: true` (0.16.1) when it comes from a failure record saved on this PC with the same ComfyUI version, not from asking the ComfyUI |
 | `pending` | object[] | the unsent measurements before measuring (the items of `share --issue --json`'s `submissions`) |
 | `measured` | object[] | `{model_id, settings, outcome, peak_vram_gb, seconds, submission}` |
 | `failed` | object[] | `{model_id, settings, error}` (`model_id` null when ComfyUI could not be started) |
@@ -1218,6 +1218,10 @@ Rules:
   (installed remeasure rows still come before downloads, which use the time left after the installed ones). When a ComfyUI is reachable,
   suggestions whose template uses nodes it lacks are left out (`skipped`) and the next ones fill the budget
   (`download_plan` too). With a ComfyUI to start, this happens after it starts, and the new plan is shown.
+  `--dry-run` does not ask the ComfyUI, so it leaves out the suggestions with a `missing_nodes` failure record
+  saved on this PC for the same ComfyUI version (`from_record`; 0.16.1, `measure.saved_missing_nodes`). A real
+  run does not leave them out by the record (adding custom nodes does not change the version): the check after
+  the start decides. `measure`'s list does the same as `--dry-run` when no ComfyUI is running.
 - **Order**: plan with the total time → one `[Y/n]` (covers measuring and starting ComfyUI; `--yes` skips it) → check
   an existing token → start ComfyUI → measure one by one (`_measure_run`, the same as `measure`; a failure does not
   stop the rest; Ctrl+C goes on to sending) → show every file with the privacy checks → choose how to send

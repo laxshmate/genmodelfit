@@ -711,6 +711,59 @@ def test_dry_run_makes_no_session(capsys, monkeypatch, this_pc, plan, no_session
     assert measure.load_shared() == {}
 
 
+def _write_missing_nodes(model_id: str, version: str) -> Path:
+    """同じ PC で前に測ったときの「ノードが足りない」失敗の記録(#132 の形)。"""
+    d = json.loads(GOOD[0].read_text(encoding="utf-8"))
+    rec = {
+        "contrib_schema": d["contrib_schema"],
+        "kind": "genmodelfit-failures",
+        "tool": d["tool"],
+        "date": d["date"],
+        "comfyui_version": version,
+        "system": d["system"],
+        "failures": [{"model_id": model_id, "outcome": "missing_nodes", "missing_nodes": ["LoadMoGeModel"]}],
+    }
+    out = measure.submissions_dir() / "rtx-3070" / f"{d['date']}-{model_id[:8]}-failures.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(rec), encoding="utf-8")
+    return out
+
+
+def test_dry_run_plan_leaves_out_models_recorded_as_missing_nodes(
+    capsys, monkeypatch, this_pc, plan, no_session
+):
+    """--dry-run は ComfyUI のノードを確かめないので、同じ版の ComfyUI でノードが足りなかった記録のある
+    ものを計画から外し、理由を書く(実際の share が起動したあとで外すものと同じに見せる)。版が違えば
+    外さない。"""
+    _write_missing_nodes("c_installed", "0.19.3")
+    monkeypatch.setattr(cli, "_current_comfyui_version", lambda *a, **k: "0.19.3")
+    assert cli.main(["share", "--dry-run", "--json", "--url", "http://x:1"]) == 0
+    d = json.loads(capsys.readouterr().out)
+    # 外した分の時間で次の候補を入れる(実際の share の計画し直しと同じ)
+    assert [x["model_id"] for x in d["plan"]] == ["a_installed_short", "d_installed_too_long"]
+    assert d["skipped"] == [
+        {
+            "model_id": "c_installed",
+            "name": "c_installed",
+            "missing_nodes": ["LoadMoGeModel"],
+            "from_record": True,
+        }
+    ]
+    assert cli.main(["--lang", "ja", "share", "--dry-run", "--url", "http://x:1"]) == 0
+    assert "前に測ったときの記録" in capsys.readouterr().out
+    monkeypatch.setattr(cli, "_current_comfyui_version", lambda *a, **k: "0.20.0")  # 更新したら測れるかも
+    assert cli.main(["share", "--dry-run", "--json", "--url", "http://x:1"]) == 0
+    d = json.loads(capsys.readouterr().out)
+    assert "c_installed" in [x["model_id"] for x in d["plan"]] and d["skipped"] == []
+    assert plan["ran"] == []
+
+
+def test_saved_missing_nodes_needs_the_same_version():
+    _write_missing_nodes("m1", "0.19.3")
+    assert measure.saved_missing_nodes("0.19.3") == {"m1": ["LoadMoGeModel"]}
+    assert measure.saved_missing_nodes("0.20.0") == {} and measure.saved_missing_nodes(None) == {}
+
+
 def test_issue_flag_rules(capsys):
     assert cli.main(["share", "--print-url"]) == 2  # --print-url は --issue のときだけ(使い方の誤り)
     assert cli.main(["share", "--issue", "--dry-run"]) == 2

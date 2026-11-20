@@ -699,6 +699,10 @@ def mark_shared(data: dict[str, Any]) -> str:
     return sha
 
 
+def _dict(x: Any) -> dict[str, Any]:
+    return x if isinstance(x, dict) else {}
+
+
 @dataclass
 class SavedSubmission:
     """キャッシュの submissions にある提出 1 件。"""
@@ -709,8 +713,9 @@ class SavedSubmission:
     shared: bool
 
     def to_dict(self) -> dict[str, Any]:
-        mm = self.data.get("measurement") or {}
-        gpu = (self.data.get("system") or {}).get("gpu") or {}
+        # 形の違う(手で写した・古い版の)ファイルでも落ちない(一覧・share の画面が止まらないように)
+        mm = _dict(self.data.get("measurement"))
+        gpu = _dict(_dict(self.data.get("system")).get("gpu"))
         if isinstance(self.data.get("failures"), list):  # 失敗の記録(#132)
             return {
                 "file": str(self.path),
@@ -767,12 +772,42 @@ def saved_submissions(root: Path | None = None, *, include_shared: bool = False)
     return [s for _, s in sorted(out, key=lambda x: x[0], reverse=True)]
 
 
+def saved_missing_nodes(comfyui_version: Any, root: Path | None = None) -> dict[str, list[str]]:
+    """この PC に保存した失敗の記録(送ったものも)のうち、同じ ComfyUI の版で「ノードが足りない」だったもの:
+    {モデルの ID: 足りないノードの名前}。ComfyUI を確かめられないとき(share --dry-run・起動する前)の計画で、
+    測れないと分かっているものを外すのに使う。版が分からなければ空(更新すると測れるかもしれない)。
+    名前を送らないノード(other_nodes)は「+N」と数で書く。新しい記録を優先する。"""
+    cur = comfyui_version_text(comfyui_version)
+    if cur is None:
+        return {}
+    out: dict[str, list[str]] = {}
+    for sub in saved_submissions(root, include_shared=True):
+        items = sub.data.get("failures")
+        # 版は stale_version と同じくそろえて比べる(起動前はフォルダから、記録は /system_stats から読む)
+        if not isinstance(items, list) or comfyui_version_text(sub.data.get("comfyui_version")) != cur:
+            continue
+        for f in items:
+            if not isinstance(f, dict) or f.get("outcome") != "missing_nodes":
+                continue
+            mid = f.get("model_id")
+            if not isinstance(mid, str) or mid in out:
+                continue
+            names = sorted(str(n) for n in f.get("missing_nodes") or [] if isinstance(n, str) and n)
+            other = f.get("other_nodes")
+            if isinstance(other, int) and not isinstance(other, bool) and other > 0:
+                names.append(f"+{other}")
+            if names:
+                out[mid] = names
+    return out
+
+
 def failure_key(f: dict[str, Any], comfyui_version: Any) -> str:
     """失敗の記録 1 件の鍵(#132): 同じモデル・設定・失敗・足りないノード・エラーの種類・ComfyUI の版なら同じ。
     経過時間・最大 VRAM は入れない(同じ失敗を毎回送らないため)。"""
     if f.get("outcome") == "missing_nodes":
         # 足りないノードは設定・ComfyUI の版によらず同じこと(measure と share で二重に送らない)
-        nodes = sorted(str(n) for n in f.get("missing_nodes") or [])
+        raw = f.get("missing_nodes")
+        nodes = sorted(str(n) for n in raw) if isinstance(raw, list) else []
         return json.dumps({"m": f.get("model_id"), "n": nodes, "o": f.get("other_nodes")}, ensure_ascii=False)
     keep = ("model_id", "settings", "outcome", "missing_nodes", "error_type", "node_type")
     return json.dumps(
